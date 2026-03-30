@@ -1,0 +1,782 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}HR Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-users-cog me-2"></i>HR Dashboard
+            </h2>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-1">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Total Employees</p>
+                            <h3 class="mb-0">{{ total_employees }}</h3>
+                        </div>
+                        <div class="stat-icon bg-primary bg-opacity-10">
+                            <i class="fas fa-users text-primary fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Present Today</p>
+                            <h3 class="mb-0">{{ present_today }}</h3>
+                        </div>
+                        <div class="stat-icon bg-success bg-opacity-10">
+                            <i class="fas fa-user-check text-success fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Absent Today</p>
+                            <h3 class="mb-0">{{ absent_today }}</h3>
+                        </div>
+                        <div class="stat-icon bg-danger bg-opacity-10">
+                            <i class="fas fa-user-times text-danger fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Pending Leaves</p>
+                            <h3 class="mb-0">{{ pending_leaves }}</h3>
+                        </div>
+                        <div class="stat-icon bg-warning bg-opacity-10">
+                            <i class="fas fa-calendar-times text-warning fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#attendance">
+                <i class="fas fa-clipboard-list me-1"></i>Today's Attendance
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#leaves">
+                <i class="fas fa-calendar-alt me-1"></i>Leave Requests
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#breaklogs">
+                <i class="fas fa-coffee me-1"></i>Break Logs
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#employees">
+                <i class="fas fa-users me-1"></i>Employee Profiles
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#auditlogs">
+                <i class="fas fa-history me-1"></i>Audit Logs
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#reports">
+                <i class="fas fa-chart-bar me-1"></i>Reports
+            </a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Attendance Tab -->
+        <div class="tab-pane fade show active" id="attendance">
+            <div class="card glass-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Employee Attendance - {{ current_date|date:"F d, Y" }}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Department</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Work Hours</th>
+                                    <th>Status</th>
+                                    <th>Breaks</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for attendance in today_attendance %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar-circle me-2">
+                                                {{ attendance.employee.first_name.0|default:attendance.employee.username.0 }}
+                                            </div>
+                                            <div>
+                                                <div>{{ attendance.employee.get_full_name|default:attendance.employee.username }}</div>
+                                                <small class="text-muted">{{ attendance.employee.username }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>{{ attendance.employee.employeeprofile.department }}</td>
+                                    <td>{{ attendance.check_in|time:"h:i A"|default:"-" }}</td>
+                                    <td>{{ attendance.check_out|time:"h:i A"|default:"-" }}</td>
+                                    <td>{{ attendance.get_work_hours_display }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ attendance.status }}">
+                                            {{ attendance.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-info">{{ attendance.breaks.count }}</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">No attendance records for today</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leave Requests Tab -->
+        <div class="tab-pane fade" id="leaves">
+            <div class="card glass-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Pending Leave Requests</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Days</th>
+                                    <th>Reason</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in pending_leave_requests %}
+                                <tr>
+                                    <td>{{ leave.employee.get_full_name|default:leave.employee.username }}</td>
+                                    <td>{{ leave.get_leave_type_display }}</td>
+                                    <td>{{ leave.start_date|date:"M d, Y" }}</td>
+                                    <td>{{ leave.end_date|date:"M d, Y" }}</td>
+                                    <td>{{ leave.total_days }}</td>
+                                    <td>{{ leave.reason|truncatewords:10 }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-success" onclick="approveLeave({{ leave.id }})">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        <button class="btn btn-sm btn-danger" onclick="rejectLeave({{ leave.id }})">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">No pending leave requests</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Break Logs Tab -->
+        <div class="tab-pane fade" id="breaklogs">
+            <div class="card glass-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-coffee me-2"></i>Employee Break Logs</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Filters -->
+                    <form method="get" action="{% url 'hr_dashboard' %}" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label text-white">Filter by Period</label>
+                                <select name="break_period" class="form-select" onchange="this.form.submit()">
+                                    <option value="today" {% if request.GET.break_period == 'today' %}selected{% endif %}>Today</option>
+                                    <option value="week" {% if request.GET.break_period == 'week' %}selected{% endif %}>This Week</option>
+                                    <option value="month" {% if request.GET.break_period == 'month' %}selected{% endif %}>This Month</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label text-white">Search Employee ID</label>
+                                <input type="text" name="employee_search" class="form-control" placeholder="Enter Employee ID" value="{{ request.GET.employee_search }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-white">&nbsp;</label>
+                                <button type="submit" class="btn btn-info w-100">
+                                    <i class="fas fa-search me-1"></i>Search
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-white">&nbsp;</label>
+                                <a href="{% url 'hr_dashboard' %}" class="btn btn-secondary w-100">
+                                    <i class="fas fa-redo me-1"></i>Reset
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Break Logs Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Employee ID</th>
+                                    <th>Employee Name</th>
+                                    <th>Date</th>
+                                    <th>Break Type</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Duration</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for break_log in break_logs %}
+                                <tr>
+                                    <td><strong>{{ break_log.attendance.employee.employeeprofile.employee_id }}</strong></td>
+                                    <td>{{ break_log.attendance.employee.get_full_name|default:break_log.attendance.employee.username }}</td>
+                                    <td>{{ break_log.break_start|date:"M d, Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if break_log.break_type == 'tea' %}bg-info{% else %}bg-warning{% endif %}">
+                                            {{ break_log.get_break_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ break_log.break_start|time:"h:i A" }}</td>
+                                    <td>
+                                        {% if break_log.break_end %}
+                                            {{ break_log.break_end|time:"h:i A" }}
+                                        {% else %}
+                                            <span class="badge bg-warning">Ongoing</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if break_log.duration_minutes %}
+                                            {{ break_log.duration_minutes }} min
+                                            {% if break_log.duration_minutes > 60 %}
+                                                <i class="fas fa-exclamation-triangle text-warning ms-1" title="Long break"></i>
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if not break_log.break_end %}
+                                            <span class="badge bg-warning">Active</span>
+                                        {% elif break_log.duration_minutes > 60 %}
+                                            <span class="badge bg-danger">Exceeded</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center text-muted py-4">No break logs found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Employee Profiles Tab -->
+        <div class="tab-pane fade" id="employees">
+            <div class="card glass-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>All Employee Profiles</h5>
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                        <i class="fas fa-user-plus me-2"></i>Add New User
+                    </button>
+                </div>
+                <div class="card-body">
+                    <!-- Search and Filter -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <input type="text" id="employeeSearch" class="form-control" placeholder="Search by name or ID...">
+                        </div>
+                        <div class="col-md-3">
+                            <select id="departmentFilter" class="form-select">
+                                <option value="">All Departments</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept }}">{{ dept }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Employee Cards -->
+                    <div class="row" id="employeeCards">
+                        {% for emp in all_employees %}
+                        <div class="col-md-6 col-lg-4 mb-4 employee-card" 
+                             data-name="{{ emp.user.get_full_name|default:emp.user.username|lower }}" 
+                             data-id="{{ emp.employee_id|lower }}"
+                             data-dept="{{ emp.department|lower }}">
+                            <div class="card glass-card h-100">
+                                <div class="card-body">
+                                    <div class="d-flex align-items-center mb-3">
+                                        <div class="avatar-circle me-3" style="width: 50px; height: 50px; font-size: 1.5rem;">
+                                            {{ emp.user.first_name.0|default:emp.user.username.0 }}
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-0 text-white">{{ emp.user.get_full_name|default:emp.user.username }}</h6>
+                                            <small class="text-muted">{{ emp.employee_id|default:"No ID" }}</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted">Department:</small>
+                                        <p class="mb-1 text-white">{{ emp.department|default:"Not set" }}</p>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted">Designation:</small>
+                                        <p class="mb-1 text-white">{{ emp.designation|default:"Not set" }}</p>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted">Email:</small>
+                                        <p class="mb-1 text-white">{{ emp.user.email|default:"Not set" }}</p>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted">Phone:</small>
+                                        <p class="mb-1 text-white">{{ emp.phone_number|default:"Not set" }}</p>
+                                    </div>
+                                    
+                                    <div class="mb-2">
+                                        <small class="text-muted">Date of Joining:</small>
+                                        <p class="mb-1 text-white">{{ emp.date_of_joining|date:"M d, Y"|default:"Not set" }}</p>
+                                    </div>
+                                    
+                                    <div class="d-flex gap-2 mt-2">
+                                        <button class="btn btn-sm btn-primary flex-fill" onclick="viewEmployeeDetails('{{ emp.user.id }}')">
+                                            <i class="fas fa-eye me-1"></i>View Details
+                                        </button>
+                                        {% if not emp.user.is_superuser %}
+                                        <button class="btn btn-sm btn-danger" onclick="deleteUser('{{ emp.user.id }}', '{{ emp.user.get_full_name|default:emp.user.username }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <p class="text-center text-muted">No employees found</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Audit Logs Tab -->
+        <div class="tab-pane fade" id="auditlogs">
+            <div class="card glass-card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>System Audit Logs</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Filters -->
+                    <form method="get" action="{% url 'hr_dashboard' %}" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label text-white">Filter by Action</label>
+                                <select name="audit_action" class="form-select" onchange="this.form.submit()">
+                                    <option value="">All Actions</option>
+                                    <option value="login" {% if request.GET.audit_action == 'login' %}selected{% endif %}>Login</option>
+                                    <option value="logout" {% if request.GET.audit_action == 'logout' %}selected{% endif %}>Logout</option>
+                                    <option value="check_in" {% if request.GET.audit_action == 'check_in' %}selected{% endif %}>Check In</option>
+                                    <option value="check_out" {% if request.GET.audit_action == 'check_out' %}selected{% endif %}>Check Out</option>
+                                    <option value="user_create" {% if request.GET.audit_action == 'user_create' %}selected{% endif %}>User Created</option>
+                                    <option value="user_delete" {% if request.GET.audit_action == 'user_delete' %}selected{% endif %}>User Deleted</option>
+                                    <option value="leave_request" {% if request.GET.audit_action == 'leave_request' %}selected{% endif %}>Leave Request</option>
+                                    <option value="leave_approve" {% if request.GET.audit_action == 'leave_approve' %}selected{% endif %}>Leave Approved</option>
+                                    <option value="leave_reject" {% if request.GET.audit_action == 'leave_reject' %}selected{% endif %}>Leave Rejected</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label text-white">Filter by User</label>
+                                <input type="text" name="audit_user" class="form-control" placeholder="Username" value="{{ request.GET.audit_user }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label text-white">Date</label>
+                                <input type="date" name="audit_date" class="form-control" value="{{ request.GET.audit_date }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label text-white">&nbsp;</label>
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-info flex-fill">
+                                        <i class="fas fa-search me-1"></i>Filter
+                                    </button>
+                                    <a href="{% url 'hr_dashboard' %}" class="btn btn-secondary">
+                                        <i class="fas fa-redo"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Audit Logs Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>User</th>
+                                    <th>Action</th>
+                                    <th>Description</th>
+                                    <th>IP Address</th>
+                                    <th>Target User</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in audit_logs %}
+                                <tr>
+                                    <td>{{ log.timestamp|date:"M d, Y h:i A" }}</td>
+                                    <td>
+                                        <strong>{{ log.user.username|default:"System" }}</strong>
+                                        {% if log.user %}
+                                        <br><small class="text-muted">{{ log.user.get_full_name|default:"-" }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge 
+                                            {% if log.action == 'login' %}bg-success
+                                            {% elif log.action == 'logout' %}bg-secondary
+                                            {% elif log.action == 'check_in' %}bg-info
+                                            {% elif log.action == 'check_out' %}bg-primary
+                                            {% elif log.action == 'user_create' %}bg-success
+                                            {% elif log.action == 'user_delete' %}bg-danger
+                                            {% elif log.action == 'leave_approve' %}bg-success
+                                            {% elif log.action == 'leave_reject' %}bg-danger
+                                            {% else %}bg-warning
+                                            {% endif %}">
+                                            {{ log.get_action_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ log.description }}</td>
+                                    <td><small class="text-muted">{{ log.ip_address|default:"-" }}</small></td>
+                                    <td>
+                                        {% if log.target_user %}
+                                        <small>{{ log.target_user.username }}</small>
+                                        {% else %}
+                                        -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No audit logs found</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    {% if audit_logs.has_other_pages %}
+                    <nav aria-label="Audit logs pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if audit_logs.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ audit_logs.previous_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ audit_logs.number }} of {{ audit_logs.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if audit_logs.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ audit_logs.next_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}">Next</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div class="tab-pane fade" id="reports">
+            <div class="row">
+                <div class="col-lg-6 mb-4">
+                    <div class="card glass-card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Monthly Attendance Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="attendanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 mb-4">
+                    <div class="card glass-card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Department-wise Attendance</h5>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="departmentChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function approveLeave(leaveId) {
+    if (confirm('Approve this leave request?')) {
+        fetch(`/attendance/leave/approve/${leaveId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        });
+    }
+}
+
+function rejectLeave(leaveId) {
+    const comment = prompt('Reason for rejection (optional):');
+    fetch(`/attendance/leave/reject/${leaveId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ comment: comment })
+    }).then(response => {
+        if (response.ok) {
+            location.reload();
+        }
+    });
+}
+
+// Charts
+const attendanceCtx = document.getElementById('attendanceChart');
+if (attendanceCtx) {
+    new Chart(attendanceCtx, {
+        type: 'line',
+        data: {
+            labels: {{ chart_labels|safe }},
+            datasets: [{
+                label: 'Present',
+                data: {{ chart_data|safe }},
+                borderColor: 'rgb(75, 192, 192)',
+                tension: 0.1
+            }]
+        }
+    });
+}
+
+const departmentCtx = document.getElementById('departmentChart');
+if (departmentCtx) {
+    new Chart(departmentCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ dept_labels|safe }},
+            datasets: [{
+                data: {{ dept_data|safe }},
+                backgroundColor: [
+                    'rgb(255, 99, 132)',
+                    'rgb(54, 162, 235)',
+                    'rgb(255, 205, 86)',
+                    'rgb(75, 192, 192)'
+                ]
+            }]
+        }
+    });
+}
+
+// Employee search and filter
+document.getElementById('employeeSearch')?.addEventListener('input', filterEmployees);
+document.getElementById('departmentFilter')?.addEventListener('change', filterEmployees);
+
+function filterEmployees() {
+    const searchTerm = document.getElementById('employeeSearch').value.toLowerCase();
+    const deptFilter = document.getElementById('departmentFilter').value.toLowerCase();
+    const cards = document.querySelectorAll('.employee-card');
+    
+    cards.forEach(card => {
+        const name = card.dataset.name;
+        const id = card.dataset.id;
+        const dept = card.dataset.dept;
+        
+        const matchesSearch = name.includes(searchTerm) || id.includes(searchTerm);
+        const matchesDept = !deptFilter || dept === deptFilter;
+        
+        if (matchesSearch && matchesDept) {
+            card.style.display = '';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function viewEmployeeDetails(userId) {
+    // Redirect to a detailed view or open modal
+    window.location.href = `/attendance/employee/${userId}/details/`;
+}
+
+function deleteUser(userId, userName) {
+    if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+        fetch(`/attendance/user/delete/${userId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        }).then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('User deleted successfully');
+                location.reload();
+            } else {
+                alert('Error: ' + (data.message || 'Failed to delete user'));
+            }
+        }).catch(error => {
+            alert('Error deleting user');
+            console.error(error);
+        });
+    }
+}
+</script>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-white" id="addUserModalLabel">
+                    <i class="fas fa-user-plus me-2"></i>Add New User
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" action="{% url 'add_user' %}" id="addUserForm">
+                    {% csrf_token %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Only @arraafiinfotech.com email addresses are allowed
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="new_employee_id" class="form-label">Employee ID</label>
+                            <input type="text" class="form-control" id="new_employee_id" name="employee_id" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="new_email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="new_email" name="email" pattern=".*@arraafiinfotech\.com$" title="Only @arraafiinfotech.com emails allowed" required>
+                            <small class="text-muted">Must end with @arraafiinfotech.com</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="new_first_name" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="new_first_name" name="first_name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="new_last_name" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="new_last_name" name="last_name" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="new_password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="new_password" name="password" minlength="6" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="new_department" class="form-label">Department</label>
+                            <input type="text" class="form-control" id="new_department" name="department">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="new_designation" class="form-label">Designation</label>
+                            <input type="text" class="form-control" id="new_designation" name="designation">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="new_phone" class="form-label">Phone Number</label>
+                            <input type="tel" class="form-control" id="new_phone" name="phone_number">
+                        </div>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="new_is_hr" name="is_hr">
+                        <label class="form-check-label" for="new_is_hr">
+                            Make this user an HR
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" form="addUserForm" class="btn btn-success">
+                    <i class="fas fa-user-plus me-2"></i>Add User
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

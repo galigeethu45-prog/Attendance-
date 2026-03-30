@@ -1,0 +1,21 @@
+#!/bin/bash
+
+echo "========================================"
+echo "Auto Checkout Setup for Linux/Mac"
+echo "========================================"
+echo ""
+echo "This will help you set up a cron job to run auto-checkout at 7 PM daily."
+echo ""
+echo "OPTION 1: Using Crontab (Recommended)"
+echo "----------------------------------------"
+echo "Run: crontab -e"
+echo "Add this line:"
+echo "0 19 * * * cd $(pwd) && $(pwd)/venv/bin/python manage.py auto_checkout >> $(pwd)/auto_checkout.log 2>&1"
+echo ""
+echo "OPTION 2: Manual Command (For Testing)"
+echo "----------------------------------------"
+echo "Run this command to test auto-checkout:"
+echo "python manage.py auto_checkout"
+echo ""
+echo "Press Enter to continue..."
+read

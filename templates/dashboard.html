@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard - Attendance System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <h2 class="text-white mb-2" style="font-weight: 700;">Welcome, {{ user.get_full_name|default:user.username }}! 👋</h2>
+            <p class="text-white" style="opacity: 0.9;">{{ current_date|date:"l, F d, Y" }}</p>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="card action-card glass-card fade-in-delay-1">
+                <div class="card-body text-center">
+                    {% if not today_attendance or not today_attendance.check_in %}
+                    <div class="action-icon bg-success">
+                        <i class="fas fa-door-open"></i>
+                    </div>
+                    <h5 class="card-title text-white">Check In</h5>
+                    <p class="text-muted small">Start your day</p>
+                    <form method="post" action="{% url 'check_in' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-play me-1"></i>Check In
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="action-icon bg-success">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h5 class="card-title text-white">Checked In</h5>
+                    <p class="text-muted small">{{ today_attendance.check_in|time:"h:i A" }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card action-card glass-card fade-in-delay-2">
+                <div class="card-body text-center">
+                    {% if today_attendance.check_in and not today_attendance.check_out %}
+                    <div class="action-icon bg-danger">
+                        <i class="fas fa-door-closed"></i>
+                    </div>
+                    <h5 class="card-title text-white">Check Out</h5>
+                    <p class="text-muted small">End your day</p>
+                    <form method="post" action="{% url 'check_out' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger btn-sm">
+                            <i class="fas fa-stop me-1"></i>Check Out
+                        </button>
+                    </form>
+                    {% elif today_attendance.check_out %}
+                    <div class="action-icon bg-danger">
+                        <i class="fas fa-check-double"></i>
+                    </div>
+                    <h5 class="card-title text-white">Checked Out</h5>
+                    <p class="text-muted small">{{ today_attendance.check_out|time:"h:i A" }}</p>
+                    {% else %}
+                    <div class="action-icon bg-secondary">
+                        <i class="fas fa-door-closed"></i>
+                    </div>
+                    <h5 class="card-title text-white">Check Out</h5>
+                    <p class="text-muted small">Check in first</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card action-card glass-card fade-in-delay-3">
+                <div class="card-body text-center">
+                    {% if active_break %}
+                    <div class="action-icon bg-warning">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <h5 class="card-title text-white">On Break</h5>
+                    <p class="text-muted small">{{ active_break.break_type|title }}</p>
+                    <form method="post" action="{% url 'end_break' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-warning btn-sm">
+                            <i class="fas fa-play me-1"></i>End Break
+                        </button>
+                    </form>
+                    {% elif today_attendance.check_in and not today_attendance.check_out %}
+                    <div class="action-icon bg-info">
+                        <i class="fas fa-mug-hot"></i>
+                    </div>
+                    <h5 class="card-title text-white">Take Break</h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <form method="post" action="{% url 'start_break' 'tea' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-info btn-sm" {% if tea_count >= 2 %}disabled{% endif %}>
+                                Tea ({{ tea_count }}/2)
+                            </button>
+                        </form>
+                        <form method="post" action="{% url 'start_break' 'lunch' %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-info btn-sm" {% if lunch_count >= 1 %}disabled{% endif %}>
+                                Lunch ({{ lunch_count }}/1)
+                            </button>
+                        </form>
+                    </div>
+                    {% else %}
+                    <div class="action-icon bg-secondary">
+                        <i class="fas fa-mug-hot"></i>
+                    </div>
+                    <h5 class="card-title text-white">Take Break</h5>
+                    <p class="text-muted small">Check in first</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-lg-3">
+            <div class="card action-card glass-card fade-in-delay-4">
+                <div class="card-body text-center">
+                    <div class="action-icon bg-primary">
+                        <i class="fas fa-business-time"></i>
+                    </div>
+                    <h5 class="card-title text-white">Work Hours</h5>
+                    <p class="text-muted small">Today</p>
+                    
+                    {% if today_attendance %}
+                        {% if today_attendance.check_out %}
+                            <h4 class="text-white mb-2">{{ today_attendance.get_work_hours_display|default:"0h 0m" }}</h4>
+                        {% elif today_attendance.check_in %}
+                            <h4 class="text-white mb-2" id="live-hours">Calculating...</h4>
+                            <!-- Progress Bar -->
+                            <div class="progress mb-2" style="height: 12px;">
+                                <div class="progress-bar bg-warning" role="progressbar" id="hours-progress" style="width: 0%"></div>
+                            </div>
+                            <small class="text-white" id="progress-text">0% of 7.5 hours</small>
+                        {% else %}
+                            <h4 class="text-white mb-2">0h 0m</h4>
+                        {% endif %}
+                    {% else %}
+                        <h4 class="text-white mb-2">0h 0m</h4>
+                        <small class="text-muted">Check in to start</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Row -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-1">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">This Month</p>
+                            <h3 class="mb-0 text-white">{{ monthly_stats.present_days }}</h3>
+                            <small class="text-success">Present Days</small>
+                        </div>
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">This Month</p>
+                            <h3 class="mb-0 text-white">{{ monthly_stats.total_hours|floatformat:1 }}h</h3>
+                            <small class="text-primary">Total Hours</small>
+                        </div>
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">This Month</p>
+                            <h3 class="mb-0 text-white">{{ monthly_stats.late_days }}</h3>
+                            <small class="text-warning">Late Arrivals</small>
+                        </div>
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-clock-rotate-left"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Unread</p>
+                            <h3 class="mb-0 text-white">{{ unread_notifications }}</h3>
+                            <small class="text-info">Notifications</small>
+                        </div>
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card glass-card fade-in-delay-1">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Attendance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Hours</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in recent_attendance %}
+                                <tr>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td>{{ record.check_in|time:"h:i A"|default:"-" }}</td>
+                                    <td>{{ record.check_out|time:"h:i A"|default:"-" }}</td>
+                                    <td>{{ record.get_work_hours_display }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ record.status|lower }}">
+                                            {{ record.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No attendance records yet</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card glass-card fade-in-delay-2">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Notifications</h5>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% for notification in recent_notifications %}
+                    <div class="notification-item {% if not notification.is_read %}unread{% endif %} mb-3 p-3 rounded">
+                        <p class="mb-1">{{ notification.message }}</p>
+                        <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+                    </div>
+                    {% empty %}
+                    <p class="text-center text-muted">No notifications</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+// Real-time work hours calculation
+{% if today_attendance.check_in and not today_attendance.check_out %}
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Starting work hours tracker...');
+    // Parse check-in time - Django outputs in ISO format with timezone
+    const checkInTime = new Date('{{ today_attendance.check_in|date:"c" }}');
+    console.log('Check-in time (parsed):', checkInTime);
+    console.log('Current time:', new Date());
+    
+    function updateWorkHours() {
+        const now = new Date();
+        const diffMs = now - checkInTime;
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        
+        console.log(`Work time: ${diffHours}h ${diffMinutes}m`);
+        
+        // Update display
+        const liveHoursElement = document.getElementById('live-hours');
+        if (liveHoursElement) {
+            liveHoursElement.textContent = `${diffHours}h ${diffMinutes}m`;
+        }
+        
+        // Calculate progress (7.5 hours = 450 minutes for full day)
+        const totalMinutes = (diffHours * 60) + diffMinutes;
+        const fullDayMinutes = 450; // 7.5 hours
+        
+        let progress = (totalMinutes / fullDayMinutes) * 100;
+        if (progress > 100) progress = 100;
+        
+        console.log(`Progress: ${progress}%`);
+        
+        // Update progress bar
+        const progressBar = document.getElementById('hours-progress');
+        const progressText = document.getElementById('progress-text');
+        
+        if (progressBar) {
+            progressBar.style.width = progress + '%';
+            
+            // Change color based on progress
+            if (progress >= 100) {
+                progressBar.className = 'progress-bar bg-success';
+                if (progressText) progressText.textContent = '✓ Full day completed!';
+            } else if (progress >= 60) {
+                progressBar.className = 'progress-bar bg-info';
+                if (progressText) progressText.textContent = Math.round(progress) + '% of 7.5 hours';
+            } else {
+                progressBar.className = 'progress-bar bg-warning';
+                if (progressText) progressText.textContent = Math.round(progress) + '% of 7.5 hours';
+            }
+        }
+    }
+    
+    // Update immediately and then every 10 seconds (for testing) and every minute
+    updateWorkHours();
+    setInterval(updateWorkHours, 10000); // Update every 10 seconds
+});
+{% else %}
+console.log('Work hours tracker not started - check_in: {{ today_attendance.check_in }}, check_out: {{ today_attendance.check_out }}');
+{% endif %}
+</script>
+{% endblock %}

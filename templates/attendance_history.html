@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Attendance History{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-history me-2"></i>Attendance History
+            </h2>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card glass-card mb-4 fade-in-delay-1">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="month" class="form-label text-white">Month</label>
+                    <select class="form-select" id="month" name="month">
+                        <option value="">All Months</option>
+                        <option value="1" {% if selected_month == "1" %}selected{% endif %}>January</option>
+                        <option value="2" {% if selected_month == "2" %}selected{% endif %}>February</option>
+                        <option value="3" {% if selected_month == "3" %}selected{% endif %}>March</option>
+                        <option value="4" {% if selected_month == "4" %}selected{% endif %}>April</option>
+                        <option value="5" {% if selected_month == "5" %}selected{% endif %}>May</option>
+                        <option value="6" {% if selected_month == "6" %}selected{% endif %}>June</option>
+                        <option value="7" {% if selected_month == "7" %}selected{% endif %}>July</option>
+                        <option value="8" {% if selected_month == "8" %}selected{% endif %}>August</option>
+                        <option value="9" {% if selected_month == "9" %}selected{% endif %}>September</option>
+                        <option value="10" {% if selected_month == "10" %}selected{% endif %}>October</option>
+                        <option value="11" {% if selected_month == "11" %}selected{% endif %}>November</option>
+                        <option value="12" {% if selected_month == "12" %}selected{% endif %}>December</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="year" class="form-label text-white">Year</label>
+                    <select class="form-select" id="year" name="year">
+                        {% for year in years %}
+                        <option value="{{ year }}" {% if selected_year == year|stringformat:"s" %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label text-white">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">All Status</option>
+                        <option value="present" {% if selected_status == "present" %}selected{% endif %}>Present</option>
+                        <option value="late" {% if selected_status == "late" %}selected{% endif %}>Late</option>
+                        <option value="half-day" {% if selected_status == "half-day" %}selected{% endif %}>Half Day</option>
+                        <option value="absent" {% if selected_status == "absent" %}selected{% endif %}>Absent</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-info flex-grow-1">
+                        <i class="fas fa-filter me-1"></i>Filter
+                    </button>
+                    <a href="{% url 'attendance_history' %}" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="card glass-card fade-in-delay-2">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Records</h5>
+            <button class="btn btn-sm btn-success" onclick="exportToCSV()">
+                <i class="fas fa-download me-1"></i>Export CSV
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover" id="attendanceTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Day</th>
+                            <th>Check In</th>
+                            <th>Check Out</th>
+                            <th>Work Hours</th>
+                            <th>Breaks</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in attendance_records %}
+                        <tr>
+                            <td>{{ record.date|date:"M d, Y" }}</td>
+                            <td>{{ record.date|date:"l" }}</td>
+                            <td>{{ record.check_in|time:"h:i A"|default:"-" }}</td>
+                            <td>{{ record.check_out|time:"h:i A"|default:"-" }}</td>
+                            <td>{{ record.get_work_hours_display }}</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#breakModal{{ record.id }}">
+                                    <i class="fas fa-coffee me-1"></i>{{ record.breaks.count }}
+                                </button>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ record.status }}">
+                                    {{ record.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+
+                        <!-- Break Details Modal -->
+                        <div class="modal fade" id="breakModal{{ record.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Break Details - {{ record.date|date:"M d, Y" }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        {% if record.breaks.all %}
+                                        <table class="table table-sm">
+                                            <thead>
+                                                <tr>
+                                                    <th>Type</th>
+                                                    <th>Start</th>
+                                                    <th>End</th>
+                                                    <th>Duration</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for break in record.breaks.all %}
+                                                <tr>
+                                                    <td>{{ break.get_break_type_display }}</td>
+                                                    <td>{{ break.break_start|time:"h:i A" }}</td>
+                                                    <td>{{ break.break_end|time:"h:i A"|default:"-" }}</td>
+                                                    <td>
+                                                        {{ break.duration_minutes }} min
+                                                        {% if break.is_exceeded %}
+                                                        <i class="fas fa-exclamation-triangle text-warning" title="Exceeded limit"></i>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                        {% else %}
+                                        <p class="text-muted text-center">No breaks taken</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No attendance records found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1">First</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportToCSV() {
+    const table = document.getElementById('attendanceTable');
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+    
+    for (let row of rows) {
+        const cols = row.querySelectorAll('td, th');
+        let csvRow = [];
+        for (let col of cols) {
+            if (col.cellIndex !== 5) { // Skip breaks column
+                csvRow.push(col.innerText);
+            }
+        }
+        csv.push(csvRow.join(','));
+    }
+    
+    const csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
+    const downloadLink = document.createElement('a');
+    downloadLink.download = 'attendance_history.csv';
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = 'none';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+}
+</script>
+{% endblock %}

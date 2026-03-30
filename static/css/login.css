@@ -1,0 +1,104 @@
+/* Base Reset and Body Styles */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #ecf0f3; /* The key neumorphic base color */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* The Main Card */
+.wrapper {
+    width: 350px;
+    padding: 40px;
+    border-radius: 20px;
+    background-color: #ecf0f3;
+    /* Outer shadow: one light, one dark to create the extruded look */
+    box-shadow: 14px 14px 20px #cbced1, -14px -14px 20px white;
+}
+
+/* Text Formatting */
+.title {
+    text-align: center;
+    font-size: 26px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+}
+
+.subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #777;
+    margin-bottom: 35px;
+}
+
+/* Input Fields (Concave effect) */
+.input-field {
+    width: 100%;
+    padding: 18px 20px;
+    border: none;
+    outline: none;
+    background: #ecf0f3;
+    border-radius: 50px;
+    /* Inner shadow creates the "pressed in" look */
+    box-shadow: inset 6px 6px 6px #cbced1, inset -6px -6px 6px white;
+    font-size: 14px;
+    margin-bottom: 25px;
+    box-sizing: border-box;
+    color: #555;
+}
+
+.input-field::placeholder {
+    color: #a0a5a8;
+}
+
+/* Buttons (Convex effect) */
+.btn {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    outline: none;
+    background: #ecf0f3;
+    border-radius: 50px;
+    box-shadow: 6px 6px 6px #cbced1, -6px -6px 6px white;
+    font-size: 15px;
+    font-weight: bold;
+    color: #d15b7e; /* Matches the reddish tint from your reference image */
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    margin-top: 10px;
+}
+
+/* Button Click Animation */
+.btn:active {
+    box-shadow: inset 6px 6px 6px #cbced1, inset -6px -6px 6px white;
+}
+
+/* Toggle Link Formatting */
+.toggle-link {
+    text-align: center;
+    margin-top: 25px;
+    font-size: 13px;
+    color: #777;
+}
+
+.toggle-link span {
+    color: #d15b7e;
+    cursor: pointer;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.toggle-link span:hover {
+    text-decoration: underline;
+}
+
+/* Utility to hide sections */
+.hidden {
+    display: none;
+}

@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Leave Request{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-calendar-alt me-2"></i>Leave Management
+            </h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card glass-card mb-4 fade-in-delay-1">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Request Leave</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'leave_request' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="leave_type" class="form-label">Leave Type</label>
+                            <select class="form-select" id="leave_type" name="leave_type" required>
+                                <option value="">Select Type</option>
+                                <option value="sick">Sick Leave</option>
+                                <option value="casual">Casual Leave</option>
+                                <option value="vacation">Vacation</option>
+                                <option value="emergency">Emergency</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-paper-plane me-2"></i>Submit Request
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Leave Balance -->
+            <div class="card glass-card fade-in-delay-2">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Leave Balance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Sick Leave</span>
+                            <span class="fw-bold">{{ leave_balance.sick }}/12</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" style="width: {{ leave_balance.sick_percent }}%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Casual Leave</span>
+                            <span class="fw-bold">{{ leave_balance.casual }}/15</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: {{ leave_balance.casual_percent }}%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Vacation</span>
+                            <span class="fw-bold">{{ leave_balance.vacation }}/20</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" style="width: {{ leave_balance.vacation_percent }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card glass-card fade-in-delay-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>My Leave Requests</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in leave_requests %}
+                                <tr>
+                                    <td>{{ leave.get_leave_type_display }}</td>
+                                    <td>{{ leave.start_date|date:"M d, Y" }}</td>
+                                    <td>{{ leave.end_date|date:"M d, Y" }}</td>
+                                    <td>{{ leave.total_days }}</td>
+                                    <td>
+                                        {% if leave.status == 'pending' %}
+                                        <span class="badge bg-warning">Pending</span>
+                                        {% elif leave.status == 'approved' %}
+                                        <span class="badge bg-success">Approved</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Rejected</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if leave.status == 'pending' %}
+                                        <button class="btn btn-sm btn-outline-danger" onclick="cancelLeave({{ leave.id }})">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ leave.id }}">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+
+                                <!-- Detail Modal -->
+                                <div class="modal fade" id="detailModal{{ leave.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Leave Request Details</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p><strong>Type:</strong> {{ leave.get_leave_type_display }}</p>
+                                                <p><strong>Duration:</strong> {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }}</p>
+                                                <p><strong>Total Days:</strong> {{ leave.total_days }}</p>
+                                                <p><strong>Reason:</strong> {{ leave.reason }}</p>
+                                                <p><strong>Status:</strong> 
+                                                    <span class="badge bg-{{ leave.status }}">{{ leave.get_status_display }}</span>
+                                                </p>
+                                                {% if leave.hr_comment %}
+                                                <p><strong>HR Comment:</strong> {{ leave.hr_comment }}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No leave requests yet</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function cancelLeave(leaveId) {
+    if (confirm('Are you sure you want to cancel this leave request?')) {
+        fetch(`/attendance/leave/cancel/${leaveId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            }
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        });
+    }
+}
+
+// Set minimum date to today
+document.getElementById('start_date').min = new Date().toISOString().split('T')[0];
+document.getElementById('end_date').min = new Date().toISOString().split('T')[0];
+
+// Update end date minimum when start date changes
+document.getElementById('start_date').addEventListener('change', function() {
+    document.getElementById('end_date').min = this.value;
+});
+</script>
+{% endblock %}

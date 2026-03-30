@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Overtime{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-clock me-2"></i>Overtime (OT) Management
+            </h2>
+            <p class="text-white" style="opacity: 0.9;">Request OT permission and track your overtime hours</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Request OT Permission -->
+        <div class="col-lg-6">
+            <div class="card glass-card fade-in-delay-1">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-paper-plane me-2"></i>Request OT Permission</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'overtime' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="request_ot">
+                        <div class="mb-3">
+                            <label for="ot_date" class="form-label">OT Date</label>
+                            <input type="date" class="form-control" id="ot_date" name="ot_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="reason" class="form-label">Reason for OT</label>
+                            <textarea class="form-control" id="reason" name="reason" rows="3" placeholder="Why do you need overtime?" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-paper-plane me-2"></i>Submit Request
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Stats -->
+        <div class="col-lg-6">
+            <div class="card glass-card fade-in-delay-2">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>This Month</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-4">
+                        <h1 class="display-3 text-white mb-0">{{ monthly_ot|floatformat:1 }}</h1>
+                        <p class="text-white">Total OT Hours</p>
+                    </div>
+                    <div class="progress" style="height: 20px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ monthly_ot|floatformat:0 }}%" aria-valuenow="{{ monthly_ot }}" aria-valuemin="0" aria-valuemax="100">
+                            {{ monthly_ot|floatformat:1 }}h
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active OT Session -->
+    {% if active_ot %}
+    <div class="card glass-card mb-4 fade-in-delay-3">
+        <div class="card-header bg-warning">
+            <h5 class="mb-0"><i class="fas fa-hourglass-half me-2"></i>Active OT Session</h5>
+        </div>
+        <div class="card-body text-center">
+            <div class="mb-4">
+                <h4 class="text-white">OT In Progress</h4>
+                <p class="text-white">Date: {{ active_ot.date|date:"M d, Y" }}</p>
+                <p class="text-white">Started at: {{ active_ot.start_time|time:"h:i A" }}</p>
+                <div id="ot-timer" class="display-4 text-white mb-4">00:00:00</div>
+            </div>
+            <form method="post" action="{% url 'overtime' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="end_ot">
+                <input type="hidden" name="ot_id" value="{{ active_ot.id }}">
+                <button type="submit" class="btn btn-danger btn-lg">
+                    <i class="fas fa-stop me-2"></i>End OT
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Approved OT - Ready to Start -->
+    {% if approved_pending_start %}
+    <div class="card glass-card mb-4 fade-in-delay-4">
+        <div class="card-header bg-success">
+            <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Approved OT - Ready to Start</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Reason</th>
+                            <th>Approved By</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ot in approved_pending_start %}
+                        <tr>
+                            <td>{{ ot.date|date:"M d, Y" }}</td>
+                            <td>{{ ot.reason|truncatewords:10 }}</td>
+                            <td>{{ ot.hr_approver.get_full_name|default:ot.hr_approver.username|default:"-" }}</td>
+                            <td>
+                                <form method="post" action="{% url 'overtime' %}" class="d-inline">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="start_ot">
+                                    <input type="hidden" name="ot_id" value="{{ ot.id }}">
+                                    <button type="submit" class="btn btn-success btn-sm">
+                                        <i class="fas fa-play me-1"></i>Start OT
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- OT History -->
+    <div class="card glass-card fade-in-delay-5">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-history me-2"></i>OT History</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Reason</th>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Total Hours</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ot in ot_records %}
+                        <tr>
+                            <td>{{ ot.date|date:"M d, Y" }}</td>
+                            <td>{{ ot.reason|truncatewords:5 }}</td>
+                            <td>{{ ot.start_time|time:"h:i A"|default:"-" }}</td>
+                            <td>{{ ot.end_time|time:"h:i A"|default:"-" }}</td>
+                            <td>{{ ot.get_ot_hours_display }}</td>
+                            <td>
+                                {% if ot.status == 'pending' %}
+                                <span class="badge bg-pending">
+                                    <i class="fas fa-clock me-1"></i>Pending
+                                </span>
+                                {% elif ot.status == 'approved' %}
+                                <span class="badge bg-approved">
+                                    <i class="fas fa-check me-1"></i>Approved
+                                </span>
+                                {% elif ot.status == 'rejected' %}
+                                <span class="badge bg-rejected">
+                                    <i class="fas fa-times me-1"></i>Rejected
+                                </span>
+                                {% elif ot.status == 'completed' %}
+                                <span class="badge bg-info">
+                                    <i class="fas fa-check-double me-1"></i>Completed
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if ot.status != 'pending' %}
+                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#otDetailModal{{ ot.id }}">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                        </tr>
+                        
+                        <!-- OT Detail Modal -->
+                        <div class="modal fade" id="otDetailModal{{ ot.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Overtime Details</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
+                                        <p><strong>Reason:</strong> {{ ot.reason }}</p>
+                                        <p><strong>Duration:</strong> {{ ot.start_time|time:"h:i A"|default:"-" }} to {{ ot.end_time|time:"h:i A"|default:"-" }}</p>
+                                        <p><strong>Total Hours:</strong> {{ ot.get_ot_hours_display }}</p>
+                                        <p><strong>Status:</strong> 
+                                            {% if ot.status == 'pending' %}
+                                            <span class="badge bg-pending">Pending</span>
+                                            {% elif ot.status == 'approved' %}
+                                            <span class="badge bg-approved">Approved</span>
+                                            {% elif ot.status == 'rejected' %}
+                                            <span class="badge bg-rejected">Rejected</span>
+                                            {% elif ot.status == 'completed' %}
+                                            <span class="badge bg-info">Completed</span>
+                                            {% endif %}
+                                        </p>
+                                        {% if ot.hr_approver %}
+                                        <p><strong>Reviewed By:</strong> {{ ot.hr_approver.get_full_name|default:ot.hr_approver.username }}</p>
+                                        {% endif %}
+                                        {% if ot.hr_comment %}
+                                        <p><strong>HR Comment:</strong> {{ ot.hr_comment }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-white">No OT records yet</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Set minimum date to today
+document.getElementById('ot_date').min = new Date().toISOString().split('T')[0];
+
+{% if active_ot %}
+// OT Timer
+function updateOTTimer() {
+    const startTime = new Date('{{ active_ot.start_time|date:"c" }}');
+    const now = new Date();
+    const diff = now - startTime;
+    
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    
+    document.getElementById('ot-timer').textContent = 
+        String(hours).padStart(2, '0') + ':' + 
+        String(minutes).padStart(2, '0') + ':' + 
+        String(seconds).padStart(2, '0');
+}
+
+updateOTTimer();
+setInterval(updateOTTimer, 1000);
+{% endif %}
+</script>
+{% endblock %}

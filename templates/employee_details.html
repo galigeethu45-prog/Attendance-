@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Employee Details - {{ employee_user.get_full_name|default:employee_user.username }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <a href="{% url 'hr_dashboard' %}" class="btn btn-secondary mb-3">
+                <i class="fas fa-arrow-left me-2"></i>Back to HR Dashboard
+            </a>
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-user-circle me-2"></i>Employee Details
+            </h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Profile Card -->
+        <div class="col-lg-4">
+            <div class="card glass-card mb-4 fade-in-delay-1">
+                <div class="card-body text-center">
+                    <div class="avatar-circle mx-auto mb-3" style="width: 100px; height: 100px; font-size: 3rem;">
+                        {{ employee_user.first_name.0|default:employee_user.username.0 }}
+                    </div>
+                    <h4 class="text-white">{{ employee_user.get_full_name|default:employee_user.username }}</h4>
+                    <p class="text-muted">@{{ employee_user.username }}</p>
+                    <p class="mb-1"><strong>Employee ID:</strong> {{ employee_profile.employee_id|default:"Not set" }}</p>
+                    <p class="mb-1"><strong>Department:</strong> {{ employee_profile.department|default:"Not set" }}</p>
+                    <p class="mb-1"><strong>Designation:</strong> {{ employee_profile.designation|default:"Not set" }}</p>
+                    {% if employee_profile.is_hr %}
+                    <span class="badge bg-primary mt-2">HR</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Contact Information -->
+            <div class="card glass-card mb-4 fade-in-delay-2">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-address-card me-2"></i>Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Email</small>
+                        <p class="mb-0 text-white">{{ employee_user.email|default:"Not provided" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Phone Number</small>
+                        <p class="mb-0 text-white">{{ employee_profile.phone_number|default:"Not provided" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Alternate Phone</small>
+                        <p class="mb-0 text-white">{{ employee_profile.alternate_phone|default:"Not provided" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Date of Birth</small>
+                        <p class="mb-0 text-white">{{ employee_profile.date_of_birth|date:"M d, Y"|default:"Not provided" }}</p>
+                    </div>
+                    <div class="mb-0">
+                        <small class="text-muted">Blood Group</small>
+                        <p class="mb-0 text-white">{{ employee_profile.blood_group|default:"Not provided" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details and Statistics -->
+        <div class="col-lg-8">
+            <!-- Performance Overview -->
+            <div class="card glass-card mb-4 fade-in-delay-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Performance Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 bg-light rounded">
+                                <h3 class="text-success mb-0">{{ total_present }}</h3>
+                                <small class="text-muted">Present Days</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 bg-light rounded">
+                                <h3 class="text-warning mb-0">{{ total_late }}</h3>
+                                <small class="text-muted">Late Arrivals</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 bg-light rounded">
+                                <h3 class="text-info mb-0">{{ total_half_day }}</h3>
+                                <small class="text-muted">Half Days</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 bg-light rounded">
+                                <h3 class="text-primary mb-0">{{ total_hours|floatformat:1 }}h</h3>
+                                <small class="text-muted">Total Hours</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Personal Information -->
+            <div class="card glass-card mb-4 fade-in-delay-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Personal Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Local Address</small>
+                            <p class="mb-0 text-white">{{ employee_profile.local_address|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Permanent Address</small>
+                            <p class="mb-0 text-white">{{ employee_profile.permanent_address|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Aadhar Number</small>
+                            <p class="mb-0 text-white">{{ employee_profile.aadhar_number|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">PAN Number</small>
+                            <p class="mb-0 text-white">{{ employee_profile.pan_number|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Date of Joining</small>
+                            <p class="mb-0 text-white">{{ employee_profile.date_of_joining|date:"M d, Y"|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Account Created</small>
+                            <p class="mb-0 text-white">{{ employee_user.date_joined|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Attendance -->
+            <div class="card glass-card mb-4 fade-in-delay-5">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Recent Attendance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Work Hours</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in recent_attendance %}
+                                <tr>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td>{{ record.check_in|time:"h:i A"|default:"-" }}</td>
+                                    <td>{{ record.check_out|time:"h:i A"|default:"-" }}</td>
+                                    <td>{{ record.get_work_hours_display }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ record.status }}">
+                                            {{ record.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No attendance records</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leave Requests -->
+            <div class="card glass-card fade-in-delay-6">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-times me-2"></i>Recent Leave Requests</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in leave_requests %}
+                                <tr>
+                                    <td>{{ leave.get_leave_type_display }}</td>
+                                    <td>{{ leave.start_date|date:"M d, Y" }}</td>
+                                    <td>{{ leave.end_date|date:"M d, Y" }}</td>
+                                    <td>{{ leave.total_days }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ leave.status }}">
+                                            {{ leave.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No leave requests</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
