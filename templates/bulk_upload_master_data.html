@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Bulk Upload Master Data{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-upload me-2"></i>Bulk Upload Employee Master Data
+            </h2>
+            <p class="text-muted">Upload multiple employees at once using CSV file</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card glass-card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-csv me-2"></i>Upload CSV File
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" action="{% url 'bulk_upload_master_data' %}">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="csv_file" class="form-label text-white">
+                                <i class="fas fa-file-upload me-2"></i>Select CSV File
+                            </label>
+                            <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+                            <small class="text-muted">Only .csv files are accepted</small>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Before uploading:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>Download the CSV template below</li>
+                                <li>Fill in all employee details</li>
+                                <li>Save as CSV format</li>
+                                <li>Upload the file</li>
+                            </ul>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <a href="{% static 'templates/employee_master_data_template.csv' %}" class="btn btn-outline-info" download>
+                                <i class="fas fa-download me-2"></i>Download CSV Template
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload me-2"></i>Upload & Process
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card glass-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-question-circle me-2"></i>Instructions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6 class="text-white">CSV Format Requirements:</h6>
+                    <ul class="text-muted small">
+                        <li><strong>Date Format:</strong> DD-MMM-YYYY<br>(e.g., 15-Aug-1995)</li>
+                        <li><strong>Phone:</strong> 10 digits only</li>
+                        <li><strong>Aadhaar:</strong> 12 digits, no spaces</li>
+                        <li><strong>PAN:</strong> ABCDE1234F format</li>
+                        <li><strong>Email:</strong> Valid email address</li>
+                        <li><strong>Gender:</strong> male/female/other</li>
+                        <li><strong>Blood Group:</strong> A+, A-, B+, B-, AB+, AB-, O+, O-</li>
+                    </ul>
+
+                    <h6 class="text-white mt-3">Required Columns:</h6>
+                    <ul class="text-muted small">
+                        <li>ID Number</li>
+                        <li>First Name, Last Name</li>
+                        <li>Gender, Date of Birth</li>
+                        <li>Department, Designation</li>
+                        <li>Joining Date</li>
+                        <li>Phone No, Email</li>
+                        <li>Local Address, Permanent Address</li>
+                        <li>Aadhaar Card No, PAN Number</li>
+                        <li>Blood Group</li>
+                    </ul>
+
+                    <h6 class="text-white mt-3">Optional Columns:</h6>
+                    <ul class="text-muted small">
+                        <li>Middle Name</li>
+                        <li>Alternate Phone No</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card glass-card">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>Sample Data Format
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered">
+                    <thead>
+                        <tr class="table-dark">
+                            <th>ID Number</th>
+                            <th>First Name</th>
+                            <th>Last Name</th>
+                            <th>Gender</th>
+                            <th>Date of Birth</th>
+                            <th>Email</th>
+                            <th>...</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>EMP001</td>
+                            <td>John</td>
+                            <td>Doe</td>
+                            <td>male</td>
+                            <td>15-Aug-1995</td>
+                            <td>john@arraafiinfotech.com</td>
+                            <td>...</td>
+                        </tr>
+                        <tr>
+                            <td>EMP002</td>
+                            <td>Jane</td>
+                            <td>Smith</td>
+                            <td>female</td>
+                            <td>20-Mar-1992</td>
+                            <td>jane@arraafiinfotech.com</td>
+                            <td>...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <small class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                This is a simplified view. Download the template for complete column list.
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Show file name when selected
+document.getElementById('csv_file').addEventListener('change', function(e) {
+    const fileName = e.target.files[0]?.name;
+    if (fileName) {
+        console.log('Selected file:', fileName);
+    }
+});
+</script>
+{% endblock %}

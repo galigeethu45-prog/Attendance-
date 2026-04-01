@@ -7,8 +7,127 @@ from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from datetime import datetime, timedelta, time as dt_time
-from .models import Attendance, BreakLog, Notification, BREAK_RULES, LeaveRequest, EmployeeProfile, Overtime, AuditLog
+from .models import Attendance, BreakLog, Notification, BREAK_RULES, LeaveRequest, EmployeeProfile, Overtime, AuditLog, WFHRequest, EmployeeMasterData
 from django.contrib.auth.models import User
+
+
+# =========================
+# NETWORK DETECTION & WFH VALIDATION
+# =========================
+def get_wifi_ssid():
+    """
+    Detect current WiFi SSID
+    Returns: SSID string or None if not connected to WiFi
+    """
+    import subprocess
+    import platform
+    
+    try:
+        system = platform.system()
+        
+        if system == 'Windows':
+            # Windows: netsh wlan show interfaces
+            result = subprocess.run(
+                ['netsh', 'wlan', 'show', 'interfaces'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            for line in result.stdout.split('\n'):
+                if 'SSID' in line and 'BSSID' not in line:
+                    parts = line.split(':', 1)
+                    if len(parts) == 2:
+                        ssid = parts[1].strip()
+                        if ssid:  # Make sure it's not empty
+                            return ssid
+        
+        elif system == 'Linux':
+            # Linux: iwgetid -r
+            result = subprocess.run(
+                ['iwgetid', '-r'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            ssid = result.stdout.strip()
+            return ssid if ssid else None
+        
+        elif system == 'Darwin':  # macOS
+            # macOS: airport -I
+            result = subprocess.run(
+                ['/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport', '-I'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            for line in result.stdout.split('\n'):
+                if ' SSID:' in line:
+                    parts = line.split(':', 1)
+                    if len(parts) == 2:
+                        ssid = parts[1].strip()
+                        if ssid:
+                            return ssid
+        
+        return None
+    
+    except Exception as e:
+        print(f"Error detecting WiFi: {e}")
+        return None
+
+
+def is_on_office_network():
+    """
+    Check if user is on office WiFi (Regus)
+    Returns: Boolean
+    """
+    OFFICE_SSID = "Regus"  # Hardcoded for security
+    current_ssid = get_wifi_ssid()
+    
+    if current_ssid is None:
+        return False
+    
+    return current_ssid.lower() == OFFICE_SSID.lower()
+
+
+def has_approved_wfh_today(user):
+    """
+    Check if user has approved WFH for today
+    Returns: Boolean
+    """
+    today = timezone.now().date()
+    
+    approved_wfh = WFHRequest.objects.filter(
+        employee=user,
+        status='approved',
+        start_date__lte=today,
+        end_date__gte=today
+    ).exists()
+    
+    return approved_wfh
+
+
+def can_check_in_from_location(user):
+    """
+    Validate if user can check-in from current location
+    Returns: (Boolean, String) - (can_check_in, reason)
+    """
+    # HR/Admin bypass network restrictions
+    try:
+        if user.is_superuser or user.employeeprofile.is_hr:
+            return (True, "HR/Admin access")
+    except EmployeeProfile.DoesNotExist:
+        pass
+    
+    # Check if on office network
+    if is_on_office_network():
+        return (True, "Office network (Regus WiFi)")
+    
+    # Check if has approved WFH for today
+    if has_approved_wfh_today(user):
+        return (True, "Approved WFH")
+    
+    # Not allowed
+    return (False, "You must be on office WiFi (Regus) or have approved WFH to check-in")
 
 
 # =========================
@@ -41,51 +160,81 @@ def register_view(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
-        employee_id = request.POST.get('employee_id')
-        email = request.POST.get('email')
+        employee_id = request.POST.get('employee_id', '').strip()
+        email = request.POST.get('email', '').strip().lower()
+        date_of_birth = request.POST.get('date_of_birth', '').strip()
         password = request.POST.get('password')
         confirm_password = request.POST.get('confirm_password')
         
-        # Email domain validation
-        if not email.endswith('@arraafiinfotech.com'):
-            messages.error(request, 'Only @arraafiinfotech.com email addresses are allowed!')
+        # Validation
+        if not all([employee_id, email, date_of_birth, password, confirm_password]):
+            messages.error(request, 'All fields are required!')
             return render(request, 'register.html')
         
-        # Validation
         if password != confirm_password:
             messages.error(request, 'Passwords do not match!')
             return render(request, 'register.html')
         
-        # Check if username (employee_id) already exists
-        if User.objects.filter(username=employee_id).exists():
-            messages.error(request, 'Employee ID already exists!')
+        # Validate against master data
+        try:
+            from datetime import datetime
+            dob_obj = datetime.strptime(date_of_birth, '%Y-%m-%d').date()
+            
+            master_data = EmployeeMasterData.objects.get(
+                employee_id=employee_id,
+                email__iexact=email,
+                date_of_birth=dob_obj
+            )
+            
+            # Check if account already created
+            if master_data.account_created:
+                messages.error(request, 'An account already exists for this Employee ID!')
+                return render(request, 'register.html')
+            
+            # Create user account
+            user = User.objects.create_user(
+                username=employee_id,
+                email=email,
+                password=password,
+                first_name=master_data.first_name,
+                last_name=master_data.last_name
+            )
+            
+            # Link master data to user
+            master_data.linked_user = user
+            master_data.account_created = True
+            master_data.save()
+            
+            # Create employee profile from master data
+            EmployeeProfile.objects.create(
+                user=user,
+                employee_id=employee_id,
+                date_of_birth=master_data.date_of_birth,
+                blood_group=master_data.blood_group,
+                phone_number=master_data.phone_number,
+                alternate_phone=master_data.alternate_phone or '',
+                local_address=master_data.local_address,
+                permanent_address=master_data.permanent_address,
+                aadhar_number=master_data.aadhar_number,
+                pan_number=master_data.pan_number,
+                department=master_data.department,
+                designation=master_data.designation,
+                date_of_joining=master_data.date_of_joining,
+                profile_completed=False  # Still need to complete profile
+            )
+            
+            messages.success(request, 'Registration successful! Please login and complete your profile.')
+            return redirect('login')
+            
+        except EmployeeMasterData.DoesNotExist:
+            messages.error(request, 'Details Entered Are Not Within Our Organization. Please contact HR if you believe this is an error.')
             return render(request, 'register.html')
-        
-        # Check if employee_id already exists in profiles
-        if EmployeeProfile.objects.filter(employee_id=employee_id).exists():
-            messages.error(request, 'Employee ID already exists!')
+        except ValueError:
+            messages.error(request, 'Invalid date format. Please use the date picker.')
             return render(request, 'register.html')
-        
-        if User.objects.filter(email=email).exists():
-            messages.error(request, 'Email already registered!')
+        except Exception as e:
+            messages.error(request, f'An error occurred during registration. Please try again.')
             return render(request, 'register.html')
-        
-        # Create user
-        user = User.objects.create_user(
-            username=employee_id,
-            email=email,
-            password=password
-        )
-        
-        # Create employee profile
-        EmployeeProfile.objects.create(
-            user=user,
-            employee_id=employee_id,
-            profile_completed=False
-        )
-        
-        messages.success(request, 'Registration successful! Please login.')
-        return redirect('login')
     
     return render(request, 'register.html')
 
@@ -232,18 +381,34 @@ def dashboard(request):
             break_end__isnull=True
         ).first()
     
-    # Break counts for today
-    tea_count = 0
+    # Break counts for today - separate morning and evening tea
+    tea_morning_count = 0
+    tea_evening_count = 0
     lunch_count = 0
     if today_attendance:
-        tea_count = BreakLog.objects.filter(
+        tea_morning_count = BreakLog.objects.filter(
             attendance=today_attendance,
-            break_type='tea'
+            break_type='tea',
+            time_slot='morning'
+        ).count()
+        tea_evening_count = BreakLog.objects.filter(
+            attendance=today_attendance,
+            break_type='tea',
+            time_slot='evening'
         ).count()
         lunch_count = BreakLog.objects.filter(
             attendance=today_attendance,
             break_type='lunch'
         ).count()
+        
+        # Handle old records without time_slot (count as morning for safety)
+        tea_no_slot_count = BreakLog.objects.filter(
+            attendance=today_attendance,
+            break_type='tea',
+            time_slot__isnull=True
+        ).count()
+        if tea_no_slot_count > 0:
+            tea_morning_count += tea_no_slot_count
     
     # Monthly statistics
     monthly_attendance = Attendance.objects.filter(
@@ -256,6 +421,7 @@ def dashboard(request):
         'present_days': monthly_attendance.filter(status='present').count(),
         'late_days': monthly_attendance.filter(status='late').count(),
         'total_hours': monthly_attendance.aggregate(Sum('total_work_hours'))['total_work_hours__sum'] or 0,
+        'absent_days': monthly_attendance.filter(status='absent').count(),
     }
     
     # Recent attendance (last 7 days)
@@ -273,11 +439,41 @@ def dashboard(request):
         is_read=False
     ).count()
     
+    # Check current time for break button availability
+    import pytz
+    local_tz = pytz.timezone('Asia/Kolkata')
+    current_time = timezone.now().astimezone(local_tz).time()
+    current_hour = current_time.hour
+    current_minute = current_time.minute
+    
+    # Determine which tea slot is currently active
+    is_morning_tea_time = (10 <= current_hour < 11)
+    is_evening_tea_time = (current_hour == 16 and current_minute <= 45)
+    
+    # Tea break allowed if in time window AND haven't taken break for that slot yet
+    tea_break_allowed = False
+    if is_morning_tea_time and tea_morning_count == 0:
+        tea_break_allowed = True
+    elif is_evening_tea_time and tea_evening_count == 0:
+        tea_break_allowed = True
+    
+    # Lunch break allowed: 1:00 PM - 1:45 PM
+    lunch_break_allowed = (current_hour == 13 and current_minute <= 45) and lunch_count == 0
+    
+    # Total tea count for display
+    tea_count = tea_morning_count + tea_evening_count
+    
     context = {
         'today_attendance': today_attendance,
         'active_break': active_break,
         'tea_count': tea_count,
+        'tea_morning_count': tea_morning_count,
+        'tea_evening_count': tea_evening_count,
         'lunch_count': lunch_count,
+        'tea_break_allowed': tea_break_allowed,
+        'lunch_break_allowed': lunch_break_allowed,
+        'is_morning_tea_time': is_morning_tea_time,
+        'is_evening_tea_time': is_evening_tea_time,
         'monthly_stats': monthly_stats,
         'recent_attendance': recent_attendance,
         'recent_notifications': recent_notifications,
@@ -294,6 +490,14 @@ def dashboard(request):
 @login_required
 def check_in(request):
     if request.method == 'POST':
+        # Validate location/network
+        can_check_in, reason = can_check_in_from_location(request.user)
+        
+        if not can_check_in:
+            messages.error(request, reason)
+            messages.info(request, 'Please submit a WFH request or come to office.')
+            return redirect('dashboard')
+        
         today = timezone.now().date()
         
         attendance, created = Attendance.objects.get_or_create(
@@ -312,20 +516,20 @@ def check_in(request):
             
             # Determine status based on check-in time (9:30 AM IST cutoff)
             if check_in_time.hour > 9 or (check_in_time.hour == 9 and check_in_time.minute > 30):
-                attendance.status = 'late'
-                log_action(request.user, 'check_in', f'Checked in late at {check_in_time.strftime("%I:%M %p")}', request)
-                messages.warning(request, f'You are late today! Checked in at {check_in_time.strftime("%I:%M %p")}')
+                attendance.status = 'half-day'  # Mark as half-day immediately
+                log_action(request.user, 'check_in', f'Checked in late at {check_in_time.strftime("%I:%M %p")} from {reason} - Marked as half-day', request)
+                messages.warning(request, f'Late Checked-In at {check_in_time.strftime("%I:%M %p")}, Considered as Half Day Leave')
                 
                 # Notify HR about late arrival
                 hr_users = User.objects.filter(employeeprofile__is_hr=True)
                 for hr_user in hr_users:
                     Notification.objects.create(
                         employee=hr_user,
-                        message=f'{request.user.get_full_name() or request.user.username} (ID: {request.user.employeeprofile.employee_id}) checked in late at {check_in_time.strftime("%I:%M %p")}'
+                        message=f'{request.user.get_full_name() or request.user.username} (ID: {request.user.employeeprofile.employee_id}) checked in late at {check_in_time.strftime("%I:%M %p")} - Marked as half-day'
                     )
             else:
                 attendance.status = 'present'
-                log_action(request.user, 'check_in', f'Checked in on time at {check_in_time.strftime("%I:%M %p")}', request)
+                log_action(request.user, 'check_in', f'Checked in on time at {check_in_time.strftime("%I:%M %p")} from {reason}', request)
                 messages.success(request, f'Checked in successfully at {check_in_time.strftime("%I:%M %p")}!')
             
             attendance.save()
@@ -341,6 +545,14 @@ def check_in(request):
 @login_required
 def check_out(request):
     if request.method == 'POST':
+        # Validate location/network
+        can_check_out, reason = can_check_in_from_location(request.user)
+        
+        if not can_check_out:
+            messages.error(request, reason)
+            messages.info(request, 'You must be on office WiFi or have approved WFH to check-out.')
+            return redirect('dashboard')
+        
         today = timezone.now().date()
         
         try:
@@ -365,12 +577,9 @@ def check_out(request):
                 attendance.calculate_work_hours()
                 
                 # Log check-out
-                log_action(request.user, 'check_out', f'Checked out - Total hours: {attendance.get_work_hours_display()}', request)
+                log_action(request.user, 'check_out', f'Checked out from {reason} - Total hours: {attendance.get_work_hours_display()}', request)
                 
-                # Determine if half-day based on work hours
-                if attendance.total_work_hours < 4:
-                    attendance.status = 'half-day'
-                    attendance.save()
+                # Note: calculate_work_hours() already handles status, no need to override
                 
                 messages.success(request, f'Checked out successfully! Total work hours: {attendance.get_work_hours_display()}')
             else:
@@ -403,6 +612,63 @@ def start_break(request, break_type):
             messages.error(request, 'You have already checked out.')
             return redirect('dashboard')
         
+        # Check current time for break restrictions
+        import pytz
+        local_tz = pytz.timezone('Asia/Kolkata')
+        current_time = timezone.now().astimezone(local_tz).time()
+        current_hour = current_time.hour
+        current_minute = current_time.minute
+        
+        # No breaks after 5 PM
+        if current_hour >= 17:
+            messages.error(request, 'Breaks are not allowed after 5:00 PM.')
+            return redirect('dashboard')
+        
+        # Determine time slot
+        time_slot = 'morning'
+        
+        # Tea break: 10:00 AM - 11:00 AM OR 4:00 PM - 4:45 PM
+        if break_type == 'tea':
+            is_morning = (10 <= current_hour < 11)
+            is_evening = (current_hour == 16 and current_minute <= 45)
+            
+            if not (is_morning or is_evening):
+                messages.error(request, 'Tea break is only allowed between 10:00 AM - 11:00 AM or 4:00 PM - 4:45 PM.')
+                return redirect('dashboard')
+            
+            # Set time slot
+            time_slot = 'morning' if is_morning else 'evening'
+            
+            # Check if already taken break in this slot
+            slot_break_count = BreakLog.objects.filter(
+                attendance=attendance,
+                break_type='tea',
+                time_slot=time_slot
+            ).count()
+            
+            if slot_break_count >= 1:
+                slot_name = 'morning (10-11 AM)' if time_slot == 'morning' else 'evening (4-4:45 PM)'
+                messages.error(request, f'You have already taken your {slot_name} tea break today.')
+                return redirect('dashboard')
+        
+        # Lunch break: 1:00 PM - 1:45 PM
+        elif break_type == 'lunch':
+            if not (current_hour == 13 and current_minute <= 45):
+                messages.error(request, 'Lunch break is only allowed between 1:00 PM and 1:45 PM.')
+                return redirect('dashboard')
+            
+            time_slot = 'afternoon'
+            
+            # Check if already taken lunch
+            lunch_count = BreakLog.objects.filter(
+                attendance=attendance,
+                break_type='lunch'
+            ).count()
+            
+            if lunch_count >= 1:
+                messages.error(request, 'You have already taken your lunch break today.')
+                return redirect('dashboard')
+        
         # Check for active break
         active_break = BreakLog.objects.filter(
             attendance=attendance,
@@ -413,26 +679,11 @@ def start_break(request, break_type):
             messages.warning(request, 'You are already on a break.')
             return redirect('dashboard')
         
-        # Count existing breaks of this type
-        taken_count = BreakLog.objects.filter(
-            attendance=attendance,
-            break_type=break_type
-        ).count()
-        
-        allowed_count = BREAK_RULES.get(break_type, {}).get('max_count', 0)
-        
-        if taken_count >= allowed_count:
-            messages.error(request, f'You have exceeded the allowed number of {break_type} breaks today.')
-            Notification.objects.create(
-                employee=request.user,
-                message=f"Break limit exceeded: {break_type} breaks"
-            )
-            return redirect('dashboard')
-        
-        # Create new break
+        # Create new break with time slot
         BreakLog.objects.create(
             attendance=attendance,
             break_type=break_type,
+            time_slot=time_slot,
             break_start=timezone.now()
         )
         
@@ -1274,3 +1525,225 @@ def delete_user(request, user_id):
             return JsonResponse({'success': False, 'message': str(e)})
     
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+
+
+# =========================
+# WFH REQUEST
+# =========================
+@login_required
+def wfh_request(request):
+    if request.method == 'POST':
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        reason = request.POST.get('reason')
+        
+        # Convert to date objects
+        try:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError:
+            messages.error(request, 'Invalid date format.')
+            return redirect('wfh_request')
+        
+        # Validate dates
+        today = timezone.now().date()
+        if start_date_obj < today:
+            messages.error(request, 'Cannot request WFH for past dates.')
+            return redirect('wfh_request')
+        
+        if end_date_obj < start_date_obj:
+            messages.error(request, 'End date must be after start date.')
+            return redirect('wfh_request')
+        
+        # Calculate total days
+        total_days = (end_date_obj - start_date_obj).days + 1
+        
+        # Check monthly limit (5 days)
+        current_month = timezone.now().month
+        current_year = timezone.now().year
+        
+        # Get approved WFH days for current month
+        # We need to check all WFH requests that overlap with current month
+        from datetime import date
+        month_start = date(current_year, current_month, 1)
+        if current_month == 12:
+            month_end = date(current_year + 1, 1, 1) - timedelta(days=1)
+        else:
+            month_end = date(current_year, current_month + 1, 1) - timedelta(days=1)
+        
+        approved_wfh = WFHRequest.objects.filter(
+            employee=request.user,
+            status='approved',
+            start_date__lte=month_end,
+            end_date__gte=month_start
+        )
+        
+        # Calculate actual days used in current month
+        used_days = 0
+        for wfh in approved_wfh:
+            # Calculate overlap with current month
+            overlap_start = max(wfh.start_date, month_start)
+            overlap_end = min(wfh.end_date, month_end)
+            if overlap_start <= overlap_end:
+                used_days += (overlap_end - overlap_start).days + 1
+        
+        if used_days + total_days > 5:
+            messages.error(request, f'WFH limit exceeded! You have {5 - used_days} days remaining this month.')
+            return redirect('wfh_request')
+        
+        # Create WFH request
+        WFHRequest.objects.create(
+            employee=request.user,
+            start_date=start_date_obj,
+            end_date=end_date_obj,
+            reason=reason
+        )
+        
+        # Notify HR
+        hr_users = User.objects.filter(
+            Q(employeeprofile__is_hr=True) | Q(is_superuser=True)
+        )
+        for hr_user in hr_users:
+            Notification.objects.create(
+                employee=hr_user,
+                message=f'{request.user.get_full_name() or request.user.username} has requested WFH from {start_date_obj.strftime("%b %d")} to {end_date_obj.strftime("%b %d, %Y")}'
+            )
+        
+        # Log action
+        log_action(request.user, 'wfh_request', f'Requested WFH from {start_date_obj} to {end_date_obj}', request)
+        
+        messages.success(request, 'WFH request submitted successfully!')
+        return redirect('wfh_request')
+    
+    # Get user's WFH requests
+    wfh_requests = WFHRequest.objects.filter(
+        employee=request.user
+    ).order_by('-created_at')
+    
+    # Calculate remaining WFH days for current month
+    current_month = timezone.now().month
+    current_year = timezone.now().year
+    
+    # Get approved WFH days for current month
+    from datetime import date
+    month_start = date(current_year, current_month, 1)
+    if current_month == 12:
+        month_end = date(current_year + 1, 1, 1) - timedelta(days=1)
+    else:
+        month_end = date(current_year, current_month + 1, 1) - timedelta(days=1)
+    
+    approved_wfh = WFHRequest.objects.filter(
+        employee=request.user,
+        status='approved',
+        start_date__lte=month_end,
+        end_date__gte=month_start
+    )
+    
+    # Calculate actual days used in current month
+    used_days = 0
+    for wfh in approved_wfh:
+        # Calculate overlap with current month
+        overlap_start = max(wfh.start_date, month_start)
+        overlap_end = min(wfh.end_date, month_end)
+        if overlap_start <= overlap_end:
+            used_days += (overlap_end - overlap_start).days + 1
+    
+    remaining_days = max(0, 5 - used_days)
+    
+    context = {
+        'wfh_requests': wfh_requests,
+        'used_days': used_days,
+        'remaining_days': remaining_days,
+        'total_allowed': 5,
+    }
+    
+    return render(request, 'wfh_request.html', context)
+
+
+# =========================
+# CANCEL WFH
+# =========================
+@login_required
+def cancel_wfh(request, wfh_id):
+    if request.method == 'POST':
+        wfh = get_object_or_404(WFHRequest, id=wfh_id, employee=request.user)
+        if wfh.status == 'pending':
+            wfh.delete()
+            log_action(request.user, 'wfh_cancel', f'Cancelled WFH request from {wfh.start_date} to {wfh.end_date}', request)
+            return JsonResponse({'success': True})
+    return JsonResponse({'success': False})
+
+
+# =========================
+# WFH APPROVAL (HR ONLY)
+# =========================
+@login_required
+def wfh_approval(request):
+    # Only HR or superuser can access
+    if not request.user.is_superuser:
+        try:
+            if not request.user.employeeprofile.is_hr:
+                messages.error(request, 'Access denied. HR only.')
+                return redirect('dashboard')
+        except EmployeeProfile.DoesNotExist:
+            messages.error(request, 'Profile not found.')
+            return redirect('dashboard')
+    
+    if request.method == 'POST':
+        wfh_id = request.POST.get('wfh_id')
+        action = request.POST.get('action')
+        hr_comment = request.POST.get('hr_comment', '')
+        
+        wfh = get_object_or_404(WFHRequest, id=wfh_id)
+        
+        if action == 'approve':
+            wfh.status = 'approved'
+            wfh.hr_approver = request.user
+            wfh.hr_comment = hr_comment
+            wfh.save()
+            
+            # Send notification to employee
+            Notification.objects.create(
+                employee=wfh.employee,
+                message=f'Your WFH request from {wfh.start_date.strftime("%b %d")} to {wfh.end_date.strftime("%b %d, %Y")} has been approved.'
+            )
+            
+            # Log action
+            log_action(request.user, 'wfh_approve', f'Approved WFH request for {wfh.employee.username} from {wfh.start_date} to {wfh.end_date}', request, target_user=wfh.employee)
+            
+            messages.success(request, 'WFH request approved successfully!')
+        
+        elif action == 'reject':
+            wfh.status = 'rejected'
+            wfh.hr_approver = request.user
+            wfh.hr_comment = hr_comment
+            wfh.save()
+            
+            # Send notification to employee
+            Notification.objects.create(
+                employee=wfh.employee,
+                message=f'Your WFH request from {wfh.start_date.strftime("%b %d")} to {wfh.end_date.strftime("%b %d, %Y")} has been rejected.'
+            )
+            
+            # Log action
+            log_action(request.user, 'wfh_reject', f'Rejected WFH request for {wfh.employee.username} from {wfh.start_date} to {wfh.end_date}', request, target_user=wfh.employee)
+            
+            messages.warning(request, 'WFH request rejected.')
+        
+        return redirect('wfh_approval')
+    
+    # Get pending WFH requests
+    pending_wfh = WFHRequest.objects.filter(
+        status='pending'
+    ).select_related('employee').order_by('-created_at')
+    
+    # Get all WFH records
+    all_wfh = WFHRequest.objects.all().select_related('employee', 'hr_approver').order_by('-created_at')[:50]
+    
+    context = {
+        'pending_wfh': pending_wfh,
+        'all_wfh': all_wfh,
+    }
+    
+    return render(request, 'wfh_approval.html', context)

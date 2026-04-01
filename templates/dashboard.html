@@ -92,20 +92,37 @@
                         <i class="fas fa-mug-hot"></i>
                     </div>
                     <h5 class="card-title text-white">Take Break</h5>
-                    <div class="btn-group btn-group-sm" role="group">
-                        <form method="post" action="{% url 'start_break' 'tea' %}" class="d-inline">
+                    <div class="d-flex gap-2 justify-content-center mb-2">
+                        <form method="post" action="{% url 'start_break' 'tea' %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-outline-info btn-sm" {% if tea_count >= 2 %}disabled{% endif %}>
-                                Tea ({{ tea_count }}/2)
+                            <button type="submit" 
+                                    class="btn btn-outline-info btn-sm" 
+                                    {% if tea_count >= 2 or not tea_break_allowed %}disabled{% endif %}
+                                    {% if not tea_break_allowed %}
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Tea break: 10-11 AM & 4-4:45 PM"
+                                    {% endif %}>
+                                <i class="fas fa-mug-hot me-1"></i>Tea ({{ tea_count }}/2)
                             </button>
                         </form>
-                        <form method="post" action="{% url 'start_break' 'lunch' %}" class="d-inline">
+                        <form method="post" action="{% url 'start_break' 'lunch' %}">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-outline-info btn-sm" {% if lunch_count >= 1 %}disabled{% endif %}>
-                                Lunch ({{ lunch_count }}/1)
+                            <button type="submit" 
+                                    class="btn btn-outline-info btn-sm" 
+                                    {% if lunch_count >= 1 or not lunch_break_allowed %}disabled{% endif %}
+                                    {% if not lunch_break_allowed %}
+                                    data-bs-toggle="tooltip" 
+                                    data-bs-placement="top" 
+                                    title="Lunch break: 1:00 PM - 1:45 PM"
+                                    {% endif %}>
+                                <i class="fas fa-utensils me-1"></i>Lunch ({{ lunch_count }}/1)
                             </button>
                         </form>
                     </div>
+                    <small class="text-muted d-block">
+                        <i class="fas fa-clock me-1"></i>Tea: 10-11 AM & 4-4:45 PM | Lunch: 1-1:45 PM
+                    </small>
                     {% else %}
                     <div class="action-icon bg-secondary">
                         <i class="fas fa-mug-hot"></i>
@@ -135,7 +152,7 @@
                             <div class="progress mb-2" style="height: 12px;">
                                 <div class="progress-bar bg-warning" role="progressbar" id="hours-progress" style="width: 0%"></div>
                             </div>
-                            <small class="text-white" id="progress-text">0% of 7.5 hours</small>
+                            <small class="text-white" id="progress-text">0% of {% if today_attendance.status == 'half-day' %}3.75{% else %}7.5{% endif %} hours</small>
                         {% else %}
                             <h4 class="text-white mb-2">0h 0m</h4>
                         {% endif %}
@@ -206,12 +223,12 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <p class="text-muted mb-1">Unread</p>
-                            <h3 class="mb-0 text-white">{{ unread_notifications }}</h3>
-                            <small class="text-info">Notifications</small>
+                            <p class="text-muted mb-1">This Month</p>
+                            <h3 class="mb-0 text-white">{{ monthly_stats.absent_days }}</h3>
+                            <small class="text-danger">Absent Days</small>
                         </div>
-                        <div class="stat-icon bg-info">
-                            <i class="fas fa-bell"></i>
+                        <div class="stat-icon bg-danger">
+                            <i class="fas fa-user-times"></i>
                         </div>
                     </div>
                 </div>
@@ -293,8 +310,13 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('Starting work hours tracker...');
     // Parse check-in time - Django outputs in ISO format with timezone
     const checkInTime = new Date('{{ today_attendance.check_in|date:"c" }}');
+    const isHalfDay = '{{ today_attendance.status }}' === 'half-day';
+    const targetHours = isHalfDay ? 3.75 : 7.5;
+    const targetMinutes = targetHours * 60;
+    
     console.log('Check-in time (parsed):', checkInTime);
-    console.log('Current time:', new Date());
+    console.log('Is half-day:', isHalfDay);
+    console.log('Target hours:', targetHours);
     
     function updateWorkHours() {
         const now = new Date();
@@ -310,11 +332,10 @@ document.addEventListener('DOMContentLoaded', function() {
             liveHoursElement.textContent = `${diffHours}h ${diffMinutes}m`;
         }
         
-        // Calculate progress (7.5 hours = 450 minutes for full day)
+        // Calculate progress based on target hours
         const totalMinutes = (diffHours * 60) + diffMinutes;
-        const fullDayMinutes = 450; // 7.5 hours
         
-        let progress = (totalMinutes / fullDayMinutes) * 100;
+        let progress = (totalMinutes / targetMinutes) * 100;
         if (progress > 100) progress = 100;
         
         console.log(`Progress: ${progress}%`);
@@ -329,23 +350,31 @@ document.addEventListener('DOMContentLoaded', function() {
             // Change color based on progress
             if (progress >= 100) {
                 progressBar.className = 'progress-bar bg-success';
-                if (progressText) progressText.textContent = '✓ Full day completed!';
+                if (progressText) progressText.textContent = `✓ ${isHalfDay ? 'Half-day' : 'Full day'} completed!`;
             } else if (progress >= 60) {
                 progressBar.className = 'progress-bar bg-info';
-                if (progressText) progressText.textContent = Math.round(progress) + '% of 7.5 hours';
+                if (progressText) progressText.textContent = Math.round(progress) + '% of ' + targetHours + ' hours';
             } else {
                 progressBar.className = 'progress-bar bg-warning';
-                if (progressText) progressText.textContent = Math.round(progress) + '% of 7.5 hours';
+                if (progressText) progressText.textContent = Math.round(progress) + '% of ' + targetHours + ' hours';
             }
         }
     }
     
-    // Update immediately and then every 10 seconds (for testing) and every minute
+    // Update immediately and then every 10 seconds
     updateWorkHours();
-    setInterval(updateWorkHours, 10000); // Update every 10 seconds
+    setInterval(updateWorkHours, 10000);
 });
 {% else %}
 console.log('Work hours tracker not started - check_in: {{ today_attendance.check_in }}, check_out: {{ today_attendance.check_out }}');
 {% endif %}
+
+// Initialize Bootstrap tooltips for break buttons
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
 </script>
 {% endblock %}

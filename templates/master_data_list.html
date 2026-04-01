@@ -1,0 +1,255 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Employee Master Data{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-database me-2"></i>Employee Master Data
+            </h2>
+            <p class="text-muted">Manage employee records and registration validation</p>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card stat-card glass-card fade-in-delay-1">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Total Employees</p>
+                            <h3 class="mb-0 text-white">{{ total_count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card glass-card fade-in-delay-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Registered</p>
+                            <h3 class="mb-0 text-white">{{ registered_count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card glass-card fade-in-delay-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Pending Registration</p>
+                            <h3 class="mb-0 text-white">{{ total_count|add:"-"|add:registered_count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-user-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions and Search -->
+    <div class="card glass-card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <form method="get" class="d-flex gap-2">
+                        <input type="text" name="search" class="form-control" placeholder="Search by ID, Name, or Email..." value="{{ request.GET.search }}">
+                        <button type="submit" class="btn btn-info">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-6 text-end">
+                    <a href="{% url 'add_master_data' %}" class="btn btn-success me-2">
+                        <i class="fas fa-plus me-2"></i>Add Employee
+                    </a>
+                    <a href="{% url 'bulk_upload_master_data' %}" class="btn btn-primary">
+                        <i class="fas fa-upload me-2"></i>Bulk Upload CSV
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Data Table -->
+    <div class="card glass-card">
+        <div class="card-header">
+            <h5 class="mb-0">All Employees</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Employee ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Department</th>
+                            <th>Designation</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for emp in master_data_list %}
+                        <tr>
+                            <td><strong>{{ emp.employee_id }}</strong></td>
+                            <td>{{ emp.get_full_name }}</td>
+                            <td>{{ emp.email }}</td>
+                            <td>{{ emp.department }}</td>
+                            <td>{{ emp.designation }}</td>
+                            <td>
+                                {% if emp.account_created %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check-circle me-1"></i>Registered
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-clock me-1"></i>Pending
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'edit_master_data' emp.id %}" class="btn btn-sm btn-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% if not emp.account_created %}
+                                <button class="btn btn-sm btn-danger" onclick="deleteMasterData({{ emp.id }}, '{{ emp.employee_id }}')" title="Delete">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                                {% if emp.linked_user %}
+                                <button class="btn btn-sm btn-warning" onclick="resetPassword({{ emp.linked_user.id }}, '{{ emp.employee_id }}')" title="Reset Password">
+                                    <i class="fas fa-key"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                No employee master data found. Add employees to get started.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark">
+                    <i class="fas fa-key me-2"></i>Reset Password
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Reset password for Employee ID: <strong id="resetEmpId"></strong></p>
+                <div class="mb-3">
+                    <label for="newPassword" class="form-label">New Password</label>
+                    <input type="password" class="form-control" id="newPassword" minlength="6" required>
+                    <small class="text-muted">Minimum 6 characters</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="confirmResetPassword()">
+                    <i class="fas fa-key me-1"></i>Reset Password
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentUserId = null;
+
+function deleteMasterData(masterId, empId) {
+    if (confirm(`Are you sure you want to delete master data for ${empId}?\n\nThis action cannot be undone.`)) {
+        fetch(`/attendance/master-data/delete/${masterId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Master data deleted successfully!');
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('Error deleting master data');
+            console.error(error);
+        });
+    }
+}
+
+function resetPassword(userId, empId) {
+    currentUserId = userId;
+    document.getElementById('resetEmpId').textContent = empId;
+    document.getElementById('newPassword').value = '';
+    new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+}
+
+function confirmResetPassword() {
+    const newPassword = document.getElementById('newPassword').value;
+    
+    if (!newPassword || newPassword.length < 6) {
+        alert('Password must be at least 6 characters');
+        return;
+    }
+    
+    fetch(`/attendance/user/reset-password/${currentUserId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `new_password=${encodeURIComponent(newPassword)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Password reset successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error resetting password');
+        console.error(error);
+    });
+}
+</script>
+{% endblock %}

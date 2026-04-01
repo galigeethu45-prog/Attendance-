@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import master_data_views
 
 urlpatterns = [
     # Dashboard
@@ -29,6 +30,11 @@ urlpatterns = [
     path('overtime/', views.overtime_view, name='overtime'),
     path('overtime/approval/', views.overtime_approval, name='overtime_approval'),
     
+    # WFH (Work From Home)
+    path('wfh/', views.wfh_request, name='wfh_request'),
+    path('wfh/cancel/<int:wfh_id>/', views.cancel_wfh, name='cancel_wfh'),
+    path('wfh/approval/', views.wfh_approval, name='wfh_approval'),
+    
     # HR functions
     path('hr/', views.hr_dashboard, name='hr_dashboard'),
     path('leave/approve/<int:leave_id>/', views.approve_leave, name='approve_leave'),
@@ -36,4 +42,12 @@ urlpatterns = [
     path('employee/<int:user_id>/details/', views.employee_details, name='employee_details'),
     path('user/add/', views.add_user, name='add_user'),
     path('user/delete/<int:user_id>/', views.delete_user, name='delete_user'),
+    
+    # Master Data Management (HR Only)
+    path('master-data/', master_data_views.master_data_list, name='master_data_list'),
+    path('master-data/add/', master_data_views.add_master_data, name='add_master_data'),
+    path('master-data/bulk-upload/', master_data_views.bulk_upload_master_data, name='bulk_upload_master_data'),
+    path('master-data/edit/<int:master_id>/', master_data_views.edit_master_data, name='edit_master_data'),
+    path('master-data/delete/<int:master_id>/', master_data_views.delete_master_data, name='delete_master_data'),
+    path('user/reset-password/<int:user_id>/', master_data_views.reset_employee_password, name='reset_employee_password'),
 ]

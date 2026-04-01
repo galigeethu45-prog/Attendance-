@@ -9,7 +9,9 @@ from .models import (
     LeaveRequest,
     Notification,
     Overtime,
-    AuditLog
+    AuditLog,
+    WFHRequest,
+    EmployeeMasterData
 )
 
 # =========================
@@ -43,6 +45,43 @@ class BreakDateFilter(admin.SimpleListFilter):
             return queryset.filter(break_start__date__gte=today - timedelta(days=30))
 
         return queryset
+
+
+# =========================
+# EMPLOYEE MASTER DATA
+# =========================
+@admin.register(EmployeeMasterData)
+class EmployeeMasterDataAdmin(admin.ModelAdmin):
+    list_display = ('employee_id', 'get_full_name', 'email', 'department', 'designation', 'account_created', 'created_at')
+    list_filter = ('account_created', 'department', 'gender', 'blood_group')
+    search_fields = ('employee_id', 'first_name', 'last_name', 'email', 'phone_number')
+    readonly_fields = ('account_created', 'linked_user', 'created_at', 'updated_at', 'created_by')
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Identification', {
+            'fields': ('employee_id', 'account_created', 'linked_user')
+        }),
+        ('Personal Information', {
+            'fields': ('first_name', 'middle_name', 'last_name', 'gender', 'date_of_birth', 'blood_group')
+        }),
+        ('Company Information', {
+            'fields': ('department', 'designation', 'date_of_joining')
+        }),
+        ('Contact Details', {
+            'fields': ('phone_number', 'alternate_phone', 'email')
+        }),
+        ('Address', {
+            'fields': ('local_address', 'permanent_address')
+        }),
+        ('Identity Documents', {
+            'fields': ('aadhar_number', 'pan_number')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at', 'created_by'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 # =========================
@@ -131,6 +170,21 @@ class OvertimeAdmin(admin.ModelAdmin):
     search_fields = ('employee__username', 'hr_approver__username')
     date_hierarchy = 'date'
 
+
+# =========================
+# WFH REQUEST
+# =========================
+@admin.register(WFHRequest)
+class WFHRequestAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'start_date', 'end_date', 'total_days', 'status', 'hr_approver')
+    list_filter = ('status', 'start_date')
+    search_fields = ('employee__username', 'hr_approver__username', 'reason')
+    date_hierarchy = 'start_date'
+    
+    def total_days(self, obj):
+        return obj.total_days
+    
+    total_days.short_description = "Total Days"
 
 
 # =========================

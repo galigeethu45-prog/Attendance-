@@ -3,6 +3,82 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 
 # =========================
+# EMPLOYEE MASTER DATA
+# =========================
+class EmployeeMasterData(models.Model):
+    GENDER_CHOICES = [
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('other', 'Other'),
+    ]
+    
+    BLOOD_GROUP_CHOICES = [
+        ('A+', 'A+'),
+        ('A-', 'A-'),
+        ('B+', 'B+'),
+        ('B-', 'B-'),
+        ('AB+', 'AB+'),
+        ('AB-', 'AB-'),
+        ('O+', 'O+'),
+        ('O-', 'O-'),
+    ]
+    
+    # Primary identification
+    employee_id = models.CharField(max_length=20, unique=True, db_index=True)
+    
+    # Personal Information
+    first_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True, null=True)
+    last_name = models.CharField(max_length=100)
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES)
+    date_of_birth = models.DateField()
+    blood_group = models.CharField(max_length=5, choices=BLOOD_GROUP_CHOICES)
+    
+    # Company Information
+    department = models.CharField(max_length=100)
+    designation = models.CharField(max_length=100)
+    date_of_joining = models.DateField()
+    
+    # Contact Details
+    phone_number = models.CharField(max_length=15)
+    alternate_phone = models.CharField(max_length=15, blank=True, null=True)
+    email = models.EmailField(unique=True, db_index=True)
+    
+    # Address
+    local_address = models.TextField()
+    permanent_address = models.TextField()
+    
+    # Identity Documents
+    aadhar_number = models.CharField(max_length=12)
+    pan_number = models.CharField(max_length=10)
+    
+    # Account Status
+    account_created = models.BooleanField(default=False)
+    linked_user = models.OneToOneField(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='master_data')
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_master_data')
+    
+    class Meta:
+        verbose_name = 'Employee Master Data'
+        verbose_name_plural = 'Employee Master Data'
+        ordering = ['employee_id']
+        indexes = [
+            models.Index(fields=['employee_id', 'email', 'date_of_birth']),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee_id} - {self.first_name} {self.last_name}"
+    
+    def get_full_name(self):
+        if self.middle_name:
+            return f"{self.first_name} {self.middle_name} {self.last_name}"
+        return f"{self.first_name} {self.last_name}"
+
+
+# =========================
 # BREAK RULE CONFIGURATION
 # =========================
 BREAK_RULES = {
@@ -13,6 +89,28 @@ BREAK_RULES = {
     'lunch': {
         'max_count': 1,
         'allowed_minutes': 45,
+    }
+}
+
+# Break time windows (IST)
+BREAK_TIME_WINDOWS = {
+    'tea_morning': {
+        'start_hour': 10,
+        'start_minute': 0,
+        'end_hour': 11,
+        'end_minute': 0,
+    },
+    'lunch': {
+        'start_hour': 13,  # 1 PM
+        'start_minute': 0,
+        'end_hour': 13,
+        'end_minute': 45,
+    },
+    'tea_evening': {
+        'start_hour': 16,  # 4 PM
+        'start_minute': 0,
+        'end_hour': 16,
+        'end_minute': 45,
     }
 }
 
@@ -97,19 +195,25 @@ class Attendance(models.Model):
         Calculate total working hours based ONLY on check-in and check-out.
         Break time is INCLUDED as per company policy.
         Also sets attendance status automatically.
+        If marked as half-day at check-in (late arrival), cap hours at 3.75 (half of 7.5).
         """
         if self.check_in and self.check_out:
             duration = self.check_out - self.check_in
             total_hours = duration.total_seconds() / 3600
-            self.total_work_hours = round(total_hours, 2)
-
-            # Attendance status logic (manager-approved)
-            if total_hours >= 7.5:
-                self.status = 'present'
-            elif total_hours < 6:
-                self.status = 'half-day'
+            
+            # If already marked as half-day (late check-in), cap at 3.75 hours
+            if self.status == 'half-day':
+                self.total_work_hours = min(round(total_hours, 2), 3.75)
             else:
-                self.status = 'half-day'  # policy zone (6h–7h29m)
+                self.total_work_hours = round(total_hours, 2)
+                
+                # Attendance status logic (manager-approved)
+                if total_hours >= 7.5:
+                    self.status = 'present'
+                elif total_hours < 6:
+                    self.status = 'half-day'
+                else:
+                    self.status = 'half-day'  # policy zone (6h–7h29m)
 
             self.save()
 
@@ -134,6 +238,12 @@ class BreakLog(models.Model):
         ('tea', 'Tea Break'),
         ('lunch', 'Lunch Break'),
     ]
+    
+    TIME_SLOTS = [
+        ('morning', 'Morning'),
+        ('afternoon', 'Afternoon'),
+        ('evening', 'Evening'),
+    ]
 
     attendance = models.ForeignKey(
         Attendance,
@@ -143,6 +253,13 @@ class BreakLog(models.Model):
     break_type = models.CharField(
         max_length=10,
         choices=BREAK_TYPES
+    )
+    time_slot = models.CharField(
+        max_length=10,
+        choices=TIME_SLOTS,
+        default='morning',
+        null=True,
+        blank=True
     )
     break_start = models.DateTimeField(null=True, blank=True)
     break_end = models.DateTimeField(null=True, blank=True)
@@ -181,8 +298,8 @@ class LeaveRequest(models.Model):
     LEAVE_TYPES = [
         ('sick', 'Sick Leave'),
         ('casual', 'Casual Leave'),
-        ('vacation', 'Vacation'),
-        ('emergency', 'Emergency'),
+        ('earned', 'Earned Leaves'),
+        ('unpaid', 'Unpaid Leaves'),
     ]
     
     STATUS_CHOICES = [
@@ -270,6 +387,34 @@ class Overtime(models.Model):
 
 
 # =========================
+# WORK FROM HOME (WFH) REQUEST
+# =========================
+class WFHRequest(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    employee = models.ForeignKey(User, on_delete=models.CASCADE)
+    start_date = models.DateField()
+    end_date = models.DateField()
+    reason = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    hr_comment = models.TextField(blank=True, null=True)
+    hr_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_wfh_requests')
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    @property
+    def total_days(self):
+        return (self.end_date - self.start_date).days + 1
+    
+    def __str__(self):
+        return f"{self.employee.username} - WFH ({self.start_date} to {self.end_date})"
+
+
+# =========================
 # AUDIT LOG
 # =========================
 class AuditLog(models.Model):
@@ -292,6 +437,10 @@ class AuditLog(models.Model):
         ('overtime_end', 'Overtime End'),
         ('overtime_approve', 'Overtime Approved'),
         ('overtime_reject', 'Overtime Rejected'),
+        ('wfh_request', 'WFH Requested'),
+        ('wfh_approve', 'WFH Approved'),
+        ('wfh_reject', 'WFH Rejected'),
+        ('wfh_cancel', 'WFH Cancelled'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='audit_logs', db_index=True)

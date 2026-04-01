@@ -85,6 +85,11 @@
             </a>
         </li>
         <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#masterdata">
+                <i class="fas fa-database me-1"></i>Master Data
+            </a>
+        </li>
+        <li class="nav-item">
             <a class="nav-link" data-bs-toggle="tab" href="#leaves">
                 <i class="fas fa-calendar-alt me-1"></i>Leave Requests
             </a>
@@ -102,6 +107,11 @@
         <li class="nav-item">
             <a class="nav-link" data-bs-toggle="tab" href="#auditlogs">
                 <i class="fas fa-history me-1"></i>Audit Logs
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#wfh">
+                <i class="fas fa-home me-1"></i>WFH Requests
             </a>
         </li>
         <li class="nav-item">
@@ -166,6 +176,73 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Master Data Tab -->
+        <div class="tab-pane fade" id="masterdata">
+            <div class="card glass-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-database me-2"></i>Employee Master Data Management</h5>
+                    <a href="{% url 'master_data_list' %}" class="btn btn-primary">
+                        <i class="fas fa-external-link-alt me-1"></i>Open Master Data Manager
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Master Data System:</strong> Manage employee records for registration validation.
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="card bg-primary bg-opacity-10 border-primary">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-user-plus fa-3x text-primary mb-3"></i>
+                                    <h6 class="text-white">Add Employee</h6>
+                                    <p class="text-muted small">Manually add single employee master data</p>
+                                    <a href="{% url 'add_master_data' %}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-plus me-1"></i>Add New
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success bg-opacity-10 border-success">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-upload fa-3x text-success mb-3"></i>
+                                    <h6 class="text-white">Bulk Upload</h6>
+                                    <p class="text-muted small">Upload multiple employees via CSV file</p>
+                                    <a href="{% url 'bulk_upload_master_data' %}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-file-csv me-1"></i>Upload CSV
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-info bg-opacity-10 border-info">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-list fa-3x text-info mb-3"></i>
+                                    <h6 class="text-white">View All</h6>
+                                    <p class="text-muted small">View and manage all employee records</p>
+                                    <a href="{% url 'master_data_list' %}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye me-1"></i>View List
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <h6 class="text-white">How It Works:</h6>
+                        <ol class="text-muted">
+                            <li>HR adds employee master data (manually or via CSV)</li>
+                            <li>Employee registers using Employee ID, Email, and Date of Birth</li>
+                            <li>System validates against master data</li>
+                            <li>If match → Account created | If no match → Registration denied</li>
+                        </ol>
                     </div>
                 </div>
             </div>
@@ -282,6 +359,9 @@
                                     <td>
                                         <span class="badge {% if break_log.break_type == 'tea' %}bg-info{% else %}bg-warning{% endif %}">
                                             {{ break_log.get_break_type_display }}
+                                            {% if break_log.break_type == 'tea' and break_log.time_slot %}
+                                                ({{ break_log.get_time_slot_display }})
+                                            {% endif %}
                                         </span>
                                     </td>
                                     <td>{{ break_log.break_start|time:"h:i A" }}</td>
@@ -542,6 +622,48 @@
                         </ul>
                     </nav>
                     {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- WFH Requests Tab -->
+        <div class="tab-pane fade" id="wfh">
+            <div class="card glass-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-home me-2"></i>Work From Home Requests</h5>
+                    <a href="{% url 'wfh_approval' %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-external-link-alt me-1"></i>Full WFH Management
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Quick Overview:</strong> For detailed WFH management, approval, and history, visit the dedicated WFH Approval page.
+                    </div>
+                    
+                    <h6 class="text-white mb-3">Recent WFH Requests</h6>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                    <th>Requested</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        <i class="fas fa-arrow-right me-2"></i>
+                                        Visit <a href="{% url 'wfh_approval' %}" class="text-primary">WFH Approval Page</a> to view and manage all requests
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
