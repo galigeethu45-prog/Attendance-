@@ -140,6 +140,7 @@
                                     <th>Work Hours</th>
                                     <th>Status</th>
                                     <th>Breaks</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -164,14 +165,24 @@
                                         <span class="badge bg-{{ attendance.status }}">
                                             {{ attendance.get_status_display }}
                                         </span>
+                                        {% if attendance.status_modified_by %}
+                                        <br><small class="text-muted" title="Modified by {{ attendance.status_modified_by.username }} on {{ attendance.status_modified_at|date:'M d, Y h:i A' }}">
+                                            <i class="fas fa-edit"></i> Edited
+                                        </small>
+                                        {% endif %}
                                     </td>
                                     <td>
                                         <span class="badge bg-info">{{ attendance.breaks.count }}</span>
                                     </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-warning" onclick="editAttendanceStatus({{ attendance.id }}, '{{ attendance.employee.get_full_name|default:attendance.employee.username }}', '{{ attendance.status }}', '{{ attendance.date|date:'M d, Y' }}')" title="Edit Status">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">No attendance records for today</td>
+                                    <td colspan="8" class="text-center text-muted py-4">No attendance records for today</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -497,14 +508,16 @@
         </div>
 
         <!-- Audit Logs Tab -->
-        <div class="tab-pane fade" id="auditlogs">
+        <div class="tab-pane fade" id="auditlogs" role="tabpanel">
             <div class="card glass-card">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-history me-2"></i>System Audit Logs</h5>
+                    <small class="text-muted">Total logs: {{ audit_logs.paginator.count }}</small>
                 </div>
                 <div class="card-body">
                     <!-- Filters -->
-                    <form method="get" action="{% url 'hr_dashboard' %}" class="mb-4">
+                    <form method="get" action="{% url 'hr_dashboard' %}#auditlogs" class="mb-4">
+                        <input type="hidden" name="tab" value="auditlogs">
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label class="form-label text-white">Filter by Action</label>
@@ -514,6 +527,8 @@
                                     <option value="logout" {% if request.GET.audit_action == 'logout' %}selected{% endif %}>Logout</option>
                                     <option value="check_in" {% if request.GET.audit_action == 'check_in' %}selected{% endif %}>Check In</option>
                                     <option value="check_out" {% if request.GET.audit_action == 'check_out' %}selected{% endif %}>Check Out</option>
+                                    <option value="role_change" {% if request.GET.audit_action == 'role_change' %}selected{% endif %}>Role Changed</option>
+                                    <option value="attendance_status_change" {% if request.GET.audit_action == 'attendance_status_change' %}selected{% endif %}>Attendance Edited</option>
                                     <option value="user_create" {% if request.GET.audit_action == 'user_create' %}selected{% endif %}>User Created</option>
                                     <option value="user_delete" {% if request.GET.audit_action == 'user_delete' %}selected{% endif %}>User Deleted</option>
                                     <option value="leave_request" {% if request.GET.audit_action == 'leave_request' %}selected{% endif %}>Leave Request</option>
@@ -535,7 +550,7 @@
                                     <button type="submit" class="btn btn-info flex-fill">
                                         <i class="fas fa-search me-1"></i>Filter
                                     </button>
-                                    <a href="{% url 'hr_dashboard' %}" class="btn btn-secondary">
+                                    <a href="{% url 'hr_dashboard' %}#auditlogs" class="btn btn-secondary">
                                         <i class="fas fa-redo"></i>
                                     </a>
                                 </div>
@@ -606,7 +621,7 @@
                         <ul class="pagination justify-content-center">
                             {% if audit_logs.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ audit_logs.previous_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}">Previous</a>
+                                <a class="page-link" href="?page={{ audit_logs.previous_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}#auditlogs">Previous</a>
                             </li>
                             {% endif %}
                             
@@ -616,7 +631,7 @@
                             
                             {% if audit_logs.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ audit_logs.next_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}">Next</a>
+                                <a class="page-link" href="?page={{ audit_logs.next_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}#auditlogs">Next</a>
                             </li>
                             {% endif %}
                         </ul>
@@ -767,6 +782,35 @@ if (departmentCtx) {
     });
 }
 
+// Tab Navigation - Handle URL hash and maintain active tab
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if there's a hash in URL or tab parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    const hash = window.location.hash;
+    
+    let targetTab = null;
+    
+    if (tabParam) {
+        targetTab = document.querySelector(`a[href="#${tabParam}"]`);
+    } else if (hash) {
+        targetTab = document.querySelector(`a[href="${hash}"]`);
+    }
+    
+    if (targetTab) {
+        const tab = new bootstrap.Tab(targetTab);
+        tab.show();
+    }
+    
+    // Update URL when tab is clicked
+    document.querySelectorAll('a[data-bs-toggle="tab"]').forEach(tabLink => {
+        tabLink.addEventListener('shown.bs.tab', function(e) {
+            const targetId = e.target.getAttribute('href').substring(1);
+            history.replaceState(null, null, `#${targetId}`);
+        });
+    });
+});
+
 // Employee search and filter
 document.getElementById('employeeSearch')?.addEventListener('input', filterEmployees);
 document.getElementById('departmentFilter')?.addEventListener('change', filterEmployees);
@@ -901,4 +945,88 @@ function deleteUser(userId, userName) {
         </div>
     </div>
 </div>
+
+<!-- Edit Attendance Status Modal -->
+<div class="modal fade" id="editAttendanceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title text-dark">
+                    <i class="fas fa-edit me-2"></i>Edit Attendance Status
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Employee:</strong> <span id="editEmpName"></span></p>
+                <p><strong>Date:</strong> <span id="editEmpDate"></span></p>
+                <div class="mb-3">
+                    <label for="newStatus" class="form-label">New Status</label>
+                    <select class="form-select" id="newStatus" required>
+                        <option value="present">Present (Full Day)</option>
+                        <option value="late">Late</option>
+                        <option value="half-day">Half-Day</option>
+                        <option value="absent">Absent</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="statusReason" class="form-label">Reason for Change *</label>
+                    <textarea class="form-control" id="statusReason" rows="3" required placeholder="Enter reason for status change..."></textarea>
+                    <small class="text-muted">This will be logged in audit trail</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="confirmEditAttendance()">
+                    <i class="fas fa-save me-1"></i>Update Status
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAttendanceId = null;
+
+function editAttendanceStatus(attendanceId, empName, currentStatus, date) {
+    currentAttendanceId = attendanceId;
+    document.getElementById('editEmpName').textContent = empName;
+    document.getElementById('editEmpDate').textContent = date;
+    document.getElementById('newStatus').value = currentStatus;
+    document.getElementById('statusReason').value = '';
+    new bootstrap.Modal(document.getElementById('editAttendanceModal')).show();
+}
+
+function confirmEditAttendance() {
+    const newStatus = document.getElementById('newStatus').value;
+    const reason = document.getElementById('statusReason').value.trim();
+    
+    if (!reason) {
+        alert('Please provide a reason for the status change');
+        return;
+    }
+    
+    fetch(`/attendance/attendance/edit-status/${currentAttendanceId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `status=${encodeURIComponent(newStatus)}&reason=${encodeURIComponent(reason)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Attendance status updated successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('editAttendanceModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error updating attendance status');
+        console.error(error);
+    });
+}
+</script>
 {% endblock %}

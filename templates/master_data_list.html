@@ -119,6 +119,9 @@
                                 <span class="badge bg-success">
                                     <i class="fas fa-check-circle me-1"></i>Registered
                                 </span>
+                                {% if emp.linked_user.employeeprofile.role %}
+                                <br><small class="badge bg-info mt-1">{{ emp.linked_user.employeeprofile.get_role_display }}</small>
+                                {% endif %}
                                 {% else %}
                                 <span class="badge bg-warning">
                                     <i class="fas fa-clock me-1"></i>Pending
@@ -126,19 +129,24 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{% url 'edit_master_data' emp.id %}" class="btn btn-sm btn-primary" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                {% if not emp.account_created %}
-                                <button class="btn btn-sm btn-danger" onclick="deleteMasterData({{ emp.id }}, '{{ emp.employee_id }}')" title="Delete">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                                {% endif %}
-                                {% if emp.linked_user %}
-                                <button class="btn btn-sm btn-warning" onclick="resetPassword({{ emp.linked_user.id }}, '{{ emp.employee_id }}')" title="Reset Password">
-                                    <i class="fas fa-key"></i>
-                                </button>
-                                {% endif %}
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'edit_master_data' emp.id %}" class="btn btn-sm btn-primary" title="Edit Master Data">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% if emp.linked_user %}
+                                    <button class="btn btn-sm btn-info" onclick="changeRole({{ emp.linked_user.id }}, '{{ emp.employee_id }}', '{{ emp.linked_user.employeeprofile.role }}')" title="Change Role">
+                                        <i class="fas fa-user-shield"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-warning" onclick="resetPassword({{ emp.linked_user.id }}, '{{ emp.employee_id }}')" title="Reset Password">
+                                        <i class="fas fa-lock-open"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% if not emp.account_created %}
+                                    <button class="btn btn-sm btn-danger" onclick="deleteMasterData({{ emp.id }}, '{{ emp.employee_id }}')" title="Delete">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                         {% empty %}
@@ -183,11 +191,133 @@
         </div>
     </div>
 </div>
+
+<!-- Change Role Modal -->
+<div class="modal fade" id="changeRoleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title text-white">
+                    <i class="fas fa-user-shield me-2"></i>Change Employee Role
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-white">Change role for Employee ID: <strong id="roleEmpId" class="text-info"></strong></p>
+                <div class="mb-3">
+                    <label for="newRole" class="form-label text-white">
+                        <i class="fas fa-chevron-down me-2"></i>Select Role (Click to expand)
+                    </label>
+                    <select class="form-select form-select-lg" id="newRole" required style="background-image: url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Cpath fill=%27none%27 stroke=%27%23ffffff%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27 stroke-width=%272%27 d=%27M2 5l6 6 6-6%27/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 0.75rem center; background-size: 16px 12px;">
+                        <option value="employee"><i class="fas fa-user"></i> Employee - Basic attendance features</option>
+                        <option value="team_leader"><i class="fas fa-users"></i> Team Leader - Manage team & approve leaves</option>
+                        <option value="hr"><i class="fas fa-user-tie"></i> HR/Admin - Full system access</option>
+                    </select>
+                </div>
+                <div class="alert alert-info">
+                    <strong><i class="fas fa-info-circle me-2"></i>Role Permissions:</strong><br>
+                    <div class="mt-2">
+                        <div class="mb-2">
+                            <i class="fas fa-user text-primary me-2"></i>
+                            <strong>Employee:</strong> Check in/out, breaks, leave requests, view own attendance
+                        </div>
+                        <div class="mb-2">
+                            <i class="fas fa-users text-success me-2"></i>
+                            <strong>Team Leader:</strong> All employee features + view team attendance + approve team leaves
+                        </div>
+                        <div class="mb-2">
+                            <i class="fas fa-user-tie text-danger me-2"></i>
+                            <strong>HR/Admin:</strong> Full system access - manage all employees, edit attendance, master data, reports
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-info" onclick="confirmChangeRole()">
+                    <i class="fas fa-check me-1"></i>Change Role
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<style>
+/* Better button spacing in master data table */
+.btn-group .btn {
+    margin: 0 !important;
+}
+
+.btn-group {
+    gap: 0;
+    display: inline-flex;
+}
+
+/* Ensure buttons are same height */
+.btn-group .btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    min-width: 36px;
+}
+
+/* Modal improvements */
+.modal-content.bg-dark {
+    border: 2px solid #17a2b8;
+}
+
+.form-select-lg {
+    font-size: 1.1rem;
+    padding: 0.75rem;
+    padding-right: 2.5rem;
+    cursor: pointer;
+    background-color: #2d3748;
+    color: white;
+    border: 2px solid #4a5568;
+}
+
+.form-select-lg:focus {
+    background-color: #2d3748;
+    color: white;
+    border-color: #17a2b8;
+    box-shadow: 0 0 0 0.2rem rgba(23, 162, 184, 0.25);
+}
+
+.form-select-lg option {
+    background-color: #2d3748;
+    color: white;
+    padding: 10px;
+}
+
+/* Role badge styling */
+.badge.bg-info {
+    background-color: #17a2b8 !important;
+}
+
+/* Dropdown label with arrow */
+.form-label i.fa-chevron-down {
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-5px);
+    }
+    60% {
+        transform: translateY(-3px);
+    }
+}
+</style>
+
 <script>
 let currentUserId = null;
+let currentRoleUserId = null;
 
 function deleteMasterData(masterId, empId) {
     if (confirm(`Are you sure you want to delete master data for ${empId}?\n\nThis action cannot be undone.`)) {
@@ -248,6 +378,45 @@ function confirmResetPassword() {
     })
     .catch(error => {
         alert('Error resetting password');
+        console.error(error);
+    });
+}
+
+function changeRole(userId, empId, currentRole) {
+    currentRoleUserId = userId;
+    document.getElementById('roleEmpId').textContent = empId;
+    document.getElementById('newRole').value = currentRole || 'employee';
+    new bootstrap.Modal(document.getElementById('changeRoleModal')).show();
+}
+
+function confirmChangeRole() {
+    const newRole = document.getElementById('newRole').value;
+    
+    if (!newRole) {
+        alert('Please select a role');
+        return;
+    }
+    
+    fetch(`/attendance/user/change-role/${currentRoleUserId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `new_role=${encodeURIComponent(newRole)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Role changed successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error changing role');
         console.error(error);
     });
 }

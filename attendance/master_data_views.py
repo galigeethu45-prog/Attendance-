@@ -7,7 +7,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.db import transaction
-from .models import EmployeeMasterData, AuditLog
+from django.utils import timezone
+from .models import EmployeeMasterData, AuditLog, Attendance
 from django.contrib.auth.models import User
 import csv
 import io
@@ -311,5 +312,107 @@ def reset_employee_password(request, user_id):
         
         messages.success(request, f'Password reset successfully for {user.username}')
         return JsonResponse({'success': True})
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'})
+
+
+# =========================
+# CHANGE EMPLOYEE ROLE
+# =========================
+@login_required
+@user_passes_test(is_hr_or_admin)
+def change_employee_role(request, user_id):
+    """HR/Admin changes employee role"""
+    if request.method == 'POST':
+        user = get_object_or_404(User, id=user_id)
+        new_role = request.POST.get('new_role')
+        
+        # HR and Admin are treated the same - both have full access
+        valid_roles = ['employee', 'team_leader', 'hr']
+        if new_role not in valid_roles:
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid role selected'
+            })
+        
+        try:
+            profile = user.employeeprofile
+            old_role = profile.role
+            profile.role = new_role
+            
+            # Update is_hr flag: True for HR (which includes admin-level access)
+            profile.is_hr = (new_role == 'hr')
+            profile.save()
+            
+            # Log action
+            role_display = {
+                'employee': 'Employee',
+                'team_leader': 'Team Leader',
+                'hr': 'HR/Admin'
+            }
+            
+            AuditLog.objects.create(
+                user=request.user,
+                action='role_change',
+                description=f'Changed role for {user.username} from {role_display.get(old_role, old_role)} to {role_display.get(new_role, new_role)}',
+                target_user=user
+            )
+            
+            messages.success(request, f'Role changed successfully for {user.username}')
+            return JsonResponse({'success': True})
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'})
+
+
+# =========================
+# EDIT ATTENDANCE STATUS (HR/ADMIN ONLY)
+# =========================
+@login_required
+@user_passes_test(is_hr_or_admin)
+def edit_attendance_status(request, attendance_id):
+    """HR/Admin can edit attendance status"""
+    attendance = get_object_or_404(Attendance, id=attendance_id)
+    
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        reason = request.POST.get('reason', '')
+        
+        valid_statuses = ['present', 'late', 'half-day', 'absent']
+        if new_status not in valid_statuses:
+            return JsonResponse({
+                'success': False,
+                'message': 'Invalid status selected'
+            })
+        
+        try:
+            old_status = attendance.status
+            attendance.status = new_status
+            attendance.status_modified_by = request.user
+            attendance.status_modified_at = timezone.now()
+            attendance.status_change_reason = reason
+            attendance.save()
+            
+            # Log action
+            AuditLog.objects.create(
+                user=request.user,
+                action='attendance_status_change',
+                description=f'Changed attendance status for {attendance.employee.username} on {attendance.date} from {old_status} to {new_status}. Reason: {reason}',
+                target_user=attendance.employee
+            )
+            
+            messages.success(request, f'Attendance status updated successfully!')
+            return JsonResponse({'success': True})
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
     
     return JsonResponse({'success': False, 'message': 'Invalid request'})

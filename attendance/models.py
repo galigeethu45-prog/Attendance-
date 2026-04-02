@@ -143,6 +143,14 @@ class EmployeeProfile(models.Model):
     date_of_joining = models.DateField(null=True, blank=True)
     is_hr = models.BooleanField(default=False, db_index=True)
     
+    # Role Management
+    ROLE_CHOICES = [
+        ('employee', 'Employee'),
+        ('team_leader', 'Team Leader'),
+        ('hr', 'HR/Admin'),
+    ]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='employee', db_index=True)
+    
     # Profile completion
     profile_completed = models.BooleanField(default=False)
 
@@ -180,6 +188,17 @@ class Attendance(models.Model):
         default='present',
         db_index=True
     )
+    
+    # HR/Admin Edit Tracking
+    status_modified_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='modified_attendances'
+    )
+    status_modified_at = models.DateTimeField(null=True, blank=True)
+    status_change_reason = models.TextField(blank=True, null=True)
 
     class Meta:
         unique_together = ('employee', 'date')
@@ -441,6 +460,8 @@ class AuditLog(models.Model):
         ('wfh_approve', 'WFH Approved'),
         ('wfh_reject', 'WFH Rejected'),
         ('wfh_cancel', 'WFH Cancelled'),
+        ('role_change', 'Role Changed'),
+        ('attendance_status_change', 'Attendance Status Changed'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='audit_logs', db_index=True)

@@ -50,4 +50,6 @@ urlpatterns = [
     path('master-data/edit/<int:master_id>/', master_data_views.edit_master_data, name='edit_master_data'),
     path('master-data/delete/<int:master_id>/', master_data_views.delete_master_data, name='delete_master_data'),
     path('user/reset-password/<int:user_id>/', master_data_views.reset_employee_password, name='reset_employee_password'),
+    path('user/change-role/<int:user_id>/', master_data_views.change_employee_role, name='change_employee_role'),
+    path('attendance/edit-status/<int:attendance_id>/', master_data_views.edit_attendance_status, name='edit_attendance_status'),
 ]
