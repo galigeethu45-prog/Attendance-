@@ -19,74 +19,61 @@ def get_wifi_ssid():
     Detect current WiFi SSID
     Returns: SSID string or None if not connected to WiFi
     """
-    import subprocess
-    import platform
-    
-    try:
-        system = platform.system()
-        
-        if system == 'Windows':
-            # Windows: netsh wlan show interfaces
-            result = subprocess.run(
-                ['netsh', 'wlan', 'show', 'interfaces'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            for line in result.stdout.split('\n'):
-                if 'SSID' in line and 'BSSID' not in line:
-                    parts = line.split(':', 1)
-                    if len(parts) == 2:
-                        ssid = parts[1].strip()
-                        if ssid:  # Make sure it's not empty
-                            return ssid
-        
-        elif system == 'Linux':
-            # Linux: iwgetid -r
-            result = subprocess.run(
-                ['iwgetid', '-r'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            ssid = result.stdout.strip()
-            return ssid if ssid else None
-        
-        elif system == 'Darwin':  # macOS
-            # macOS: airport -I
-            result = subprocess.run(
-                ['/System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport', '-I'],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            for line in result.stdout.split('\n'):
-                if ' SSID:' in line:
-                    parts = line.split(':', 1)
-                    if len(parts) == 2:
-                        ssid = parts[1].strip()
-                        if ssid:
-                            return ssid
-        
-        return None
-    
-    except Exception as e:
-        print(f"Error detecting WiFi: {e}")
-        return None
+    # WiFi SSID detection doesn't work on web servers
+    # This function is deprecated - use IP-based checking instead
+    return None
 
 
-def is_on_office_network():
+def get_client_ip(request):
     """
-    Check if user is on office WiFi (Regus)
-    Returns: Boolean
+    Get the real client IP address from request
+    Handles proxy/load balancer scenarios (AWS, Nginx, etc.)
     """
-    OFFICE_SSID = "Regus"  # Hardcoded for security
-    current_ssid = get_wifi_ssid()
+    # Check X-Forwarded-For header (set by load balancers/proxies)
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        # X-Forwarded-For can contain multiple IPs, first one is the client
+        ip = x_forwarded_for.split(',')[0].strip()
+    else:
+        # Fallback to REMOTE_ADDR
+        ip = request.META.get('REMOTE_ADDR')
     
-    if current_ssid is None:
+    return ip
+
+
+def is_on_office_network(request=None):
+    """
+    Check if user is accessing from office network (Regus)
+    Uses IP address checking (works on web servers/AWS)
+    
+    IMPORTANT: Add your Regus office public IP address below
+    """
+    if request is None:
         return False
     
-    return current_ssid.lower() == OFFICE_SSID.lower()
+    client_ip = get_client_ip(request)
+    
+    # ═══════════════════════════════════════════════════════════════
+    # CONFIGURE YOUR REGUS OFFICE IP ADDRESS HERE:
+    # ═══════════════════════════════════════════════════════════════
+    # Public IP detected from Regus WiFi network
+    
+    ALLOWED_OFFICE_IPS = [
+        '127.0.0.1',  # Localhost (for local testing only)
+        '::1',        # IPv6 localhost (for local testing only)
+        '14.195.138.241',  # Regus office public IP (Delhi, India - Tata Teleservices)
+    ]
+    
+    # ═══════════════════════════════════════════════════════════════
+    
+    # Check if client IP matches office IP
+    is_office = client_ip in ALLOWED_OFFICE_IPS
+    
+    # Debug logging (remove in production if needed)
+    if not is_office:
+        print(f"Access denied - Client IP: {client_ip} not in allowed office IPs")
+    
+    return is_office
 
 
 def has_approved_wfh_today(user):
@@ -106,27 +93,36 @@ def has_approved_wfh_today(user):
     return approved_wfh
 
 
-def can_check_in_from_location(user):
+def can_check_in_from_location(user, request=None):
     """
     Validate if user can check-in from current location
+    
+    RULES:
+    1. HR/Admin can check-in from anywhere (bypass all restrictions)
+    2. Regular employees MUST be either:
+       a) On office network (Regus IP), OR
+       b) Have approved WFH for today
+    
     Returns: (Boolean, String) - (can_check_in, reason)
     """
-    # HR/Admin bypass network restrictions
+    # RULE 1: HR/Admin bypass all network restrictions
     try:
         if user.is_superuser or user.employeeprofile.is_hr:
-            return (True, "HR/Admin access")
+            return (True, "HR/Admin - No restrictions")
     except EmployeeProfile.DoesNotExist:
-        pass
+        # If no profile, check if superuser
+        if user.is_superuser:
+            return (True, "Admin - No restrictions")
     
-    # Check if on office network
-    if is_on_office_network():
-        return (True, "Office network (Regus WiFi)")
+    # RULE 2a: Check if on office network (Regus)
+    if is_on_office_network(request):
+        return (True, "Office network (Regus)")
     
-    # Check if has approved WFH for today
+    # RULE 2b: Check if has approved WFH for today
     if has_approved_wfh_today(user):
-        return (True, "Approved WFH")
+        return (True, "Approved WFH - Can work from anywhere")
     
-    # Not allowed
+    # Not allowed - must be on office network or have approved WFH
     return (False, "You must be on office WiFi (Regus) or have approved WFH to check-in")
 
 
@@ -491,7 +487,7 @@ def dashboard(request):
 def check_in(request):
     if request.method == 'POST':
         # Validate location/network
-        can_check_in, reason = can_check_in_from_location(request.user)
+        can_check_in, reason = can_check_in_from_location(request.user, request)
         
         if not can_check_in:
             messages.error(request, reason)
@@ -546,7 +542,7 @@ def check_in(request):
 def check_out(request):
     if request.method == 'POST':
         # Validate location/network
-        can_check_out, reason = can_check_in_from_location(request.user)
+        can_check_out, reason = can_check_in_from_location(request.user, request)
         
         if not can_check_out:
             messages.error(request, reason)

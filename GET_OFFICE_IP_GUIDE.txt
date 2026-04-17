@@ -1,0 +1,152 @@
+═══════════════════════════════════════════════════════════════════════════
+                HOW TO GET YOUR REGUS OFFICE IP ADDRESS
+═══════════════════════════════════════════════════════════════════════════
+
+⚠️ CRITICAL: You MUST add your Regus office IP for the system to work!
+
+═══════════════════════════════════════════════════════════════════════════
+                        METHOD 1: FROM OFFICE
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 1: Go to your Regus office
+STEP 2: Connect to Regus WiFi
+STEP 3: Open browser and visit: https://whatismyipaddress.com
+STEP 4: Copy the IP address shown (e.g., 203.0.113.45)
+STEP 5: Add this IP to attendance/views.py
+
+═══════════════════════════════════════════════════════════════════════════
+                    METHOD 2: ASK REGUS IT SUPPORT
+═══════════════════════════════════════════════════════════════════════════
+
+Contact Regus IT support and ask:
+"What is our public IP address for internet access?"
+
+They will provide the IP address.
+
+═══════════════════════════════════════════════════════════════════════════
+                    METHOD 3: CHECK PRODUCTION LOGS
+═══════════════════════════════════════════════════════════════════════════
+
+If someone already tried to check-in from office:
+
+1. SSH to AWS server
+2. Check Django logs or Gunicorn logs
+3. Look for: "Access denied - Client IP: X.X.X.X"
+4. That X.X.X.X is the office IP
+
+═══════════════════════════════════════════════════════════════════════════
+                    HOW TO ADD IP TO THE SYSTEM
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 1: Open file: attendance/views.py
+
+STEP 2: Find this section (around line 35):
+
+    ALLOWED_OFFICE_IPS = [
+        '127.0.0.1',  # Localhost (for local testing only)
+        '::1',        # IPv6 localhost (for local testing only)
+        # TODO: ADD YOUR REGUS OFFICE PUBLIC IP HERE:
+        # Example: '203.0.113.45',
+    ]
+
+STEP 3: Add your Regus IP:
+
+    ALLOWED_OFFICE_IPS = [
+        '127.0.0.1',  # Localhost (for local testing only)
+        '::1',        # IPv6 localhost (for local testing only)
+        '203.0.113.45',  # Regus office IP (REPLACE WITH YOUR ACTUAL IP)
+    ]
+
+STEP 4: Save file
+
+STEP 5: Deploy to production:
+    git add attendance/views.py
+    git commit -m "Add Regus office IP"
+    git push origin main
+
+STEP 6: On AWS server:
+    git pull origin main
+    sudo systemctl restart gunicorn
+
+═══════════════════════════════════════════════════════════════════════════
+                    TESTING THE IP RESTRICTION
+═══════════════════════════════════════════════════════════════════════════
+
+TEST 1: From Office (Regus WiFi)
+✅ Should allow check-in
+✅ No error message
+
+TEST 2: From Home (without WFH approval)
+❌ Should show: "You must be on office WiFi (Regus) or have approved WFH"
+✅ This is correct behavior
+
+TEST 3: From Home (with approved WFH)
+✅ Should allow check-in
+✅ Message: "Approved WFH - Can work from anywhere"
+
+TEST 4: Admin/HR from anywhere
+✅ Should always allow check-in
+✅ Message: "HR/Admin - No restrictions"
+
+═══════════════════════════════════════════════════════════════════════════
+                    MULTIPLE OFFICE LOCATIONS
+═══════════════════════════════════════════════════════════════════════════
+
+If you have multiple Regus locations or offices:
+
+    ALLOWED_OFFICE_IPS = [
+        '127.0.0.1',
+        '::1',
+        '203.0.113.45',  # Regus Location 1
+        '198.51.100.30',  # Regus Location 2
+        '192.0.2.100',    # Head Office
+    ]
+
+Add all office IPs to the list.
+
+═══════════════════════════════════════════════════════════════════════════
+                    CURRENT SYSTEM BEHAVIOR
+═══════════════════════════════════════════════════════════════════════════
+
+✅ FIXED: Admin can check-in from anywhere (no restrictions)
+✅ FIXED: HR can check-in from anywhere (no restrictions)
+✅ WORKING: Employees with approved WFH can check-in from anywhere
+⚠️ PENDING: Need to add Regus office IP for office employees
+
+UNTIL YOU ADD OFFICE IP:
+- Admin/HR: ✅ Can check-in
+- Employees with WFH: ✅ Can check-in
+- Employees from office: ❌ Cannot check-in (will show network error)
+
+AFTER YOU ADD OFFICE IP:
+- Everyone: ✅ Can check-in (from office or with WFH approval)
+
+═══════════════════════════════════════════════════════════════════════════
+                    QUICK TEMPORARY FIX (NOT RECOMMENDED)
+═══════════════════════════════════════════════════════════════════════════
+
+If you need system to work immediately while finding office IP:
+
+Option 1: Approve WFH for all employees for today
+   - Go to HR Dashboard
+   - Approve all WFH requests
+   - Everyone can check-in
+
+Option 2: Make everyone HR temporarily (NOT RECOMMENDED)
+   - Not secure
+   - Don't do this
+
+BEST SOLUTION: Get office IP and add it (takes 5 minutes)
+
+═══════════════════════════════════════════════════════════════════════════
+                    CONTACT FOR HELP
+═══════════════════════════════════════════════════════════════════════════
+
+If you cannot find office IP:
+1. Ask Regus reception/IT support
+2. Check with your network administrator
+3. Visit whatismyipaddress.com from office
+
+The IP address looks like: 203.0.113.45 (four numbers separated by dots)
+
+═══════════════════════════════════════════════════════════════════════════
