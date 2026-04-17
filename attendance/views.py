@@ -813,14 +813,73 @@ def leave_request(request):
         employee=request.user
     ).order_by('-created_at')
     
-    # Calculate leave balance (dummy data - implement your logic)
+    # Calculate leave balance
+    current_year = timezone.now().year
+    current_month = timezone.now().month
+    
+    # Get approved leaves for current year
+    approved_leaves = LeaveRequest.objects.filter(
+        employee=request.user,
+        status='approved',
+        start_date__year=current_year
+    )
+    
+    # Count leaves by type
+    sick_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='sick'))
+    casual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='casual'))
+    earned_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='earned'))
+    
+    # Menstrual leave - only for female employees
+    menstrual_used = 0
+    show_menstrual = False
+    try:
+        profile = request.user.employeeprofile
+        if profile.gender and profile.gender.lower() == 'female':
+            show_menstrual = True
+            # Count menstrual leaves for current year
+            menstrual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='menstrual'))
+    except EmployeeProfile.DoesNotExist:
+        pass
+    
+    # Annual limits
+    SICK_LIMIT = 6
+    CASUAL_LIMIT = 6
+    EARNED_LIMIT = 6
+    MENSTRUAL_LIMIT = 12  # 1 per month, 12 per year
+    
+    # Calculate remaining
+    sick_remaining = max(0, SICK_LIMIT - sick_used)
+    casual_remaining = max(0, CASUAL_LIMIT - casual_used)
+    earned_remaining = max(0, EARNED_LIMIT - earned_used)
+    menstrual_remaining = max(0, MENSTRUAL_LIMIT - menstrual_used) if show_menstrual else 0
+    
+    # Calculate percentages
+    sick_percent = int((sick_remaining / SICK_LIMIT) * 100) if SICK_LIMIT > 0 else 0
+    casual_percent = int((casual_remaining / CASUAL_LIMIT) * 100) if CASUAL_LIMIT > 0 else 0
+    earned_percent = int((earned_remaining / EARNED_LIMIT) * 100) if EARNED_LIMIT > 0 else 0
+    menstrual_percent = int((menstrual_remaining / MENSTRUAL_LIMIT) * 100) if show_menstrual and MENSTRUAL_LIMIT > 0 else 0
+    
     leave_balance = {
-        'sick': 12,
-        'sick_percent': 100,
-        'casual': 15,
-        'casual_percent': 100,
-        'vacation': 20,
-        'vacation_percent': 100,
+        'sick_used': sick_used,
+        'sick_remaining': sick_remaining,
+        'sick_total': SICK_LIMIT,
+        'sick_percent': sick_percent,
+        
+        'casual_used': casual_used,
+        'casual_remaining': casual_remaining,
+        'casual_total': CASUAL_LIMIT,
+        'casual_percent': casual_percent,
+        
+        'earned_used': earned_used,
+        'earned_remaining': earned_remaining,
+        'earned_total': EARNED_LIMIT,
+        'earned_percent': earned_percent,
+        
+        'show_menstrual': show_menstrual,
+        'menstrual_used': menstrual_used,
+        'menstrual_remaining': menstrual_remaining,
+        'menstrual_total': MENSTRUAL_LIMIT,
+        'menstrual_percent': menstrual_percent,
     }
     
     context = {

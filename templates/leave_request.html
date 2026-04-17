@@ -29,6 +29,9 @@
                                 <option value="sick">Sick Leave</option>
                                 <option value="casual">Casual Leave</option>
                                 <option value="earned">Earned Leaves</option>
+                                {% if leave_balance.show_menstrual %}
+                                <option value="menstrual">Menstrual Leave</option>
+                                {% endif %}
                                 <option value="unpaid">Unpaid Leaves</option>
                             </select>
                         </div>
@@ -48,6 +51,70 @@
                             <i class="fas fa-paper-plane me-2"></i>Submit Request
                         </button>
                     </form>
+                </div>
+            </div>
+
+            <!-- Leave Balance -->
+            <div class="card glass-card fade-in-delay-2">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Leave Balance (Annual)</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Sick Leave -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Sick Leave</span>
+                            <span class="fw-bold">{{ leave_balance.sick_remaining }}/{{ leave_balance.sick_total }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" style="width: {{ leave_balance.sick_percent }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ leave_balance.sick_used }} used this year</small>
+                    </div>
+
+                    <!-- Casual Leave -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Casual Leave</span>
+                            <span class="fw-bold">{{ leave_balance.casual_remaining }}/{{ leave_balance.casual_total }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: {{ leave_balance.casual_percent }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ leave_balance.casual_used }} used this year</small>
+                    </div>
+
+                    <!-- Earned Leave -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Earned Leave</span>
+                            <span class="fw-bold">{{ leave_balance.earned_remaining }}/{{ leave_balance.earned_total }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-primary" style="width: {{ leave_balance.earned_percent }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ leave_balance.earned_used }} used this year</small>
+                    </div>
+
+                    <!-- Menstrual Leave (Only for Female) -->
+                    {% if leave_balance.show_menstrual %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Menstrual Leave</span>
+                            <span class="fw-bold">{{ leave_balance.menstrual_remaining }}/{{ leave_balance.menstrual_total }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" style="width: {{ leave_balance.menstrual_percent }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ leave_balance.menstrual_used }} used this year (1 per month)</small>
+                    </div>
+                    {% endif %}
+
+                    <!-- Unpaid Leave -->
+                    <div class="alert alert-info mb-0 mt-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <small><strong>Unpaid Leave:</strong> No limit - can be requested anytime</small>
+                    </div>
                 </div>
             </div>
         </div>

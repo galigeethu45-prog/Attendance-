@@ -318,6 +318,7 @@ class LeaveRequest(models.Model):
         ('sick', 'Sick Leave'),
         ('casual', 'Casual Leave'),
         ('earned', 'Earned Leaves'),
+        ('menstrual', 'Menstrual Leave'),
         ('unpaid', 'Unpaid Leaves'),
     ]
     
