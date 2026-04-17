@@ -844,21 +844,23 @@ def leave_request(request):
         # Menstrual leave - only for female employees
         menstrual_used = 0
         show_menstrual = False
+        gender_not_set = False
+        
         try:
             profile = request.user.employeeprofile
-            # Check if gender field exists and is female
-            if hasattr(profile, 'gender') and profile.gender:
+            if profile.gender:
                 if profile.gender.lower() == 'female':
                     show_menstrual = True
-                    # Count menstrual leaves for current year
                     try:
                         menstrual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='menstrual'))
                     except:
                         menstrual_used = 0
-        except (EmployeeProfile.DoesNotExist, AttributeError) as e:
-            # If no profile or gender field doesn't exist, don't show menstrual leave
-            print(f"Profile check error for {request.user.username}: {e}")
-            pass
+            else:
+                # Gender not set
+                gender_not_set = True
+        except (EmployeeProfile.DoesNotExist, AttributeError):
+            # No profile exists
+            gender_not_set = True
         
         # Annual limits
         SICK_LIMIT = 6
@@ -895,6 +897,7 @@ def leave_request(request):
             'earned_percent': earned_percent,
             
             'show_menstrual': show_menstrual,
+            'gender_not_set': gender_not_set,
             'menstrual_used': menstrual_used,
             'menstrual_remaining': menstrual_remaining,
             'menstrual_total': MENSTRUAL_LIMIT,
@@ -966,6 +969,7 @@ def profile(request):
         
         # Update employee profile if exists
         if employee_profile:
+            employee_profile.gender = request.POST.get('gender', '')
             employee_profile.phone_number = request.POST.get('phone_number', '')
             employee_profile.alternate_phone = request.POST.get('alternate_phone', '')
             employee_profile.date_of_birth = request.POST.get('date_of_birth') or None

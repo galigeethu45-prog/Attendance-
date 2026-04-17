@@ -60,6 +60,14 @@
                     <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Leave Balance (Annual)</h5>
                 </div>
                 <div class="card-body">
+                    <!-- Gender Not Set Alert -->
+                    {% if leave_balance.gender_not_set %}
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Gender Not Set:</strong> Please update your gender in <a href="{% url 'profile' %}" class="alert-link">Profile Settings</a> to access menstrual leave options.
+                    </div>
+                    {% endif %}
+
                     <!-- Sick Leave -->
                     <div class="mb-3">
                         <div class="d-flex justify-content-between mb-1">

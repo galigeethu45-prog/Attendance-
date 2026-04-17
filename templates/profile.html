@@ -88,6 +88,10 @@
                             <p class="mb-0">{{ employee_profile.employee_id|default:"Not set" }}</p>
                         </div>
                         <div class="col-md-6 mb-3">
+                            <label class="text-muted small">Gender</label>
+                            <p class="mb-0">{{ employee_profile.get_gender_display|default:"Not set" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="text-muted small">Date of Birth</label>
                             <p class="mb-0">{{ employee_profile.date_of_birth|date:"M d, Y"|default:"Not set" }}</p>
                         </div>
@@ -167,20 +171,32 @@
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="phone_number" class="form-label text-white">Phone Number</label>
-                            <input type="tel" class="form-control" id="phone_number" name="phone_number" value="{{ employee_profile.phone_number }}">
+                            <label for="gender" class="form-label text-white">Gender</label>
+                            <select class="form-select" id="gender" name="gender">
+                                <option value="">Select Gender</option>
+                                <option value="male" {% if employee_profile.gender == "male" %}selected{% endif %}>Male</option>
+                                <option value="female" {% if employee_profile.gender == "female" %}selected{% endif %}>Female</option>
+                            </select>
+                            <small class="text-muted">Required for menstrual leave eligibility</small>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="alternate_phone" class="form-label text-white">Alternate Phone</label>
-                            <input type="tel" class="form-control" id="alternate_phone" name="alternate_phone" value="{{ employee_profile.alternate_phone }}">
+                            <label for="phone_number" class="form-label text-white">Phone Number</label>
+                            <input type="tel" class="form-control" id="phone_number" name="phone_number" value="{{ employee_profile.phone_number }}">
                         </div>
                     </div>
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
+                            <label for="alternate_phone" class="form-label text-white">Alternate Phone</label>
+                            <input type="tel" class="form-control" id="alternate_phone" name="alternate_phone" value="{{ employee_profile.alternate_phone }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label for="date_of_birth" class="form-label text-white">Date of Birth</label>
                             <input type="date" class="form-control" id="date_of_birth" name="date_of_birth" value="{{ employee_profile.date_of_birth|date:'Y-m-d' }}">
                         </div>
+                    </div>
+                    
+                    <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="blood_group" class="form-label text-white">Blood Group</label>
                             <select class="form-select" id="blood_group" name="blood_group">

@@ -118,12 +118,18 @@ BREAK_TIME_WINDOWS = {
 # EMPLOYEE PROFILE
 # =========================
 class EmployeeProfile(models.Model):
+    GENDER_CHOICES = [
+        ('male', 'Male'),
+        ('female', 'Female'),
+    ]
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE)
 
     # Employee ID
     employee_id = models.CharField(max_length=20, unique=True, null=True, blank=True, db_index=True)
 
     # Personal Information
+    gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
     date_of_birth = models.DateField(null=True, blank=True)
     blood_group = models.CharField(max_length=5, blank=True)
     phone_number = models.CharField(max_length=15, blank=True)
