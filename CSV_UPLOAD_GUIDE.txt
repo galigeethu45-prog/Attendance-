@@ -1,0 +1,191 @@
+═══════════════════════════════════════════════════════════════════════════
+                    MASTER DATA CSV UPLOAD GUIDE
+═══════════════════════════════════════════════════════════════════════════
+
+📋 TEMPLATE FILE CREATED: master_data_template.csv
+
+This file contains sample data showing the exact format required.
+You can open it in Excel, delete the sample rows, and add your employee data.
+
+═══════════════════════════════════════════════════════════════════════════
+                        COLUMN REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════
+
+⚠️ IMPORTANT: Column names MUST match EXACTLY (case-sensitive)
+
+COLUMN ORDER (Must be in this exact sequence):
+────────────────────────────────────────────────────────────────────────────
+1.  ID Number              - Employee ID (e.g., EMP001, EMP002)
+2.  First Name             - First name of employee
+3.  Middle Name            - Middle name (can be empty)
+4.  Last Name              - Last name of employee
+5.  Gender                 - male OR female (lowercase)
+6.  Date of Birth          - Format: DD-MMM-YYYY (e.g., 15-Jan-1990)
+7.  Blood Group            - A+, A-, B+, B-, AB+, AB-, O+, O-
+8.  Department             - Department name (e.g., IT, HR, Finance)
+9.  Designation            - Job title (e.g., Software Engineer)
+10. Joining Date           - Format: DD-MMM-YYYY (e.g., 01-Jan-2024)
+11. Phone No               - 10-digit mobile number
+12. Alternate Phone No     - Optional alternate number (can be empty)
+13. Email                  - Must end with @arraafiinfotech.com
+14. Local Address          - Current residential address
+15. Permanent Address      - Permanent address
+16. Aadhaar Card No        - 12-digit Aadhaar number (no spaces)
+17. PAN Number             - 10-character PAN (e.g., ABCDE1234F)
+
+═══════════════════════════════════════════════════════════════════════════
+                        FIELD VALIDATIONS
+═══════════════════════════════════════════════════════════════════════════
+
+✓ ID Number:
+  - Must be unique
+  - No special characters except hyphen/underscore
+  - Example: EMP001, EMP-001, EMP_001
+
+✓ Gender:
+  - MUST be lowercase: "male" or "female"
+  - NOT: Male, MALE, M, F
+
+✓ Date Format:
+  - MUST use format: DD-MMM-YYYY
+  - Month MUST be 3-letter abbreviation with capital first letter
+  - Examples: 01-Jan-2024, 15-Feb-1990, 31-Dec-1985
+  - NOT: 01/01/2024, 2024-01-01, 01-January-2024
+
+✓ Blood Group:
+  - Valid values: A+, A-, B+, B-, AB+, AB-, O+, O-
+  - Must include + or - sign
+
+✓ Email:
+  - MUST end with @arraafiinfotech.com
+  - Will be converted to lowercase automatically
+  - Example: john.doe@arraafiinfotech.com
+
+✓ Phone Numbers:
+  - 10 digits only
+  - No spaces, hyphens, or country code
+  - Example: 9876543210
+  - NOT: +91-9876543210, 98765 43210
+
+✓ Aadhaar Number:
+  - Exactly 12 digits
+  - No spaces or hyphens
+  - Example: 123456789012
+  - NOT: 1234-5678-9012, 1234 5678 9012
+
+✓ PAN Number:
+  - Exactly 10 characters
+  - Format: 5 letters + 4 digits + 1 letter
+  - Will be converted to uppercase automatically
+  - Example: ABCDE1234F
+  - NOT: abcde1234f (will be auto-corrected)
+
+✓ Optional Fields (can be left empty):
+  - Middle Name
+  - Alternate Phone No
+
+═══════════════════════════════════════════════════════════════════════════
+                        HOW TO USE
+═══════════════════════════════════════════════════════════════════════════
+
+STEP 1: Open master_data_template.csv in Excel or any spreadsheet software
+
+STEP 2: Delete the sample data rows (keep the header row!)
+
+STEP 3: Add your employee data following the format shown
+
+STEP 4: Save the file as CSV (Comma delimited)
+
+STEP 5: Go to HR Dashboard → Master Data → Bulk Upload
+
+STEP 6: Select your CSV file and upload
+
+═══════════════════════════════════════════════════════════════════════════
+                        COMMON ERRORS & SOLUTIONS
+═══════════════════════════════════════════════════════════════════════════
+
+❌ ERROR: "Date format error"
+✅ SOLUTION: Use DD-MMM-YYYY format (e.g., 15-Jan-1990)
+   - Month must be 3 letters: Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec
+   - First letter capital, rest lowercase
+
+❌ ERROR: "Gender must be male or female"
+✅ SOLUTION: Use lowercase "male" or "female" only
+
+❌ ERROR: "Email validation failed"
+✅ SOLUTION: Ensure email ends with @arraafiinfotech.com
+
+❌ ERROR: "Column not found"
+✅ SOLUTION: Check that ALL column names match exactly (including spaces)
+   - "ID Number" NOT "ID_Number" or "IDNumber"
+   - "First Name" NOT "FirstName" or "First_Name"
+
+❌ ERROR: "Duplicate employee ID"
+✅ SOLUTION: Each ID Number must be unique in the CSV file
+
+═══════════════════════════════════════════════════════════════════════════
+                        EXCEL TIPS
+═══════════════════════════════════════════════════════════════════════════
+
+📌 Date Entry in Excel:
+   - Type dates as text: '15-Jan-1990 (note the apostrophe at start)
+   - OR format cells as Text before entering dates
+   - This prevents Excel from auto-converting date formats
+
+📌 Aadhaar Number in Excel:
+   - Format cells as Text before entering
+   - OR type with apostrophe: '123456789012
+   - This prevents Excel from converting to scientific notation
+
+📌 Saving CSV:
+   - File → Save As → CSV (Comma delimited) (*.csv)
+   - If Excel warns about features, click "Yes" to keep CSV format
+
+═══════════════════════════════════════════════════════════════════════════
+                        EXAMPLE DATA
+═══════════════════════════════════════════════════════════════════════════
+
+ID Number: EMP001
+First Name: Rajesh
+Middle Name: Kumar
+Last Name: Sharma
+Gender: male
+Date of Birth: 15-Jan-1990
+Blood Group: B+
+Department: IT
+Designation: Software Engineer
+Joining Date: 01-Jan-2024
+Phone No: 9876543210
+Alternate Phone No: 9876543211
+Email: rajesh.sharma@arraafiinfotech.com
+Local Address: 123 MG Road, Bangalore
+Permanent Address: 456 Park Street, Delhi
+Aadhaar Card No: 123456789012
+PAN Number: ABCDE1234F
+
+═══════════════════════════════════════════════════════════════════════════
+                        BULK UPLOAD FEATURES
+═══════════════════════════════════════════════════════════════════════════
+
+✓ Duplicate Handling:
+  - If Employee ID already exists, it will UPDATE the existing record
+  - No duplicate entries will be created
+
+✓ Error Reporting:
+  - System shows which rows had errors
+  - Successful rows are still uploaded
+  - You can fix errors and re-upload
+
+✓ Audit Trail:
+  - All bulk uploads are logged
+  - Shows who uploaded and when
+  - Shows success/error count
+
+═══════════════════════════════════════════════════════════════════════════
+
+📞 Need Help?
+   - Check the template file: master_data_template.csv
+   - Follow the exact format shown in the template
+   - Test with 2-3 employees first before bulk upload
+
+═══════════════════════════════════════════════════════════════════════════

@@ -40,32 +40,6 @@
                     </form>
                 </div>
             </div>
-
-            <!-- WFH Balance -->
-            <div class="card glass-card fade-in-delay-2">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>WFH Balance (This Month)</h5>
-                </div>
-                <div class="card-body">
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between mb-1">
-                            <span>Days Used</span>
-                            <span class="fw-bold">{{ used_days }}/{{ total_allowed }}</span>
-                        </div>
-                        <div class="progress">
-                            {% widthratio used_days total_allowed 100 as progress_percent %}
-                            <div class="progress-bar {% if used_days >= 5 %}bg-danger{% elif used_days >= 3 %}bg-warning{% else %}bg-success{% endif %}" 
-                                 style="width: {{ progress_percent }}%"></div>
-                        </div>
-                        <small class="text-muted mt-1 d-block">{{ remaining_days }} days remaining</small>
-                    </div>
-                    
-                    <div class="alert alert-info mb-0">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <small>You can request up to 5 WFH days per month</small>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div class="col-lg-8">

@@ -1,57 +1,45 @@
-"""
-Quick test script to verify login functionality
-"""
 import os
 import django
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 django.setup()
 
-from django.test import Client
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
 
-# Create test client
-client = Client()
+print("="*60)
+print("TESTING LOGIN CREDENTIALS")
+print("="*60)
 
-# Test 1: Check if login page is accessible
-print("Test 1: Accessing login page...")
-response = client.get('/login/')
-print(f"Status Code: {response.status_code}")
-print(f"✓ Login page accessible!" if response.status_code == 200 else "✗ Login page error!")
+# Test admin
+print("\n1. Testing ADMIN login...")
+admin = authenticate(username='admin', password='admin123')
+if admin:
+    print(f"   ✅ SUCCESS - Admin can login")
+    print(f"   Username: admin")
+    print(f"   Password: admin123")
+else:
+    print(f"   ❌ FAILED - Admin authentication failed")
 
-# Test 2: Check if root redirects to login
-print("\nTest 2: Accessing root URL...")
-response = client.get('/')
-print(f"Status Code: {response.status_code}")
-print(f"✓ Root URL accessible!" if response.status_code == 200 else "✗ Root URL error!")
+# Test employee
+print("\n2. Testing EMPLOYEE login...")
+emp = authenticate(username='AI0021', password='employee123')
+if emp:
+    print(f"   ✅ SUCCESS - Employee can login")
+    print(f"   Username: AI0021")
+    print(f"   Password: employee123")
+else:
+    print(f"   ❌ FAILED - Employee authentication failed")
 
-# Test 3: Check if dashboard requires login
-print("\nTest 3: Accessing dashboard without login...")
-response = client.get('/attendance/')
-print(f"Status Code: {response.status_code}")
-print(f"✓ Dashboard redirects to login!" if response.status_code == 302 else "✗ Dashboard accessible without login!")
-
-# Test 4: Test login with demo user
-print("\nTest 4: Testing login with demo user...")
-response = client.post('/login/', {
-    'username': 'employee1',
-    'password': 'emp123'
-})
-print(f"Status Code: {response.status_code}")
-print(f"✓ Login successful!" if response.status_code == 302 else "✗ Login failed!")
-
-# Test 5: Check if dashboard is accessible after login
-print("\nTest 5: Accessing dashboard after login...")
-response = client.get('/attendance/')
-print(f"Status Code: {response.status_code}")
-print(f"✓ Dashboard accessible after login!" if response.status_code == 200 else "✗ Dashboard not accessible!")
-
-# Test 6: Test logout
-print("\nTest 6: Testing logout...")
-response = client.get('/logout/')
-print(f"Status Code: {response.status_code}")
-print(f"✓ Logout successful!" if response.status_code == 302 else "✗ Logout failed!")
-
-print("\n" + "="*50)
-print("All tests completed!")
-print("="*50)
+print("\n" + "="*60)
+print("LOGIN INSTRUCTIONS:")
+print("="*60)
+print("\n🔑 On the login page, enter:")
+print("\nFor ADMIN:")
+print("   Employee ID: admin")
+print("   Password: admin123")
+print("\nFor EMPLOYEE:")
+print("   Employee ID: AI0021")
+print("   Password: employee123")
+print("\n⚠️  Use 'Employee ID' field, NOT email!")
+print("="*60)
