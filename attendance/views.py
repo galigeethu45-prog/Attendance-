@@ -814,73 +814,117 @@ def leave_request(request):
     ).order_by('-created_at')
     
     # Calculate leave balance
-    current_year = timezone.now().year
-    current_month = timezone.now().month
-    
-    # Get approved leaves for current year
-    approved_leaves = LeaveRequest.objects.filter(
-        employee=request.user,
-        status='approved',
-        start_date__year=current_year
-    )
-    
-    # Count leaves by type
-    sick_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='sick'))
-    casual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='casual'))
-    earned_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='earned'))
-    
-    # Menstrual leave - only for female employees
-    menstrual_used = 0
-    show_menstrual = False
     try:
-        profile = request.user.employeeprofile
-        if profile.gender and profile.gender.lower() == 'female':
-            show_menstrual = True
-            # Count menstrual leaves for current year
-            menstrual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='menstrual'))
-    except EmployeeProfile.DoesNotExist:
-        pass
-    
-    # Annual limits
-    SICK_LIMIT = 6
-    CASUAL_LIMIT = 6
-    EARNED_LIMIT = 6
-    MENSTRUAL_LIMIT = 12  # 1 per month, 12 per year
-    
-    # Calculate remaining
-    sick_remaining = max(0, SICK_LIMIT - sick_used)
-    casual_remaining = max(0, CASUAL_LIMIT - casual_used)
-    earned_remaining = max(0, EARNED_LIMIT - earned_used)
-    menstrual_remaining = max(0, MENSTRUAL_LIMIT - menstrual_used) if show_menstrual else 0
-    
-    # Calculate percentages
-    sick_percent = int((sick_remaining / SICK_LIMIT) * 100) if SICK_LIMIT > 0 else 0
-    casual_percent = int((casual_remaining / CASUAL_LIMIT) * 100) if CASUAL_LIMIT > 0 else 0
-    earned_percent = int((earned_remaining / EARNED_LIMIT) * 100) if EARNED_LIMIT > 0 else 0
-    menstrual_percent = int((menstrual_remaining / MENSTRUAL_LIMIT) * 100) if show_menstrual and MENSTRUAL_LIMIT > 0 else 0
-    
-    leave_balance = {
-        'sick_used': sick_used,
-        'sick_remaining': sick_remaining,
-        'sick_total': SICK_LIMIT,
-        'sick_percent': sick_percent,
+        current_year = timezone.now().year
+        current_month = timezone.now().month
         
-        'casual_used': casual_used,
-        'casual_remaining': casual_remaining,
-        'casual_total': CASUAL_LIMIT,
-        'casual_percent': casual_percent,
+        # Get approved leaves for current year
+        approved_leaves = LeaveRequest.objects.filter(
+            employee=request.user,
+            status='approved',
+            start_date__year=current_year
+        )
         
-        'earned_used': earned_used,
-        'earned_remaining': earned_remaining,
-        'earned_total': EARNED_LIMIT,
-        'earned_percent': earned_percent,
+        # Count leaves by type (handle potential errors)
+        try:
+            sick_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='sick'))
+        except:
+            sick_used = 0
+            
+        try:
+            casual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='casual'))
+        except:
+            casual_used = 0
+            
+        try:
+            earned_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='earned'))
+        except:
+            earned_used = 0
         
-        'show_menstrual': show_menstrual,
-        'menstrual_used': menstrual_used,
-        'menstrual_remaining': menstrual_remaining,
-        'menstrual_total': MENSTRUAL_LIMIT,
-        'menstrual_percent': menstrual_percent,
-    }
+        # Menstrual leave - only for female employees
+        menstrual_used = 0
+        show_menstrual = False
+        try:
+            profile = request.user.employeeprofile
+            # Check if gender field exists and is female
+            if hasattr(profile, 'gender') and profile.gender:
+                if profile.gender.lower() == 'female':
+                    show_menstrual = True
+                    # Count menstrual leaves for current year
+                    try:
+                        menstrual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='menstrual'))
+                    except:
+                        menstrual_used = 0
+        except (EmployeeProfile.DoesNotExist, AttributeError) as e:
+            # If no profile or gender field doesn't exist, don't show menstrual leave
+            print(f"Profile check error for {request.user.username}: {e}")
+            pass
+        
+        # Annual limits
+        SICK_LIMIT = 6
+        CASUAL_LIMIT = 6
+        EARNED_LIMIT = 6
+        MENSTRUAL_LIMIT = 12  # 1 per month, 12 per year
+        
+        # Calculate remaining
+        sick_remaining = max(0, SICK_LIMIT - sick_used)
+        casual_remaining = max(0, CASUAL_LIMIT - casual_used)
+        earned_remaining = max(0, EARNED_LIMIT - earned_used)
+        menstrual_remaining = max(0, MENSTRUAL_LIMIT - menstrual_used) if show_menstrual else 0
+        
+        # Calculate percentages
+        sick_percent = int((sick_remaining / SICK_LIMIT) * 100) if SICK_LIMIT > 0 else 0
+        casual_percent = int((casual_remaining / CASUAL_LIMIT) * 100) if CASUAL_LIMIT > 0 else 0
+        earned_percent = int((earned_remaining / EARNED_LIMIT) * 100) if EARNED_LIMIT > 0 else 0
+        menstrual_percent = int((menstrual_remaining / MENSTRUAL_LIMIT) * 100) if show_menstrual and MENSTRUAL_LIMIT > 0 else 0
+        
+        leave_balance = {
+            'sick_used': sick_used,
+            'sick_remaining': sick_remaining,
+            'sick_total': SICK_LIMIT,
+            'sick_percent': sick_percent,
+            
+            'casual_used': casual_used,
+            'casual_remaining': casual_remaining,
+            'casual_total': CASUAL_LIMIT,
+            'casual_percent': casual_percent,
+            
+            'earned_used': earned_used,
+            'earned_remaining': earned_remaining,
+            'earned_total': EARNED_LIMIT,
+            'earned_percent': earned_percent,
+            
+            'show_menstrual': show_menstrual,
+            'menstrual_used': menstrual_used,
+            'menstrual_remaining': menstrual_remaining,
+            'menstrual_total': MENSTRUAL_LIMIT,
+            'menstrual_percent': menstrual_percent,
+        }
+    except Exception as e:
+        # If any error in balance calculation, provide default values
+        print(f"Error calculating leave balance for {request.user.username}: {e}")
+        leave_balance = {
+            'sick_used': 0,
+            'sick_remaining': 6,
+            'sick_total': 6,
+            'sick_percent': 100,
+            
+            'casual_used': 0,
+            'casual_remaining': 6,
+            'casual_total': 6,
+            'casual_percent': 100,
+            
+            'earned_used': 0,
+            'earned_remaining': 6,
+            'earned_total': 6,
+            'earned_percent': 100,
+            
+            'show_menstrual': False,
+            'menstrual_used': 0,
+            'menstrual_remaining': 0,
+            'menstrual_total': 12,
+            'menstrual_percent': 0,
+        }
     
     context = {
         'leave_requests': leave_requests,
