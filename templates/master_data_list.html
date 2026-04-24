@@ -119,10 +119,8 @@
                                 <span class="badge bg-success">
                                     <i class="fas fa-check-circle me-1"></i>Registered
                                 </span>
-                                {% if emp.linked_user.employeeprofile.role %}
-                                <br><small class="badge bg-info mt-1">{{ emp.linked_user.employeeprofile.get_role_display }}</small>
                                 {% endif %}
-                                {% else %}
+                                {% if not emp.account_created %}
                                 <span class="badge bg-warning">
                                     <i class="fas fa-clock me-1"></i>Pending
                                 </span>
@@ -134,9 +132,6 @@
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     {% if emp.linked_user %}
-                                    <button class="btn btn-sm btn-info" onclick="changeRole({{ emp.linked_user.id }}, '{{ emp.employee_id }}', '{{ emp.linked_user.employeeprofile.role }}')" title="Change Role">
-                                        <i class="fas fa-user-shield"></i>
-                                    </button>
                                     <button class="btn btn-sm btn-warning" onclick="resetPassword({{ emp.linked_user.id }}, '{{ emp.employee_id }}')" title="Reset Password">
                                         <i class="fas fa-lock-open"></i>
                                     </button>
@@ -178,7 +173,12 @@
                 <p>Reset password for Employee ID: <strong id="resetEmpId"></strong></p>
                 <div class="mb-3">
                     <label for="newPassword" class="form-label">New Password</label>
-                    <input type="password" class="form-control" id="newPassword" minlength="6" required>
+                    <div style="position: relative;">
+                        <input type="password" class="form-control" id="newPassword" minlength="6" required style="padding-right: 45px;">
+                        <button type="button" id="toggleNewPassword" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #666; cursor: pointer; padding: 8px; font-size: 1rem; transition: color 0.3s;">
+                            <i class="fas fa-eye" id="toggleNewPasswordIcon"></i>
+                        </button>
+                    </div>
                     <small class="text-muted">Minimum 6 characters</small>
                 </div>
             </div>
@@ -420,5 +420,36 @@ function confirmChangeRole() {
         console.error(error);
     });
 }
+
+// Password visibility toggle for Reset Password modal
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleNewPassword = document.getElementById('toggleNewPassword');
+    const newPasswordInput = document.getElementById('newPassword');
+    const toggleNewPasswordIcon = document.getElementById('toggleNewPasswordIcon');
+    
+    if (toggleNewPassword) {
+        // Hover effect
+        toggleNewPassword.addEventListener('mouseenter', function() {
+            this.style.color = '#333';
+        });
+        
+        toggleNewPassword.addEventListener('mouseleave', function() {
+            this.style.color = '#666';
+        });
+        
+        // Toggle visibility
+        toggleNewPassword.addEventListener('click', function() {
+            if (newPasswordInput.type === 'password') {
+                newPasswordInput.type = 'text';
+                toggleNewPasswordIcon.classList.remove('fa-eye');
+                toggleNewPasswordIcon.classList.add('fa-eye-slash');
+            } else {
+                newPasswordInput.type = 'password';
+                toggleNewPasswordIcon.classList.remove('fa-eye-slash');
+                toggleNewPasswordIcon.classList.add('fa-eye');
+            }
+        });
+    }
+});
 </script>
 {% endblock %}

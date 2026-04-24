@@ -1,206 +1,85 @@
 # AttendanceHub - Employee Attendance Management System
 
-A modern, production-ready Django-based attendance management system with beautiful UI/UX, animations, and complete workflow management.
+A comprehensive Django-based attendance management system with automatic checkout, break tracking, leave management, and HR dashboard.
 
-## Features
+## Quick Start
 
-### Employee Features
-- ✅ Check-in/Check-out with automatic time tracking
-- ☕ Break management (Tea & Lunch breaks with limits)
-- 📊 Personal dashboard with statistics
-- 📅 Attendance history with filters and export
-- 🏖️ Leave request management
-- 🔔 Real-time notifications
-- 👤 Profile management
-
-### HR Features
-- 👥 Employee attendance overview
-- 📈 Analytics and reports with charts
-- ✅ Leave approval/rejection system
-- 📊 Department-wise statistics
-- 📉 Performance tracking
-
-### Technical Features
-- 🎨 Modern, responsive UI with animations
-- 🔐 Secure authentication system
-- 📱 Mobile-friendly design
-- 🚀 Production-ready configuration
-- 💾 SQLite database (easily switchable to PostgreSQL)
-- 🎯 Clean, maintainable code structure
-
-## Installation
-
-### Prerequisites
-- Python 3.8+
-- pip
-- virtualenv (recommended)
-
-### Setup Steps
-
-1. Clone the repository
-```bash
-git clone <repository-url>
-cd attendance-system
-```
-
-2. Create and activate virtual environment
-```bash
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# Linux/Mac
-source venv/bin/activate
-```
-
-3. Install dependencies
+### 1. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Configure environment variables
+### 2. Setup Database
 ```bash
-cp .env.example .env
-# Edit .env with your settings
-```
-
-5. Run migrations
-```bash
-python manage.py makemigrations
 python manage.py migrate
 ```
 
-6. Create superuser
+### 3. Create Admin User
 ```bash
-python manage.py createsuperuser
+python scripts/setup/setup_admin_hr.py
 ```
 
-7. Create employee profile for superuser
-```bash
-python manage.py shell
-```
-```python
-from django.contrib.auth.models import User
-from attendance.models import EmployeeProfile
-
-user = User.objects.get(username='your-username')
-EmployeeProfile.objects.create(
-    user=user,
-    department='IT',
-    designation='Manager',
-    is_hr=True
-)
-exit()
-```
-
-8. Collect static files
-```bash
-python manage.py collectstatic --noinput
-```
-
-9. Run development server
+### 4. Run Server
 ```bash
 python manage.py runserver
 ```
 
-10. Access the application
-- Main App: http://localhost:8000/
-- Admin Panel: http://localhost:8000/admin/
+### 5. Setup Auto-Checkout (Optional)
+```bash
+# Windows
+scripts/setup/setup_auto_checkout_no_admin.bat
 
-## Usage
+# Linux
+scripts/setup/setup_auto_checkout.sh
+```
 
-### For Employees
-1. Login with your credentials
-2. Check-in when you start work
-3. Take breaks as needed (within limits)
-4. Check-out when you finish
-5. View your attendance history
-6. Request leaves when needed
+## Documentation
 
-### For HR
-1. Login with HR credentials
-2. Access HR Dashboard from navigation
-3. View all employee attendance
-4. Approve/reject leave requests
-5. Generate reports and analytics
+- **Quick Start**: `docs/QUICKSTART.md`
+- **Features**: `docs/FEATURES.md`
+- **Deployment**: `docs/DEPLOYMENT.md`
+- **Full Docs**: `docs/` folder
+
+## Project Structure
+
+```
+attendance-system/
+├── attendance/          # Main Django app (backend)
+├── core/               # Project settings (backend)
+├── templates/          # HTML templates (frontend)
+├── static/            # CSS, JS, images (frontend)
+├── docs/              # Documentation
+├── scripts/           # Utility scripts
+│   ├── setup/        # Setup scripts
+│   ├── test/         # Test scripts
+│   └── maintenance/  # Maintenance scripts
+├── manage.py          # Django management
+└── requirements.txt   # Dependencies
+```
+
+## Features
+
+- Automatic check-in/check-out
+- Break management (Tea & Lunch)
+- Leave request system
+- HR dashboard with analytics
+- Work mode (Office/Hybrid/WFH)
+- Emergency override for network issues
+- Auto-checkout at 7 PM
+- Audit logging
+- Master data management
 
 ## Configuration
 
-### Break Rules
-Edit `attendance/models.py` to modify break rules:
-```python
-BREAK_RULES = {
-    'tea': {
-        'max_count': 2,
-        'allowed_minutes': 15,
-    },
-    'lunch': {
-        'max_count': 1,
-        'allowed_minutes': 45,
-    }
-}
-```
-
-### Work Hours
-Modify check-in time validation in `attendance/views.py`:
-```python
-# Late if after 9:30 AM
-if check_in_time.hour > 9 or (check_in_time.hour == 9 and check_in_time.minute > 30):
-    attendance.status = 'late'
-```
-
-## Production Deployment
-
-### Using Gunicorn
-```bash
-gunicorn core.wsgi:application --bind 0.0.0.0:8000
-```
-
-### Environment Variables for Production
-```bash
-DEBUG=False
-SECRET_KEY=your-production-secret-key
-ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
-```
-
-### Database Migration to PostgreSQL
-1. Install psycopg2: `pip install psycopg2-binary`
-2. Update DATABASES in settings.py
-3. Run migrations: `python manage.py migrate`
-
-## Project Structure
-```
-attendance-system/
-├── attendance/          # Main app
-│   ├── models.py       # Database models
-│   ├── views.py        # View functions
-│   ├── urls.py         # URL routing
-│   └── admin.py        # Admin configuration
-├── core/               # Project settings
-│   ├── settings.py     # Django settings
-│   ├── urls.py         # Root URL config
-│   └── wsgi.py         # WSGI config
-├── templates/          # HTML templates
-├── static/             # CSS, JS, images
-├── requirements.txt    # Python dependencies
-└── manage.py          # Django management script
-```
-
-## Technologies Used
-- Django 5.0
-- Bootstrap 5.3
-- Font Awesome 6.4
-- Animate.css
-- Chart.js
-- JavaScript (ES6+)
-
-## Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-This project is licensed under the MIT License.
+1. Copy `.env.example` to `.env`
+2. Update database settings
+3. Update email settings (optional)
+4. Set your office IP address in `attendance/views.py`
 
 ## Support
-For issues and questions, please create an issue in the repository.
 
-## Author
-Developed with ❤️ for modern workforce management
+For detailed documentation, see `docs/` folder.
+
+## License
+
+MIT License

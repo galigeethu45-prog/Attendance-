@@ -37,11 +37,18 @@ urlpatterns = [
     
     # HR functions
     path('hr/', views.hr_dashboard, name='hr_dashboard'),
+    path('hr/export-attendance-csv/', views.export_attendance_csv, name='export_attendance_csv'),
+    path('hr/employee-list/<str:list_type>/', views.employee_list_view, name='employee_list_view'),
     path('leave/approve/<int:leave_id>/', views.approve_leave, name='approve_leave'),
     path('leave/reject/<int:leave_id>/', views.reject_leave, name='reject_leave'),
     path('employee/<int:user_id>/details/', views.employee_details, name='employee_details'),
     path('user/add/', views.add_user, name='add_user'),
     path('user/delete/<int:user_id>/', views.delete_user, name='delete_user'),
+    path('user/change-work-mode/', views.change_work_mode, name='change_work_mode'),
+    
+    # Emergency Override (HR Only)
+    path('emergency-override/status/', views.emergency_override_status, name='emergency_override_status'),
+    path('emergency-override/toggle/', views.toggle_emergency_override, name='toggle_emergency_override'),
     
     # Master Data Management (HR Only)
     path('master-data/', master_data_views.master_data_list, name='master_data_list'),

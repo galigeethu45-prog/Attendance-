@@ -1,0 +1,282 @@
+template_content = r'''{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Employee Details - {{ employee_user.get_full_name|default:employee_user.username }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <a href="{% url 'hr_dashboard' %}" class="btn btn-secondary mb-3">
+                <i class="fas fa-arrow-left me-2"></i>Back to HR Dashboard
+            </a>
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-user-circle me-2"></i>Employee Details
+            </h2>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card glass-card mb-4 fade-in-delay-1">
+                <div class="card-body text-center">
+                    <div class="avatar-circle mx-auto mb-3" style="width: 100px; height: 100px; font-size: 3rem;">
+                        {{ employee_user.first_name.0|default:employee_user.username.0 }}
+                    </div>
+                    <h4 class="text-white">{{ employee_user.get_full_name|default:employee_user.username }}</h4>
+                    <p class="text-muted">@{{ employee_user.username }}</p>
+                    <p class="mb-1"><strong>Employee ID:</strong> {{ viewed_profile.employee_id|default:"Not set" }}</p>
+                    <p class="mb-1"><strong>Department:</strong> {{ viewed_profile.department|default:"Not set" }}</p>
+                    <p class="mb-1"><strong>Designation:</strong> {{ viewed_profile.designation|default:"Not set" }}</p>
+                    
+                    <div class="mt-3 mb-2">
+                        <strong>Work Mode:</strong>
+                        <span class="badge {% if viewed_profile.work_mode == 'office' %}bg-primary{% elif viewed_profile.work_mode == 'hybrid' %}bg-info{% else %}bg-success{% endif %} ms-1">
+                            {{ viewed_profile.get_work_mode_display|default:"Office Only" }}
+                        </span>
+                        <button class="btn btn-sm btn-warning ms-2" onclick="changeWorkMode('{{ employee_user.id }}', '{{ viewed_profile.work_mode }}', '{{ employee_user.get_full_name|default:employee_user.username }}')">
+                            <i class="fas fa-edit"></i> Change
+                        </button>
+                    </div>
+                    
+                    {% if viewed_profile.is_hr %}
+                    <span class="badge bg-primary mt-2">HR</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card glass-card mb-4 fade-in-delay-2">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-address-card me-2"></i>Contact Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Email</small>
+                        <p class="mb-0 text-white">{{ employee_user.email|default:"Not provided" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Phone Number</small>
+                        <p class="mb-0 text-white">{{ viewed_profile.phone_number|default:"Not provided" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Alternate Phone</small>
+                        <p class="mb-0 text-white">{{ viewed_profile.alternate_phone|default:"Not provided" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Date of Birth</small>
+                        <p class="mb-0 text-white">{{ viewed_profile.date_of_birth|date:"M d, Y"|default:"Not provided" }}</p>
+                    </div>
+                    <div class="mb-0">
+                        <small class="text-muted">Blood Group</small>
+                        <p class="mb-0 text-white">{{ viewed_profile.blood_group|default:"Not provided" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card glass-card mb-4 fade-in-delay-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Performance Overview</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 bg-light rounded">
+                                <h3 class="text-success mb-0">{{ total_present }}</h3>
+                                <small class="text-muted">Present Days</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 bg-light rounded">
+                                <h3 class="text-warning mb-0">{{ total_late }}</h3>
+                                <small class="text-muted">Late Arrivals</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 bg-light rounded">
+                                <h3 class="text-info mb-0">{{ total_half_day }}</h3>
+                                <small class="text-muted">Half Days</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <div class="p-3 bg-light rounded">
+                                <h3 class="text-primary mb-0">{{ total_hours|floatformat:1 }}h</h3>
+                                <small class="text-muted">Total Hours</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card glass-card mb-4 fade-in-delay-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Personal Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Local Address</small>
+                            <p class="mb-0 text-white">{{ viewed_profile.local_address|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Permanent Address</small>
+                            <p class="mb-0 text-white">{{ viewed_profile.permanent_address|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Aadhar Number</small>
+                            <p class="mb-0 text-white">{{ viewed_profile.aadhar_number|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">PAN Number</small>
+                            <p class="mb-0 text-white">{{ viewed_profile.pan_number|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Date of Joining</small>
+                            <p class="mb-0 text-white">{{ viewed_profile.date_of_joining|date:"M d, Y"|default:"Not provided" }}</p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Account Created</small>
+                            <p class="mb-0 text-white">{{ employee_user.date_joined|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card glass-card mb-4 fade-in-delay-5">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Recent Attendance</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Check In</th>
+                                    <th>Check Out</th>
+                                    <th>Work Hours</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in recent_attendance %}
+                                <tr>
+                                    <td>{{ record.date|date:"M d, Y" }}</td>
+                                    <td>{{ record.check_in|time:"h:i A"|default:"-" }}</td>
+                                    <td>{{ record.check_out|time:"h:i A"|default:"-" }}</td>
+                                    <td>{{ record.get_work_hours_display }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ record.status }}">
+                                            {{ record.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No attendance records</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card glass-card fade-in-delay-6">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar-times me-2"></i>Recent Leave Requests</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Days</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in leave_requests %}
+                                <tr>
+                                    <td>{{ leave.get_leave_type_display }}</td>
+                                    <td>{{ leave.start_date|date:"M d, Y" }}</td>
+                                    <td>{{ leave.end_date|date:"M d, Y" }}</td>
+                                    <td>{{ leave.total_days }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ leave.status }}">
+                                            {{ leave.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted">No leave requests</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="changeWorkModeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title text-white"><i class="fas fa-briefcase me-2"></i>Change Work Mode</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'change_work_mode' %}">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" id="workModeUserId">
+                <div class="modal-body">
+                    <p class="text-white">Employee: <strong id="workModeEmployeeName"></strong></p>
+                    <p class="text-muted small">Current: <span id="currentWorkMode"></span></p>
+                    <div class="mb-3">
+                        <label class="form-label text-white">New Work Mode</label>
+                        <select class="form-select" name="new_work_mode" id="new_work_mode" required>
+                            <option value="office">Office Only</option>
+                            <option value="hybrid">Hybrid</option>
+                            <option value="permanent_wfh">Permanent WFH</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-white">Reason</label>
+                        <textarea class="form-control" name="reason" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save me-2"></i>Update</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changeWorkMode(userId, currentMode, employeeName) {
+    document.getElementById('workModeUserId').value = userId;
+    document.getElementById('workModeEmployeeName').textContent = employeeName;
+    document.getElementById('new_work_mode').value = currentMode;
+    const modes = {office: 'Office Only', hybrid: 'Hybrid', permanent_wfh: 'Permanent WFH'};
+    document.getElementById('currentWorkMode').textContent = modes[currentMode] || 'Office Only';
+    new bootstrap.Modal(document.getElementById('changeWorkModeModal')).show();
+}
+</script>
+{% endblock %}
+'''
+
+with open('templates/employee_details.html', 'w', encoding='utf-8') as f:
+    f.write(template_content)
+
+print("✓ Template written successfully!")

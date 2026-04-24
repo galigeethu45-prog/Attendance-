@@ -37,7 +37,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'overtime' %}"><i class="fas fa-clock me-1"></i>Overtime</a>
                     </li>
-                    {% if user.is_superuser or user.employeeprofile.is_hr %}
+                    {% if user.is_superuser or employee_profile and employee_profile.is_hr %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'hr_dashboard' %}"><i class="fas fa-users-cog me-1"></i>HR Panel</a>
                     </li>
@@ -50,7 +50,12 @@
                     {% endif %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user-circle me-1"></i>{{ user.username }}
+                            {% if employee_profile and employee_profile.profile_photo %}
+                            <img src="{{ employee_profile.profile_photo.url }}" alt="Profile" class="rounded-circle me-1" style="width: 30px; height: 30px; object-fit: cover; border: 2px solid rgba(255,255,255,0.3);">
+                            {% else %}
+                            <i class="fas fa-user-circle me-1"></i>
+                            {% endif %}
+                            {{ user.username }}
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="{% url 'profile' %}"><i class="fas fa-user me-2"></i>Profile</a></li>

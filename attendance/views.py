@@ -7,7 +7,7 @@ from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from datetime import datetime, timedelta, time as dt_time
-from .models import Attendance, BreakLog, Notification, BREAK_RULES, LeaveRequest, EmployeeProfile, Overtime, AuditLog, WFHRequest, EmployeeMasterData
+from .models import Attendance, BreakLog, Notification, BREAK_RULES, LeaveRequest, EmployeeProfile, Overtime, AuditLog, WFHRequest, EmployeeMasterData, SystemSettings
 from django.contrib.auth.models import User
 
 
@@ -59,9 +59,14 @@ def is_on_office_network(request=None):
     # Public IP detected from Regus WiFi network
     
     ALLOWED_OFFICE_IPS = [
-        '127.0.0.1',  # Localhost (for local testing only)
-        '::1',        # IPv6 localhost (for local testing only)
+        # REMOVE THESE LINES IN PRODUCTION - FOR TESTING ONLY:
+        # '127.0.0.1',  # Localhost (for local testing only)
+        # '::1',        # IPv6 localhost (for local testing only)
+        
+        # ADD YOUR ACTUAL REGUS OFFICE PUBLIC IP HERE:
         '14.195.138.241',  # Regus office public IP (Delhi, India - Tata Teleservices)
+        # Add more office IPs if you have multiple locations:
+        # '123.456.789.012',  # Another office location
     ]
     
     # ═══════════════════════════════════════════════════════════════
@@ -98,13 +103,22 @@ def can_check_in_from_location(user, request=None):
     Validate if user can check-in from current location
     
     RULES:
+    0. EMERGENCY OVERRIDE: If enabled by HR, everyone can check-in from anywhere
     1. HR/Admin can check-in from anywhere (bypass all restrictions)
-    2. Regular employees MUST be either:
+    2. Hybrid/Permanent WFH employees can check-in from anywhere
+    3. Regular office employees MUST be either:
        a) On office network (Regus IP), OR
        b) Have approved WFH for today
     
     Returns: (Boolean, String) - (can_check_in, reason)
     """
+    # Import here to avoid circular import
+    from .models import SystemSettings
+    
+    # RULE 0: EMERGENCY OVERRIDE - Bypass all restrictions
+    if SystemSettings.is_emergency_override_active():
+        return (True, "🚨 Emergency Override Active - Network restrictions bypassed")
+    
     # RULE 1: HR/Admin bypass all network restrictions
     try:
         if user.is_superuser or user.employeeprofile.is_hr:
@@ -114,11 +128,21 @@ def can_check_in_from_location(user, request=None):
         if user.is_superuser:
             return (True, "Admin - No restrictions")
     
-    # RULE 2a: Check if on office network (Regus)
+    # RULE 2: Check work mode (hybrid/permanent WFH bypass IP restrictions)
+    try:
+        profile = user.employeeprofile
+        if profile.work_mode == 'hybrid':
+            return (True, "Hybrid mode - Can work from anywhere")
+        elif profile.work_mode == 'permanent_wfh':
+            return (True, "Permanent WFH - Can work from anywhere")
+    except EmployeeProfile.DoesNotExist:
+        pass  # Continue to regular checks
+    
+    # RULE 3a: Check if on office network (Regus)
     if is_on_office_network(request):
         return (True, "Office network (Regus)")
     
-    # RULE 2b: Check if has approved WFH for today
+    # RULE 3b: Check if has approved WFH for today
     if has_approved_wfh_today(user):
         return (True, "Approved WFH - Can work from anywhere")
     
@@ -348,9 +372,17 @@ def complete_profile(request):
 # LOGOUT VIEW
 # =========================
 def logout_view(request):
+    # Store user info before logout
     user = request.user
+    username = user.username if user.is_authenticated else 'Unknown'
+    
+    # Log the action BEFORE logout (while user is still authenticated)
+    if user.is_authenticated:
+        log_action(user, 'logout', f'User logged out', request)
+    
+    # Now logout
     logout(request)
-    log_action(user, 'logout', f'User logged out', request)
+    
     messages.success(request, 'You have been logged out successfully.')
     return redirect('login')
 
@@ -519,9 +551,13 @@ def check_in(request):
                 # Notify HR about late arrival
                 hr_users = User.objects.filter(employeeprofile__is_hr=True)
                 for hr_user in hr_users:
+                    try:
+                        employee_id = request.user.employeeprofile.employee_id
+                    except:
+                        employee_id = request.user.username
                     Notification.objects.create(
                         employee=hr_user,
-                        message=f'{request.user.get_full_name() or request.user.username} (ID: {request.user.employeeprofile.employee_id}) checked in late at {check_in_time.strftime("%I:%M %p")} - Marked as half-day'
+                        message=f'{request.user.get_full_name() or request.user.username} (ID: {employee_id}) checked in late at {check_in_time.strftime("%I:%M %p")} - Marked as half-day'
                     )
             else:
                 attendance.status = 'present'
@@ -593,6 +629,14 @@ def check_out(request):
 @login_required
 def start_break(request, break_type):
     if request.method == 'POST':
+        # Validate location/network (same as check-in/check-out)
+        can_take_break, reason = can_check_in_from_location(request.user, request)
+        
+        if not can_take_break:
+            messages.error(request, f'Breaks are only allowed from office network or with approved WFH.')
+            messages.info(request, reason)
+            return redirect('dashboard')
+        
         today = timezone.now().date()
         
         attendance = Attendance.objects.filter(
@@ -694,6 +738,14 @@ def start_break(request, break_type):
 @login_required
 def end_break(request):
     if request.method == 'POST':
+        # Validate location/network (same as check-in/check-out)
+        can_end_break, reason = can_check_in_from_location(request.user, request)
+        
+        if not can_end_break:
+            messages.error(request, f'Break end is only allowed from office network or with approved WFH.')
+            messages.info(request, reason)
+            return redirect('dashboard')
+        
         today = timezone.now().date()
         
         attendance = Attendance.objects.filter(
@@ -732,9 +784,13 @@ def end_break(request):
             # Notify HR about long break
             hr_users = User.objects.filter(employeeprofile__is_hr=True)
             for hr_user in hr_users:
+                try:
+                    employee_id = request.user.employeeprofile.employee_id
+                except:
+                    employee_id = request.user.username
                 Notification.objects.create(
                     employee=hr_user,
-                    message=f'{request.user.get_full_name() or request.user.username} (ID: {request.user.employeeprofile.employee_id}) took a long {active_break.get_break_type_display()} break: {active_break.duration_minutes} minutes (limit: {active_break.allowed_minutes()} mins)'
+                    message=f'{request.user.get_full_name() or request.user.username} (ID: {employee_id}) took a long {active_break.get_break_type_display()} break: {active_break.duration_minutes} minutes (limit: {active_break.allowed_minutes()} mins)'
                 )
         else:
             messages.success(request, f'{active_break.get_break_type_display()} ended.')
@@ -969,6 +1025,24 @@ def profile(request):
         
         # Update employee profile if exists
         if employee_profile:
+            # Handle profile photo removal
+            if request.POST.get('remove_photo') == 'true':
+                if employee_profile.profile_photo:
+                    try:
+                        employee_profile.profile_photo.delete(save=False)
+                    except:
+                        pass
+                    employee_profile.profile_photo = None
+            # Handle profile photo upload
+            elif 'profile_photo' in request.FILES:
+                # Delete old photo if exists
+                if employee_profile.profile_photo:
+                    try:
+                        employee_profile.profile_photo.delete(save=False)
+                    except:
+                        pass
+                employee_profile.profile_photo = request.FILES['profile_photo']
+            
             employee_profile.gender = request.POST.get('gender', '')
             employee_profile.phone_number = request.POST.get('phone_number', '')
             employee_profile.alternate_phone = request.POST.get('alternate_phone', '')
@@ -1046,13 +1120,50 @@ def hr_dashboard(request):
     today_attendance = Attendance.objects.filter(date=today)
     present_today = today_attendance.filter(check_in__isnull=False).count()
     absent_today = total_employees - present_today
+    late_arrivals = today_attendance.filter(status__in=['late', 'half-day']).count()
     
     pending_leaves = LeaveRequest.objects.filter(status='pending').count()
     
-    # Today's attendance details
-    today_attendance_list = Attendance.objects.filter(
-        date=today
-    ).select_related('employee', 'employee__employeeprofile').order_by('check_in')
+    # Attendance Filtering (NEW)
+    attendance_filter_type = request.GET.get('attendance_filter', 'today')  # today, date_range, month, year
+    start_date = request.GET.get('start_date', '')
+    end_date = request.GET.get('end_date', '')
+    filter_month = request.GET.get('filter_month', '')
+    filter_year = request.GET.get('filter_year', '')
+    
+    # Build attendance query based on filter
+    if attendance_filter_type == 'date_range' and start_date and end_date:
+        try:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+            today_attendance_list = Attendance.objects.filter(
+                date__range=[start_date_obj, end_date_obj]
+            ).select_related('employee', 'employee__employeeprofile').order_by('-date', 'check_in')
+        except ValueError:
+            today_attendance_list = Attendance.objects.filter(date=today).select_related('employee', 'employee__employeeprofile').order_by('check_in')
+    elif attendance_filter_type == 'month' and filter_month and filter_year:
+        try:
+            month_num = int(filter_month)
+            year_num = int(filter_year)
+            today_attendance_list = Attendance.objects.filter(
+                date__month=month_num,
+                date__year=year_num
+            ).select_related('employee', 'employee__employeeprofile').order_by('-date', 'check_in')
+        except ValueError:
+            today_attendance_list = Attendance.objects.filter(date=today).select_related('employee', 'employee__employeeprofile').order_by('check_in')
+    elif attendance_filter_type == 'year' and filter_year:
+        try:
+            year_num = int(filter_year)
+            today_attendance_list = Attendance.objects.filter(
+                date__year=year_num
+            ).select_related('employee', 'employee__employeeprofile').order_by('-date', 'check_in')
+        except ValueError:
+            today_attendance_list = Attendance.objects.filter(date=today).select_related('employee', 'employee__employeeprofile').order_by('check_in')
+    else:
+        # Default: Today's attendance
+        today_attendance_list = Attendance.objects.filter(
+            date=today
+        ).select_related('employee', 'employee__employeeprofile').order_by('check_in')
     
     # Pending leave requests
     pending_leave_requests = LeaveRequest.objects.filter(
@@ -1060,7 +1171,7 @@ def hr_dashboard(request):
     ).select_related('employee').order_by('-created_at')
     
     # Break Logs with filters
-    break_period = request.GET.get('break_period', 'today')
+    break_period = request.GET.get('break_period', 'week')  # Default to week instead of today
     employee_search = request.GET.get('employee_search', '')
     
     break_logs = BreakLog.objects.select_related(
@@ -1069,15 +1180,23 @@ def hr_dashboard(request):
     
     # Apply period filter
     if break_period == 'today':
-        break_logs = break_logs.filter(break_start__date=today)
+        # Use timezone-aware date range for today
+        today_start = timezone.datetime.combine(today, timezone.datetime.min.time())
+        today_end = timezone.datetime.combine(today, timezone.datetime.max.time())
+        today_start = timezone.make_aware(today_start)
+        today_end = timezone.make_aware(today_end)
+        break_logs = break_logs.filter(break_start__range=(today_start, today_end))
     elif break_period == 'week':
         week_start = today - timedelta(days=today.weekday())
-        break_logs = break_logs.filter(break_start__date__gte=week_start)
+        week_start_dt = timezone.datetime.combine(week_start, timezone.datetime.min.time())
+        week_start_dt = timezone.make_aware(week_start_dt)
+        break_logs = break_logs.filter(break_start__gte=week_start_dt)
     elif break_period == 'month':
-        break_logs = break_logs.filter(
-            break_start__year=today.year,
-            break_start__month=today.month
-        )
+        month_start = today.replace(day=1)
+        month_start_dt = timezone.datetime.combine(month_start, timezone.datetime.min.time())
+        month_start_dt = timezone.make_aware(month_start_dt)
+        break_logs = break_logs.filter(break_start__gte=month_start_dt)
+    # else: all time (no filter)
     
     # Apply employee search filter
     if employee_search:
@@ -1136,10 +1255,13 @@ def hr_dashboard(request):
         'total_employees': total_employees,
         'present_today': present_today,
         'absent_today': absent_today,
+        'late_arrivals': late_arrivals,
         'pending_leaves': pending_leaves,
         'today_attendance': today_attendance_list,
         'pending_leave_requests': pending_leave_requests,
         'break_logs': break_logs,
+        'break_period': break_period,  # Add this for template
+        'employee_search': employee_search,  # Add this for template
         'current_date': timezone.now(),
         'chart_labels': chart_labels,
         'chart_data': chart_data,
@@ -1148,9 +1270,403 @@ def hr_dashboard(request):
         'all_employees': all_employees,
         'departments': unique_departments,
         'audit_logs': audit_logs_page,
+        # Attendance filter context
+        'attendance_filter_type': attendance_filter_type,
+        'start_date': start_date,
+        'end_date': end_date,
+        'filter_month': filter_month,
+        'filter_year': filter_year,
+        'available_years': range(2020, timezone.now().year + 2),  # Year dropdown
     }
     
     return render(request, 'hr_dashboard.html', context)
+
+
+# =========================
+# EXPORT ATTENDANCE CSV
+# =========================
+@login_required
+def export_attendance_csv(request):
+    """
+    Export attendance records as CSV with comprehensive employee details
+    """
+    # Check if user is HR or superuser
+    if not request.user.is_superuser:
+        try:
+            if not request.user.employeeprofile.is_hr:
+                messages.error(request, 'Access denied. HR only.')
+                return redirect('dashboard')
+        except EmployeeProfile.DoesNotExist:
+            messages.error(request, 'Access denied.')
+            return redirect('dashboard')
+    
+    import csv
+    from django.http import HttpResponse
+    
+    # Get filter parameters
+    filter_type = request.GET.get('filter_type', 'today')
+    start_date = request.GET.get('start_date', '')
+    end_date = request.GET.get('end_date', '')
+    filter_month = request.GET.get('filter_month', '')
+    filter_year = request.GET.get('filter_year', '')
+    
+    # Build query based on filter
+    today = timezone.now().date()
+    
+    if filter_type == 'date_range' and start_date and end_date:
+        try:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+            attendance_records = Attendance.objects.filter(
+                date__range=[start_date_obj, end_date_obj]
+            ).select_related('employee', 'employee__employeeprofile').order_by('employee__username', 'date')
+            filename_suffix = f"{start_date}_to_{end_date}"
+        except ValueError:
+            attendance_records = Attendance.objects.filter(date=today).select_related('employee', 'employee__employeeprofile').order_by('employee__username', 'date')
+            filename_suffix = str(today)
+    elif filter_type == 'month' and filter_month and filter_year:
+        try:
+            month_num = int(filter_month)
+            year_num = int(filter_year)
+            attendance_records = Attendance.objects.filter(
+                date__month=month_num,
+                date__year=year_num
+            ).select_related('employee', 'employee__employeeprofile').order_by('employee__username', 'date')
+            month_names = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            filename_suffix = f"{month_names[month_num]}_{year_num}"
+        except ValueError:
+            attendance_records = Attendance.objects.filter(date=today).select_related('employee', 'employee__employeeprofile').order_by('employee__username', 'date')
+            filename_suffix = str(today)
+    elif filter_type == 'year' and filter_year:
+        try:
+            year_num = int(filter_year)
+            attendance_records = Attendance.objects.filter(
+                date__year=year_num
+            ).select_related('employee', 'employee__employeeprofile').order_by('employee__username', 'date')
+            filename_suffix = str(year_num)
+        except ValueError:
+            attendance_records = Attendance.objects.filter(date=today).select_related('employee', 'employee__employeeprofile').order_by('employee__username', 'date')
+            filename_suffix = str(today)
+    else:
+        # Default: Today
+        attendance_records = Attendance.objects.filter(date=today).select_related('employee', 'employee__employeeprofile').order_by('employee__username', 'date')
+        filename_suffix = str(today)
+    
+    # Create CSV response
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="attendance_report_{filename_suffix}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header
+    writer.writerow([
+        'Employee ID',
+        'Employee Name',
+        'Department',
+        'Designation',
+        'Date',
+        'Check In',
+        'Check Out',
+        'Work Hours',
+        'Status',
+        'Break Count',
+        'WFH Status',
+        'Leave Type',
+        'Work Mode',
+    ])
+    
+    # Get all employees for summary
+    all_employees = User.objects.filter(is_active=True).select_related('employeeprofile')
+    
+    # Write attendance data
+    for attendance in attendance_records:
+        try:
+            profile = attendance.employee.employeeprofile
+            employee_id = profile.employee_id or 'N/A'
+            department = profile.department or 'N/A'
+            designation = profile.designation or 'N/A'
+            work_mode = profile.get_work_mode_display() if profile.work_mode else 'Office Only'
+        except EmployeeProfile.DoesNotExist:
+            employee_id = 'N/A'
+            department = 'N/A'
+            designation = 'N/A'
+            work_mode = 'N/A'
+        
+        # Check WFH status for this date
+        wfh_status = 'No'
+        if WFHRequest.objects.filter(
+            employee=attendance.employee,
+            status='approved',
+            start_date__lte=attendance.date,
+            end_date__gte=attendance.date
+        ).exists():
+            wfh_status = 'Yes (Approved)'
+        
+        # Check leave for this date
+        leave_type = 'N/A'
+        leave_record = LeaveRequest.objects.filter(
+            employee=attendance.employee,
+            status='approved',
+            start_date__lte=attendance.date,
+            end_date__gte=attendance.date
+        ).first()
+        if leave_record:
+            leave_type = leave_record.get_leave_type_display()
+        
+        # Break count
+        break_count = BreakLog.objects.filter(attendance=attendance).count()
+        
+        writer.writerow([
+            employee_id,
+            attendance.employee.get_full_name() or attendance.employee.username,
+            department,
+            designation,
+            attendance.date.strftime('%Y-%m-%d'),
+            attendance.check_in.strftime('%I:%M %p') if attendance.check_in else 'Not Checked In',
+            attendance.check_out.strftime('%I:%M %p') if attendance.check_out else 'Not Checked Out',
+            attendance.get_work_hours_display(),
+            attendance.get_status_display(),
+            break_count,
+            wfh_status,
+            leave_type,
+            work_mode,
+        ])
+    
+    # Add summary section
+    writer.writerow([])  # Empty row
+    writer.writerow(['=== SUMMARY ==='])
+    writer.writerow([])
+    
+    # Calculate summary for each employee
+    writer.writerow(['Employee ID', 'Employee Name', 'Department', 'Present Days', 'Absent Days', 'Late Arrivals', 'Half Days', 'Total Hours', 'WFH Days', 'Leaves Taken'])
+    
+    for employee in all_employees:
+        try:
+            profile = employee.employeeprofile
+            employee_id = profile.employee_id or 'N/A'
+            department = profile.department or 'N/A'
+        except EmployeeProfile.DoesNotExist:
+            employee_id = 'N/A'
+            department = 'N/A'
+        
+        # Filter attendance for this employee in the date range
+        if filter_type == 'date_range' and start_date and end_date:
+            emp_attendance = attendance_records.filter(employee=employee)
+        elif filter_type == 'month' and filter_month and filter_year:
+            emp_attendance = attendance_records.filter(employee=employee)
+        elif filter_type == 'year' and filter_year:
+            emp_attendance = attendance_records.filter(employee=employee)
+        else:
+            emp_attendance = attendance_records.filter(employee=employee)
+        
+        present_days = emp_attendance.filter(status='present').count()
+        late_days = emp_attendance.filter(status='late').count()
+        half_days = emp_attendance.filter(status='half-day').count()
+        total_hours = emp_attendance.aggregate(Sum('total_work_hours'))['total_work_hours__sum'] or 0
+        
+        # Calculate absent days (working days - present days)
+        if filter_type == 'date_range' and start_date and end_date:
+            total_days = (end_date_obj - start_date_obj).days + 1
+        elif filter_type == 'month' and filter_month and filter_year:
+            import calendar
+            total_days = calendar.monthrange(year_num, month_num)[1]
+        elif filter_type == 'year' and filter_year:
+            total_days = 365 if year_num % 4 != 0 else 366
+        else:
+            total_days = 1
+        
+        attended_days = emp_attendance.count()
+        absent_days = max(0, total_days - attended_days)
+        
+        # WFH days
+        if filter_type == 'date_range' and start_date and end_date:
+            wfh_days = WFHRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date__lte=end_date_obj,
+                end_date__gte=start_date_obj
+            ).count()
+        elif filter_type == 'month' and filter_month and filter_year:
+            wfh_days = WFHRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date__month=month_num,
+                start_date__year=year_num
+            ).count()
+        elif filter_type == 'year' and filter_year:
+            wfh_days = WFHRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date__year=year_num
+            ).count()
+        else:
+            wfh_days = 0
+        
+        # Leaves taken
+        if filter_type == 'date_range' and start_date and end_date:
+            leaves = LeaveRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date__lte=end_date_obj,
+                end_date__gte=start_date_obj
+            )
+        elif filter_type == 'month' and filter_month and filter_year:
+            leaves = LeaveRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date__month=month_num,
+                start_date__year=year_num
+            )
+        elif filter_type == 'year' and filter_year:
+            leaves = LeaveRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date__year=year_num
+            )
+        else:
+            leaves = LeaveRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date=today
+            )
+        
+        leave_summary = ', '.join([f"{leave.get_leave_type_display()} ({leave.total_days}d)" for leave in leaves]) or 'None'
+        
+        writer.writerow([
+            employee_id,
+            employee.get_full_name() or employee.username,
+            department,
+            present_days,
+            absent_days,
+            late_days,
+            half_days,
+            f"{total_hours:.2f}h",
+            wfh_days,
+            leave_summary,
+        ])
+    
+    return response
+
+
+# =========================
+# EMPLOYEE LIST (FOR DASHBOARD TILES)
+# =========================
+@login_required
+def employee_list_view(request, list_type):
+    """
+    API endpoint to fetch employee lists for dashboard tiles
+    Types: all, present, absent, late
+    """
+    # Check if user is HR or superuser
+    if not request.user.is_superuser:
+        try:
+            if not request.user.employeeprofile.is_hr:
+                return JsonResponse({'success': False, 'message': 'Access denied'})
+        except EmployeeProfile.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Access denied'})
+    
+    today = timezone.now().date()
+    employees = []
+    
+    if list_type == 'all':
+        # All active employees
+        all_users = User.objects.filter(is_active=True).select_related('employeeprofile')
+        for user in all_users:
+            try:
+                profile = user.employeeprofile
+                employees.append({
+                    'employee_id': profile.employee_id or 'N/A',
+                    'name': user.get_full_name() or user.username,
+                    'department': profile.department or 'N/A',
+                })
+            except EmployeeProfile.DoesNotExist:
+                employees.append({
+                    'employee_id': 'N/A',
+                    'name': user.get_full_name() or user.username,
+                    'department': 'N/A',
+                })
+    
+    elif list_type == 'present':
+        # Employees who checked in today
+        present_attendance = Attendance.objects.filter(
+            date=today,
+            check_in__isnull=False
+        ).select_related('employee__employeeprofile')
+        
+        for attendance in present_attendance:
+            try:
+                profile = attendance.employee.employeeprofile
+                employees.append({
+                    'employee_id': profile.employee_id or 'N/A',
+                    'name': attendance.employee.get_full_name() or attendance.employee.username,
+                    'department': profile.department or 'N/A',
+                    'check_in_time': attendance.check_in.strftime('%I:%M %p'),
+                    'status': attendance.get_status_display(),
+                    'status_color': 'success' if attendance.status == 'present' else 'warning' if attendance.status == 'late' else 'info',
+                })
+            except EmployeeProfile.DoesNotExist:
+                employees.append({
+                    'employee_id': 'N/A',
+                    'name': attendance.employee.get_full_name() or attendance.employee.username,
+                    'department': 'N/A',
+                    'check_in_time': attendance.check_in.strftime('%I:%M %p'),
+                    'status': attendance.get_status_display(),
+                    'status_color': 'success',
+                })
+    
+    elif list_type == 'absent':
+        # Employees who didn't check in today
+        all_users = User.objects.filter(is_active=True).select_related('employeeprofile')
+        checked_in_users = Attendance.objects.filter(
+            date=today,
+            check_in__isnull=False
+        ).values_list('employee_id', flat=True)
+        
+        for user in all_users:
+            if user.id not in checked_in_users:
+                try:
+                    profile = user.employeeprofile
+                    employees.append({
+                        'employee_id': profile.employee_id or 'N/A',
+                        'name': user.get_full_name() or user.username,
+                        'department': profile.department or 'N/A',
+                    })
+                except EmployeeProfile.DoesNotExist:
+                    employees.append({
+                        'employee_id': 'N/A',
+                        'name': user.get_full_name() or user.username,
+                        'department': 'N/A',
+                    })
+    
+    elif list_type == 'late':
+        # Employees who arrived late today
+        late_attendance = Attendance.objects.filter(
+            date=today,
+            status__in=['late', 'half-day']
+        ).select_related('employee__employeeprofile')
+        
+        for attendance in late_attendance:
+            try:
+                profile = attendance.employee.employeeprofile
+                employees.append({
+                    'employee_id': profile.employee_id or 'N/A',
+                    'name': attendance.employee.get_full_name() or attendance.employee.username,
+                    'department': profile.department or 'N/A',
+                    'check_in_time': attendance.check_in.strftime('%I:%M %p') if attendance.check_in else 'N/A',
+                    'status': attendance.get_status_display(),
+                    'status_color': 'warning' if attendance.status == 'late' else 'info',
+                })
+            except EmployeeProfile.DoesNotExist:
+                employees.append({
+                    'employee_id': 'N/A',
+                    'name': attendance.employee.get_full_name() or attendance.employee.username,
+                    'department': 'N/A',
+                    'check_in_time': attendance.check_in.strftime('%I:%M %p') if attendance.check_in else 'N/A',
+                    'status': attendance.get_status_display(),
+                    'status_color': 'warning',
+                })
+    
+    return JsonResponse({'employees': employees})
 
 
 # =========================
@@ -1480,7 +1996,7 @@ def employee_details(request, user_id):
     # Get employee
     employee_user = get_object_or_404(User, id=user_id)
     try:
-        employee_profile = employee_user.employeeprofile
+        viewed_profile = employee_user.employeeprofile  # Renamed to avoid conflict with context processor
     except EmployeeProfile.DoesNotExist:
         messages.error(request, 'Employee profile not found.')
         return redirect('hr_dashboard')
@@ -1504,7 +2020,7 @@ def employee_details(request, user_id):
     
     context = {
         'employee_user': employee_user,
-        'employee_profile': employee_profile,
+        'viewed_profile': viewed_profile,  # Renamed variable
         'total_present': total_present,
         'total_late': total_late,
         'total_half_day': total_half_day,
@@ -1662,38 +2178,8 @@ def wfh_request(request):
         # Calculate total days
         total_days = (end_date_obj - start_date_obj).days + 1
         
-        # Check monthly limit (5 days)
-        current_month = timezone.now().month
-        current_year = timezone.now().year
-        
-        # Get approved WFH days for current month
-        # We need to check all WFH requests that overlap with current month
-        from datetime import date
-        month_start = date(current_year, current_month, 1)
-        if current_month == 12:
-            month_end = date(current_year + 1, 1, 1) - timedelta(days=1)
-        else:
-            month_end = date(current_year, current_month + 1, 1) - timedelta(days=1)
-        
-        approved_wfh = WFHRequest.objects.filter(
-            employee=request.user,
-            status='approved',
-            start_date__lte=month_end,
-            end_date__gte=month_start
-        )
-        
-        # Calculate actual days used in current month
-        used_days = 0
-        for wfh in approved_wfh:
-            # Calculate overlap with current month
-            overlap_start = max(wfh.start_date, month_start)
-            overlap_end = min(wfh.end_date, month_end)
-            if overlap_start <= overlap_end:
-                used_days += (overlap_end - overlap_start).days + 1
-        
-        if used_days + total_days > 5:
-            messages.error(request, f'WFH limit exceeded! You have {5 - used_days} days remaining this month.')
-            return redirect('wfh_request')
+        # NO WFH LIMIT - Employees can request unlimited WFH days
+        # Limit validation removed as per management decision
         
         # Create WFH request
         WFHRequest.objects.create(
@@ -1724,41 +2210,11 @@ def wfh_request(request):
         employee=request.user
     ).order_by('-created_at')
     
-    # Calculate remaining WFH days for current month
-    current_month = timezone.now().month
-    current_year = timezone.now().year
-    
-    # Get approved WFH days for current month
-    from datetime import date
-    month_start = date(current_year, current_month, 1)
-    if current_month == 12:
-        month_end = date(current_year + 1, 1, 1) - timedelta(days=1)
-    else:
-        month_end = date(current_year, current_month + 1, 1) - timedelta(days=1)
-    
-    approved_wfh = WFHRequest.objects.filter(
-        employee=request.user,
-        status='approved',
-        start_date__lte=month_end,
-        end_date__gte=month_start
-    )
-    
-    # Calculate actual days used in current month
-    used_days = 0
-    for wfh in approved_wfh:
-        # Calculate overlap with current month
-        overlap_start = max(wfh.start_date, month_start)
-        overlap_end = min(wfh.end_date, month_end)
-        if overlap_start <= overlap_end:
-            used_days += (overlap_end - overlap_start).days + 1
-    
-    remaining_days = max(0, 5 - used_days)
+    # NO WFH LIMIT - Balance calculation removed
+    # Employees can request unlimited WFH days
     
     context = {
         'wfh_requests': wfh_requests,
-        'used_days': used_days,
-        'remaining_days': remaining_days,
-        'total_allowed': 5,
     }
     
     return render(request, 'wfh_request.html', context)
@@ -1850,3 +2306,160 @@ def wfh_approval(request):
     }
     
     return render(request, 'wfh_approval.html', context)
+
+
+
+# =========================
+# CHANGE WORK MODE (HR ONLY)
+# =========================
+@login_required
+def change_work_mode(request):
+    """
+    HR can change employee work mode (office/hybrid/permanent_wfh)
+    This determines network access requirements for check-in
+    """
+    # Only HR or superuser can access
+    if not request.user.is_superuser:
+        try:
+            if not request.user.employeeprofile.is_hr:
+                messages.error(request, 'Access denied. HR only.')
+                return redirect('dashboard')
+        except EmployeeProfile.DoesNotExist:
+            messages.error(request, 'Profile not found.')
+            return redirect('dashboard')
+    
+    if request.method == 'POST':
+        user_id = request.POST.get('user_id')
+        new_work_mode = request.POST.get('new_work_mode')
+        reason = request.POST.get('reason', '')
+        
+        try:
+            target_user = User.objects.get(id=user_id)
+            profile = target_user.employeeprofile
+            
+            old_work_mode = profile.work_mode
+            profile.work_mode = new_work_mode
+            profile.save()
+            
+            # Log action
+            mode_labels = {
+                'office': 'Office Only',
+                'hybrid': 'Hybrid',
+                'permanent_wfh': 'Permanent WFH'
+            }
+            log_description = f'Changed work mode for {target_user.get_full_name() or target_user.username} from {mode_labels.get(old_work_mode, "Office Only")} to {mode_labels.get(new_work_mode, "Office Only")}'
+            if reason:
+                log_description += f'. Reason: {reason}'
+            
+            log_action(request.user, 'role_change', log_description, request, target_user=target_user)
+            
+            # Notify employee
+            Notification.objects.create(
+                employee=target_user,
+                message=f'Your work mode has been changed to {mode_labels.get(new_work_mode, "Office Only")} by HR.'
+            )
+            
+            messages.success(request, f'Work mode updated successfully for {target_user.get_full_name() or target_user.username}!')
+            
+        except User.DoesNotExist:
+            messages.error(request, 'User not found.')
+        except EmployeeProfile.DoesNotExist:
+            messages.error(request, 'Employee profile not found.')
+        except Exception as e:
+            messages.error(request, f'Error updating work mode: {str(e)}')
+        
+        # Redirect back to employee details
+        return redirect('employee_details', user_id=user_id)
+    
+    return redirect('hr_dashboard')
+
+
+
+# =========================
+# EMERGENCY OVERRIDE MANAGEMENT
+# =========================
+@login_required
+def emergency_override_status(request):
+    """
+    Get current emergency override status (for AJAX)
+    """
+    try:
+        profile = request.user.employeeprofile
+        if not profile.is_hr and not request.user.is_superuser:
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+    except EmployeeProfile.DoesNotExist:
+        if not request.user.is_superuser:
+            return JsonResponse({'error': 'Unauthorized'}, status=403)
+    
+    settings = SystemSettings.get_settings()
+    
+    return JsonResponse({
+        'enabled': settings.emergency_override_enabled,
+        'reason': settings.emergency_override_reason or '',
+        'enabled_by': settings.emergency_override_enabled_by.get_full_name() if settings.emergency_override_enabled_by else None,
+        'enabled_at': settings.emergency_override_enabled_at.strftime('%Y-%m-%d %H:%M:%S') if settings.emergency_override_enabled_at else None,
+    })
+
+
+@login_required
+def toggle_emergency_override(request):
+    """
+    Toggle emergency override (HR only)
+    """
+    # Check if user is HR or admin
+    try:
+        profile = request.user.employeeprofile
+        if not profile.is_hr and not request.user.is_superuser:
+            messages.error(request, 'Only HR can toggle emergency override')
+            return redirect('hr_dashboard')
+    except EmployeeProfile.DoesNotExist:
+        if not request.user.is_superuser:
+            messages.error(request, 'Only HR can toggle emergency override')
+            return redirect('dashboard')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')  # 'enable' or 'disable'
+        reason = request.POST.get('reason', '')
+        
+        settings = SystemSettings.get_settings()
+        
+        if action == 'enable':
+            settings.emergency_override_enabled = True
+            settings.emergency_override_reason = reason
+            settings.emergency_override_enabled_by = request.user
+            settings.emergency_override_enabled_at = timezone.now()
+            settings.last_updated_by = request.user
+            settings.save()
+            
+            # Log the action
+            log_action(
+                user=request.user,
+                action='system_setting_change',
+                description=f'Emergency Override ENABLED. Reason: {reason}',
+                request=request
+            )
+            
+            messages.success(request, f'🚨 Emergency Override ENABLED - All employees can now check-in from anywhere')
+            
+        elif action == 'disable':
+            settings.emergency_override_enabled = False
+            settings.last_updated_by = request.user
+            settings.save()
+            
+            # Log the action
+            log_action(
+                user=request.user,
+                action='system_setting_change',
+                description='Emergency Override DISABLED',
+                request=request
+            )
+            
+            messages.success(request, '✅ Emergency Override DISABLED - Normal IP restrictions restored')
+        
+        return redirect('hr_dashboard')
+    
+    # GET request - show current status
+    settings = SystemSettings.get_settings()
+    return render(request, 'emergency_override.html', {
+        'settings': settings,
+    })

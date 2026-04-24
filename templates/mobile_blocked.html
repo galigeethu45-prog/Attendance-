@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desktop Only - AttendanceHub</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .blocked-container {
+            text-align: center;
+            padding: 2rem;
+            max-width: 500px;
+        }
+        .blocked-icon {
+            font-size: 6rem;
+            color: white;
+            margin-bottom: 2rem;
+            animation: shake 0.5s ease-in-out infinite alternate;
+        }
+        @keyframes shake {
+            0% { transform: rotate(-5deg); }
+            100% { transform: rotate(5deg); }
+        }
+        .blocked-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 3rem 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        .blocked-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        .blocked-text {
+            color: #666;
+            font-size: 1.1rem;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+        .device-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin: 1rem;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 1rem;
+            margin-top: 2rem;
+            border-radius: 5px;
+            text-align: left;
+        }
+        .info-box h6 {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .info-box p {
+            color: #666;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="blocked-container">
+        <div class="blocked-icon">
+            <i class="fas fa-mobile-alt"></i>
+        </div>
+        
+        <div class="blocked-card">
+            <h1 class="blocked-title">
+                <i class="fas fa-ban text-danger"></i> Desktop Only
+            </h1>
+            
+            <p class="blocked-text">
+                <strong>AttendanceHub</strong> is designed for desktop use only.
+                <br>
+                Please access this system from a desktop or laptop computer.
+            </p>
+            
+            <div class="my-4">
+                <i class="fas fa-desktop device-icon"></i>
+                <i class="fas fa-laptop device-icon"></i>
+            </div>
+            
+            <div class="info-box">
+                <h6><i class="fas fa-info-circle me-2"></i>Why Desktop Only?</h6>
+                <p>
+                    Our attendance system requires desktop access for security and accuracy purposes. 
+                    This ensures proper network verification and prevents unauthorized access.
+                </p>
+            </div>
+            
+            <div class="info-box mt-3">
+                <h6><i class="fas fa-question-circle me-2"></i>Need Help?</h6>
+                <p>
+                    If you need to access the system urgently, please contact your HR department 
+                    or IT support team.
+                </p>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <small style="color: rgba(255,255,255,0.8);">
+                <i class="fas fa-shield-alt me-1"></i>
+                AttendanceHub © 2026 • Secure Attendance Management
+            </small>
+        </div>
+    </div>
+</body>
+</html>

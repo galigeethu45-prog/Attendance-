@@ -46,7 +46,7 @@
                                     <th>Start Date</th>
                                     <th>End Date</th>
                                     <th>Days</th>
-                                    <th>Reason</th>
+                                    <th style="width: 30%;">Reason</th>
                                     <th>Requested</th>
                                     <th>Action</th>
                                 </tr>
@@ -63,7 +63,9 @@
                                     <td>{{ wfh.start_date|date:"M d, Y" }}</td>
                                     <td>{{ wfh.end_date|date:"M d, Y" }}</td>
                                     <td><span class="badge bg-info">{{ wfh.total_days }} days</span></td>
-                                    <td>{{ wfh.reason|truncatewords:10 }}</td>
+                                    <td>
+                                        <div class="reason-box" style="max-width: 300px; max-height: 100px; overflow-y: auto; overflow-x: hidden; padding: 10px; background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3B82F6; border-radius: 6px; font-size: 0.9rem; line-height: 1.5; word-break: break-word; overflow-wrap: break-word; white-space: normal;">{{ wfh.reason }}</div>
+                                    </td>
                                     <td>{{ wfh.created_at|timesince }} ago</td>
                                     <td>
                                         <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#approveModal{{ wfh.id }}">
@@ -90,7 +92,10 @@
                                                 <div class="modal-body">
                                                     <p><strong>Employee:</strong> {{ wfh.employee.get_full_name|default:wfh.employee.username }}</p>
                                                     <p><strong>Duration:</strong> {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }} ({{ wfh.total_days }} days)</p>
-                                                    <p><strong>Reason:</strong> {{ wfh.reason }}</p>
+                                                    <div class="mb-3">
+                                                        <strong>Reason:</strong>
+                                                        <div class="reason-box mt-2" style="padding: 12px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3B82F6; border-radius: 8px; font-size: 0.95rem; line-height: 1.6; word-break: break-word; overflow-wrap: break-word; white-space: normal; max-height: 200px; overflow-y: auto;">{{ wfh.reason }}</div>
+                                                    </div>
                                                     <div class="mb-3">
                                                         <label for="hr_comment_approve_{{ wfh.id }}" class="form-label">HR Comment (Optional)</label>
                                                         <textarea class="form-control" id="hr_comment_approve_{{ wfh.id }}" name="hr_comment" rows="2" placeholder="Add any comments..."></textarea>
@@ -122,7 +127,10 @@
                                                 <div class="modal-body">
                                                     <p><strong>Employee:</strong> {{ wfh.employee.get_full_name|default:wfh.employee.username }}</p>
                                                     <p><strong>Duration:</strong> {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }} ({{ wfh.total_days }} days)</p>
-                                                    <p><strong>Reason:</strong> {{ wfh.reason }}</p>
+                                                    <div class="mb-3">
+                                                        <strong>Reason:</strong>
+                                                        <div class="reason-box mt-2" style="padding: 12px; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #EF4444; border-radius: 8px; font-size: 0.95rem; line-height: 1.6; word-break: break-word; overflow-wrap: break-word; white-space: normal; max-height: 200px; overflow-y: auto;">{{ wfh.reason }}</div>
+                                                    </div>
                                                     <div class="mb-3">
                                                         <label for="hr_comment_reject_{{ wfh.id }}" class="form-label">Reason for Rejection</label>
                                                         <textarea class="form-control" id="hr_comment_reject_{{ wfh.id }}" name="hr_comment" rows="2" placeholder="Why is this request being rejected?" required></textarea>
@@ -220,7 +228,10 @@
                                                 <p><strong>Employee:</strong> {{ wfh.employee.get_full_name|default:wfh.employee.username }} ({{ wfh.employee.username }})</p>
                                                 <p><strong>Duration:</strong> {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }}</p>
                                                 <p><strong>Total Days:</strong> {{ wfh.total_days }}</p>
-                                                <p><strong>Reason:</strong> {{ wfh.reason }}</p>
+                                                <div class="mb-3">
+                                                    <strong>Reason:</strong>
+                                                    <div class="reason-box mt-2" style="padding: 12px; background: rgba(6, 182, 212, 0.1); border-left: 4px solid #06B6D4; border-radius: 8px; font-size: 0.95rem; line-height: 1.6; word-break: break-word; overflow-wrap: break-word; white-space: normal; max-height: 200px; overflow-y: auto;">{{ wfh.reason }}</div>
+                                                </div>
                                                 <p><strong>Status:</strong> 
                                                     <span class="badge bg-{{ wfh.status }}">{{ wfh.get_status_display }}</span>
                                                 </p>
@@ -229,7 +240,10 @@
                                                 <p><strong>Approved/Rejected By:</strong> {{ wfh.hr_approver.get_full_name|default:wfh.hr_approver.username }}</p>
                                                 {% endif %}
                                                 {% if wfh.hr_comment %}
-                                                <p><strong>HR Comment:</strong> {{ wfh.hr_comment }}</p>
+                                                <div class="mb-2">
+                                                    <strong>HR Comment:</strong>
+                                                    <div class="reason-box mt-2" style="padding: 12px; background: rgba(139, 92, 246, 0.1); border-left: 4px solid #8B5CF6; border-radius: 8px; font-size: 0.95rem; line-height: 1.6; word-break: break-word; overflow-wrap: break-word; white-space: normal;">{{ wfh.hr_comment }}</div>
+                                                </div>
                                                 {% endif %}
                                             </div>
                                         </div>

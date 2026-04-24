@@ -123,10 +123,27 @@ class EmployeeProfile(models.Model):
         ('female', 'Female'),
     ]
     
+    WORK_MODE_CHOICES = [
+        ('office', 'Office Only'),
+        ('hybrid', 'Hybrid (Office + WFH)'),
+        ('permanent_wfh', 'Permanent Work From Home'),
+    ]
+    
     user = models.OneToOneField(User, on_delete=models.CASCADE)
 
     # Employee ID
     employee_id = models.CharField(max_length=20, unique=True, null=True, blank=True, db_index=True)
+    
+    # Profile Photo
+    profile_photo = models.ImageField(upload_to='profile_photos/', blank=True, null=True)
+    
+    # Work Mode (for hybrid/remote employees)
+    work_mode = models.CharField(
+        max_length=20, 
+        choices=WORK_MODE_CHOICES, 
+        default='office',
+        help_text='Determines network access requirements for check-in'
+    )
 
     # Personal Information
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
@@ -168,6 +185,37 @@ class EmployeeProfile(models.Model):
 
     def __str__(self):
         return self.employee_id or self.user.username
+    
+    def is_birthday_today(self):
+        """
+        Check if today is the employee's birthday
+        Returns: Boolean
+        """
+        if not self.date_of_birth:
+            return False
+        
+        from django.utils import timezone
+        today = timezone.now().date()
+        return (self.date_of_birth.month == today.month and 
+                self.date_of_birth.day == today.day)
+    
+    def get_age(self):
+        """
+        Calculate employee's current age
+        Returns: Integer or None
+        """
+        if not self.date_of_birth:
+            return None
+        
+        from django.utils import timezone
+        today = timezone.now().date()
+        age = today.year - self.date_of_birth.year
+        
+        # Adjust if birthday hasn't occurred yet this year
+        if (today.month, today.day) < (self.date_of_birth.month, self.date_of_birth.day):
+            age -= 1
+        
+        return age
 
 
 # =========================
@@ -489,3 +537,83 @@ class AuditLog(models.Model):
     def __str__(self):
         return f"{self.user.username if self.user else 'System'} - {self.get_action_display()} - {self.timestamp}"
 
+
+
+# =========================
+# SYSTEM SETTINGS
+# =========================
+class SystemSettings(models.Model):
+    """
+    System-wide settings (Singleton pattern)
+    Only one record should exist in this table
+    """
+    # Emergency Override - Bypass IP restrictions
+    emergency_override_enabled = models.BooleanField(
+        default=False,
+        help_text="When enabled, all employees can check-in from any location (bypasses IP restrictions)"
+    )
+    emergency_override_reason = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Reason for enabling emergency override (e.g., 'Regus network down')"
+    )
+    emergency_override_enabled_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='emergency_overrides_enabled',
+        help_text="HR user who enabled the override"
+    )
+    emergency_override_enabled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the override was enabled"
+    )
+    
+    # Metadata
+    last_updated = models.DateTimeField(auto_now=True)
+    last_updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='system_settings_updates'
+    )
+    
+    class Meta:
+        verbose_name = "System Settings"
+        verbose_name_plural = "System Settings"
+    
+    def __str__(self):
+        status = "ENABLED" if self.emergency_override_enabled else "DISABLED"
+        return f"System Settings - Emergency Override: {status}"
+    
+    @classmethod
+    def get_settings(cls):
+        """
+        Get or create the singleton settings instance
+        """
+        settings, created = cls.objects.get_or_create(pk=1)
+        return settings
+    
+    def save(self, *args, **kwargs):
+        """
+        Ensure only one instance exists (Singleton pattern)
+        """
+        self.pk = 1
+        super().save(*args, **kwargs)
+    
+    def delete(self, *args, **kwargs):
+        """
+        Prevent deletion of settings
+        """
+        pass
+    
+    @classmethod
+    def is_emergency_override_active(cls):
+        """
+        Quick check if emergency override is enabled
+        """
+        settings = cls.get_settings()
+        return settings.emergency_override_enabled

@@ -11,7 +11,8 @@ from .models import (
     Overtime,
     AuditLog,
     WFHRequest,
-    EmployeeMasterData
+    EmployeeMasterData,
+    SystemSettings
 )
 
 # =========================
@@ -202,4 +203,38 @@ class AuditLogAdmin(admin.ModelAdmin):
         return False
     
     def has_change_permission(self, request, obj=None):
+        return False
+
+
+
+# =========================
+# SYSTEM SETTINGS
+# =========================
+@admin.register(SystemSettings)
+class SystemSettingsAdmin(admin.ModelAdmin):
+    list_display = ('emergency_override_enabled', 'emergency_override_enabled_by', 'emergency_override_enabled_at', 'last_updated')
+    readonly_fields = ('emergency_override_enabled_at', 'last_updated')
+    
+    fieldsets = (
+        ('Emergency Override', {
+            'fields': (
+                'emergency_override_enabled',
+                'emergency_override_reason',
+                'emergency_override_enabled_by',
+                'emergency_override_enabled_at',
+            ),
+            'description': 'Emergency override allows all employees to check-in from any location, bypassing IP restrictions. Use only when office network is down.'
+        }),
+        ('Metadata', {
+            'fields': ('last_updated', 'last_updated_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        # Only allow one instance
+        return not SystemSettings.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        # Prevent deletion
         return False

@@ -1144,6 +1144,88 @@ p, span, div, td, th, label {
 }
 
 /* ===================================
+   BIRTHDAY CARD STYLING
+   =================================== */
+.birthday-card {
+    border: 2px solid rgba(255, 193, 7, 0.5) !important;
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.05), rgba(255, 152, 0, 0.05)) !important;
+    box-shadow: 
+        0 8px 32px rgba(255, 193, 7, 0.2),
+        inset 0 1px 0 rgba(255, 193, 7, 0.1) !important;
+    animation: birthdayGlow 3s ease-in-out infinite;
+}
+
+.birthday-card:hover {
+    border-color: rgba(255, 193, 7, 0.8) !important;
+    box-shadow: 
+        0 12px 48px rgba(255, 193, 7, 0.3),
+        inset 0 1px 0 rgba(255, 193, 7, 0.2) !important;
+}
+
+@keyframes birthdayGlow {
+    0%, 100% {
+        box-shadow: 
+            0 8px 32px rgba(255, 193, 7, 0.2),
+            inset 0 1px 0 rgba(255, 193, 7, 0.1);
+    }
+    50% {
+        box-shadow: 
+            0 12px 48px rgba(255, 193, 7, 0.4),
+            inset 0 1px 0 rgba(255, 193, 7, 0.2);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.9;
+    }
+}
+
+/* ===================================
+   REASON BOX STYLING (WFH, LEAVE, ETC.)
+   =================================== */
+.reason-box {
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+.reason-box:hover {
+    transform: translateX(2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom scrollbar for reason boxes */
+.reason-box::-webkit-scrollbar {
+    width: 6px;
+}
+
+.reason-box::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+}
+
+.reason-box::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.5);
+    border-radius: 3px;
+}
+
+.reason-box::-webkit-scrollbar-thumb:hover {
+    background: rgba(59, 130, 246, 0.7);
+}
+
+/* ===================================
    RESPONSIVE DESIGN
    =================================== */
 @media (max-width: 768px) {

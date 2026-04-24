@@ -64,14 +64,24 @@
                     <label for="password" class="form-label">
                         <i class="fas fa-lock me-2"></i>Create Password
                     </label>
-                    <input type="password" class="form-input" id="password" name="password" placeholder="Create a strong password" minlength="6" required>
+                    <div style="position: relative;">
+                        <input type="password" class="form-input" id="password" name="password" placeholder="Create a strong password" minlength="6" required style="padding-right: 45px;">
+                        <button type="button" id="togglePassword" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; padding: 8px; font-size: 1rem; transition: color 0.3s;">
+                            <i class="fas fa-eye" id="toggleIcon"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="form-group">
                     <label for="confirm_password" class="form-label">
                         <i class="fas fa-lock me-2"></i>Confirm Password
                     </label>
-                    <input type="password" class="form-input" id="confirm_password" name="confirm_password" placeholder="Confirm your password" minlength="6" required>
+                    <div style="position: relative;">
+                        <input type="password" class="form-input" id="confirm_password" name="confirm_password" placeholder="Confirm your password" minlength="6" required style="padding-right: 45px;">
+                        <button type="button" id="toggleConfirmPassword" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.6); cursor: pointer; padding: 8px; font-size: 1rem; transition: color 0.3s;">
+                            <i class="fas fa-eye" id="toggleConfirmIcon"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-primary w-100 py-3" style="font-size: 1.1rem; font-weight: 600;">
@@ -97,6 +107,60 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Password visibility toggle for Create Password
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('toggleIcon');
+        
+        // Hover effect for password
+        togglePassword.addEventListener('mouseenter', function() {
+            this.style.color = 'rgba(255,255,255,0.9)';
+        });
+        
+        togglePassword.addEventListener('mouseleave', function() {
+            this.style.color = 'rgba(255,255,255,0.6)';
+        });
+        
+        // Toggle password visibility
+        togglePassword.addEventListener('click', function() {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        });
+        
+        // Password visibility toggle for Confirm Password
+        const toggleConfirmPassword = document.getElementById('toggleConfirmPassword');
+        const confirmPasswordInput = document.getElementById('confirm_password');
+        const toggleConfirmIcon = document.getElementById('toggleConfirmIcon');
+        
+        // Hover effect for confirm password
+        toggleConfirmPassword.addEventListener('mouseenter', function() {
+            this.style.color = 'rgba(255,255,255,0.9)';
+        });
+        
+        toggleConfirmPassword.addEventListener('mouseleave', function() {
+            this.style.color = 'rgba(255,255,255,0.6)';
+        });
+        
+        // Toggle confirm password visibility
+        toggleConfirmPassword.addEventListener('click', function() {
+            if (confirmPasswordInput.type === 'password') {
+                confirmPasswordInput.type = 'text';
+                toggleConfirmIcon.classList.remove('fa-eye');
+                toggleConfirmIcon.classList.add('fa-eye-slash');
+            } else {
+                confirmPasswordInput.type = 'password';
+                toggleConfirmIcon.classList.remove('fa-eye-slash');
+                toggleConfirmIcon.classList.add('fa-eye');
+            }
+        });
+        
         // Auto-hide alerts
         setTimeout(() => {
             const alerts = document.querySelectorAll('.alert');

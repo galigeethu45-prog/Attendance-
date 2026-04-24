@@ -8,8 +8,19 @@ class Command(BaseCommand):
     help = 'Auto checkout employees at 7 PM if they forgot to check out'
 
     def handle(self, *args, **kwargs):
-        today = timezone.now().date()
         local_tz = pytz.timezone('Asia/Kolkata')
+        now = timezone.now().astimezone(local_tz)
+        today = now.date()
+        current_hour = now.hour
+        
+        # Only run after 7 PM IST (19:00)
+        if current_hour < 19:
+            self.stdout.write(
+                self.style.WARNING(
+                    f'Auto checkout runs after 7 PM IST. Current time: {now.strftime("%I:%M %p")}'
+                )
+            )
+            return
         
         # Find all attendance records for today that don't have check_out
         pending_checkouts = Attendance.objects.filter(

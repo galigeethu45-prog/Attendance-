@@ -23,7 +23,7 @@
                     </div>
                     <h5 class="card-title text-white">Check In</h5>
                     <p class="text-muted small">Start your day</p>
-                    <form method="post" action="{% url 'check_in' %}">
+                    <form method="post" action="{% url 'check_in' %}" id="checkInForm" onsubmit="return confirmCheckIn()">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success btn-sm">
                             <i class="fas fa-play me-1"></i>Check In
@@ -49,7 +49,7 @@
                     </div>
                     <h5 class="card-title text-white">Check Out</h5>
                     <p class="text-muted small">End your day</p>
-                    <form method="post" action="{% url 'check_out' %}">
+                    <form method="post" action="{% url 'check_out' %}" id="checkOutForm" onsubmit="return confirmCheckOut()">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-danger btn-sm">
                             <i class="fas fa-stop me-1"></i>Check Out
@@ -304,6 +304,20 @@
 
 {% block extra_js %}
 <script>
+// Confirmation for Check-In
+function confirmCheckIn() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return confirm(`Are you sure you want to CHECK IN now?\n\nCurrent time: ${timeString}\n\nClick OK to confirm.`);
+}
+
+// Confirmation for Check-Out
+function confirmCheckOut() {
+    const now = new Date();
+    const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return confirm(`Are you sure you want to CHECK OUT now?\n\nCurrent time: ${timeString}\n\nThis will end your work day.\n\nClick OK to confirm.`);
+}
+
 // Real-time work hours calculation
 {% if today_attendance.check_in and not today_attendance.check_out %}
 document.addEventListener('DOMContentLoaded', function() {

@@ -7,21 +7,30 @@
 <div class="container-fluid">
     <div class="row mb-4 fade-in">
         <div class="col-12">
-            <h2 class="text-white mb-2" style="font-weight: 700;">
-                <i class="fas fa-users-cog me-2"></i>HR Dashboard
-            </h2>
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="text-white mb-0" style="font-weight: 700;">
+                    <i class="fas fa-users-cog me-2"></i>HR Dashboard
+                </h2>
+                
+                <!-- Emergency Override Button -->
+                <button type="button" class="btn btn-lg" id="emergencyOverrideBtn" onclick="showEmergencyOverrideModal()" style="font-weight: 600;">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span id="overrideButtonText">Emergency Override</span>
+                </button>
+            </div>
         </div>
     </div>
 
     <!-- Stats Overview -->
     <div class="row g-4 mb-4">
         <div class="col-md-3">
-            <div class="card stat-card glass-card fade-in-delay-1">
+            <div class="card stat-card glass-card fade-in-delay-1 clickable-card" onclick="showEmployeeList('all')" style="cursor: pointer; transition: transform 0.2s;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <p class="text-muted mb-1">Total Employees</p>
                             <h3 class="mb-0">{{ total_employees }}</h3>
+                            <small class="text-primary"><i class="fas fa-mouse-pointer me-1"></i>Click to view</small>
                         </div>
                         <div class="stat-icon bg-primary bg-opacity-10">
                             <i class="fas fa-users text-primary fa-2x"></i>
@@ -31,12 +40,13 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card glass-card fade-in-delay-2">
+            <div class="card stat-card glass-card fade-in-delay-2 clickable-card" onclick="showEmployeeList('present')" style="cursor: pointer; transition: transform 0.2s;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <p class="text-muted mb-1">Present Today</p>
                             <h3 class="mb-0">{{ present_today }}</h3>
+                            <small class="text-success"><i class="fas fa-mouse-pointer me-1"></i>Click to view</small>
                         </div>
                         <div class="stat-icon bg-success bg-opacity-10">
                             <i class="fas fa-user-check text-success fa-2x"></i>
@@ -46,12 +56,13 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card glass-card fade-in-delay-3">
+            <div class="card stat-card glass-card fade-in-delay-3 clickable-card" onclick="showEmployeeList('absent')" style="cursor: pointer; transition: transform 0.2s;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <p class="text-muted mb-1">Absent Today</p>
                             <h3 class="mb-0">{{ absent_today }}</h3>
+                            <small class="text-danger"><i class="fas fa-mouse-pointer me-1"></i>Click to view</small>
                         </div>
                         <div class="stat-icon bg-danger bg-opacity-10">
                             <i class="fas fa-user-times text-danger fa-2x"></i>
@@ -61,15 +72,16 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="card stat-card glass-card fade-in-delay-4">
+            <div class="card stat-card glass-card fade-in-delay-4 clickable-card" onclick="showEmployeeList('late')" style="cursor: pointer; transition: transform 0.2s;">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <p class="text-muted mb-1">Pending Leaves</p>
-                            <h3 class="mb-0">{{ pending_leaves }}</h3>
+                            <p class="text-muted mb-1">Late Arrivals</p>
+                            <h3 class="mb-0">{{ late_arrivals }}</h3>
+                            <small class="text-warning"><i class="fas fa-mouse-pointer me-1"></i>Click to view</small>
                         </div>
                         <div class="stat-icon bg-warning bg-opacity-10">
-                            <i class="fas fa-calendar-times text-warning fa-2x"></i>
+                            <i class="fas fa-clock text-warning fa-2x"></i>
                         </div>
                     </div>
                 </div>
@@ -125,16 +137,92 @@
         <!-- Attendance Tab -->
         <div class="tab-pane fade show active" id="attendance">
             <div class="card glass-card">
-                <div class="card-header">
-                    <h5 class="mb-0">Employee Attendance - {{ current_date|date:"F d, Y" }}</h5>
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-list me-2"></i>Employee Attendance Records
+                    </h5>
+                    <button type="button" class="btn btn-success" onclick="exportAttendanceCSV()">
+                        <i class="fas fa-file-csv me-2"></i>Export to CSV
+                    </button>
                 </div>
                 <div class="card-body">
+                    <!-- Filters -->
+                    <form method="get" action="{% url 'hr_dashboard' %}" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label text-white">Filter Type</label>
+                                <select name="attendance_filter" id="attendanceFilterType" class="form-select" onchange="toggleAttendanceFilters()">
+                                    <option value="today" {% if attendance_filter_type == 'today' %}selected{% endif %}>Today</option>
+                                    <option value="date_range" {% if attendance_filter_type == 'date_range' %}selected{% endif %}>Date Range</option>
+                                    <option value="month" {% if attendance_filter_type == 'month' %}selected{% endif %}>Month</option>
+                                    <option value="year" {% if attendance_filter_type == 'year' %}selected{% endif %}>Year</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Date Range Filters -->
+                            <div class="col-md-3" id="startDateFilter" style="display: {% if attendance_filter_type == 'date_range' %}block{% else %}none{% endif %};">
+                                <label class="form-label text-white">Start Date</label>
+                                <input type="date" name="start_date" class="form-control" value="{{ start_date }}">
+                            </div>
+                            <div class="col-md-3" id="endDateFilter" style="display: {% if attendance_filter_type == 'date_range' %}block{% else %}none{% endif %};">
+                                <label class="form-label text-white">End Date</label>
+                                <input type="date" name="end_date" class="form-control" value="{{ end_date }}">
+                            </div>
+                            
+                            <!-- Month Filter -->
+                            <div class="col-md-3" id="monthFilter" style="display: {% if attendance_filter_type == 'month' %}block{% else %}none{% endif %};">
+                                <label class="form-label text-white">Month</label>
+                                <select name="filter_month" class="form-select">
+                                    <option value="">Select Month</option>
+                                    <option value="1" {% if filter_month == '1' %}selected{% endif %}>January</option>
+                                    <option value="2" {% if filter_month == '2' %}selected{% endif %}>February</option>
+                                    <option value="3" {% if filter_month == '3' %}selected{% endif %}>March</option>
+                                    <option value="4" {% if filter_month == '4' %}selected{% endif %}>April</option>
+                                    <option value="5" {% if filter_month == '5' %}selected{% endif %}>May</option>
+                                    <option value="6" {% if filter_month == '6' %}selected{% endif %}>June</option>
+                                    <option value="7" {% if filter_month == '7' %}selected{% endif %}>July</option>
+                                    <option value="8" {% if filter_month == '8' %}selected{% endif %}>August</option>
+                                    <option value="9" {% if filter_month == '9' %}selected{% endif %}>September</option>
+                                    <option value="10" {% if filter_month == '10' %}selected{% endif %}>October</option>
+                                    <option value="11" {% if filter_month == '11' %}selected{% endif %}>November</option>
+                                    <option value="12" {% if filter_month == '12' %}selected{% endif %}>December</option>
+                                </select>
+                            </div>
+                            
+                            <!-- Year Filter (for both month and year filters) -->
+                            <div class="col-md-2" id="yearFilter" style="display: {% if attendance_filter_type == 'month' or attendance_filter_type == 'year' %}block{% else %}none{% endif %};">
+                                <label class="form-label text-white">Year</label>
+                                <select name="filter_year" class="form-select">
+                                    <option value="">Select Year</option>
+                                    {% for year in available_years %}
+                                    <option value="{{ year }}" {% if filter_year == year|stringformat:"s" %}selected{% endif %}>{{ year }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <label class="form-label text-white">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-filter me-1"></i>Apply Filter
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-white">&nbsp;</label>
+                                <a href="{% url 'hr_dashboard' %}" class="btn btn-secondary w-100">
+                                    <i class="fas fa-redo me-1"></i>Reset
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Attendance Table -->
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
                                     <th>Employee</th>
                                     <th>Department</th>
+                                    <th>Date</th>
                                     <th>Check In</th>
                                     <th>Check Out</th>
                                     <th>Work Hours</th>
@@ -158,6 +246,7 @@
                                         </div>
                                     </td>
                                     <td>{{ attendance.employee.employeeprofile.department }}</td>
+                                    <td>{{ attendance.date|date:"M d, Y" }}</td>
                                     <td>{{ attendance.check_in|time:"h:i A"|default:"-" }}</td>
                                     <td>{{ attendance.check_out|time:"h:i A"|default:"-" }}</td>
                                     <td>{{ attendance.get_work_hours_display }}</td>
@@ -182,12 +271,21 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="8" class="text-center text-muted py-4">No attendance records for today</td>
+                                    <td colspan="9" class="text-center text-muted py-4">No attendance records found for selected filter</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
+                    
+                    {% if today_attendance %}
+                    <div class="mt-3">
+                        <p class="text-muted mb-0">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Showing {{ today_attendance|length }} record(s)
+                        </p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -322,9 +420,10 @@
                             <div class="col-md-3">
                                 <label class="form-label text-white">Filter by Period</label>
                                 <select name="break_period" class="form-select" onchange="this.form.submit()">
-                                    <option value="today" {% if request.GET.break_period == 'today' %}selected{% endif %}>Today</option>
-                                    <option value="week" {% if request.GET.break_period == 'week' %}selected{% endif %}>This Week</option>
-                                    <option value="month" {% if request.GET.break_period == 'month' %}selected{% endif %}>This Month</option>
+                                    <option value="today" {% if break_period == 'today' %}selected{% endif %}>Today</option>
+                                    <option value="week" {% if break_period == 'week' %}selected{% endif %}>This Week</option>
+                                    <option value="month" {% if break_period == 'month' %}selected{% endif %}>This Month</option>
+                                    <option value="all" {% if break_period == 'all' %}selected{% endif %}>All Time</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -447,17 +546,34 @@
                              data-name="{{ emp.user.get_full_name|default:emp.user.username|lower }}" 
                              data-id="{{ emp.employee_id|lower }}"
                              data-dept="{{ emp.department|lower }}">
-                            <div class="card glass-card h-100">
+                            <div class="card glass-card h-100 {% if emp.is_birthday_today %}birthday-card{% endif %}">
                                 <div class="card-body">
                                     <div class="d-flex align-items-center mb-3">
                                         <div class="avatar-circle me-3" style="width: 50px; height: 50px; font-size: 1.5rem;">
                                             {{ emp.user.first_name.0|default:emp.user.username.0 }}
                                         </div>
-                                        <div>
-                                            <h6 class="mb-0 text-white">{{ emp.user.get_full_name|default:emp.user.username }}</h6>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-0 text-white">
+                                                {{ emp.user.get_full_name|default:emp.user.username }}
+                                                {% if emp.is_birthday_today %}
+                                                <span class="badge bg-warning text-dark ms-2" style="animation: pulse 2s infinite;">
+                                                    <i class="fas fa-birthday-cake me-1"></i>Birthday!
+                                                </span>
+                                                {% endif %}
+                                            </h6>
                                             <small class="text-muted">{{ emp.employee_id|default:"No ID" }}</small>
                                         </div>
                                     </div>
+                                    
+                                    {% if emp.is_birthday_today %}
+                                    <div class="alert alert-warning mb-3" style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3);">
+                                        <i class="fas fa-gift me-2"></i>
+                                        <strong>🎉 Happy Birthday!</strong>
+                                        {% if emp.get_age %}
+                                        <br><small>Turning {{ emp.get_age }} today!</small>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
                                     
                                     <div class="mb-2">
                                         <small class="text-muted">Department:</small>
@@ -468,6 +584,19 @@
                                         <small class="text-muted">Designation:</small>
                                         <p class="mb-1 text-white">{{ emp.designation|default:"Not set" }}</p>
                                     </div>
+                                    
+                                    {% if emp.date_of_birth %}
+                                    <div class="mb-2">
+                                        <small class="text-muted">Birthday:</small>
+                                        <p class="mb-1 text-white">
+                                            <i class="fas fa-birthday-cake me-1"></i>
+                                            {{ emp.date_of_birth|date:"F d" }}
+                                            {% if emp.get_age %}
+                                            <small class="text-muted">(Age: {{ emp.get_age }})</small>
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                    {% endif %}
                                     
                                     <div class="mb-2">
                                         <small class="text-muted">Email:</small>
@@ -710,6 +839,42 @@
         </div>
     </div>
 </div>
+
+<!-- Employee List Modal -->
+<div class="modal fade" id="employeeListModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header" id="modalHeader">
+                <h5 class="modal-title text-white" id="modalTitle">
+                    <i class="fas fa-users me-2"></i>Employee List
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="employeeListContent">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading employees...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add hover effect CSS -->
+<style>
+.clickable-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+}
+</style>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -909,7 +1074,12 @@ function deleteUser(userId, userName) {
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="new_password" class="form-label">Password</label>
-                            <input type="password" class="form-control" id="new_password" name="password" minlength="6" required>
+                            <div style="position: relative;">
+                                <input type="password" class="form-control" id="new_password" name="password" minlength="6" required style="padding-right: 45px;">
+                                <button type="button" id="toggleCreatePassword" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #666; cursor: pointer; padding: 8px; font-size: 1rem; transition: color 0.3s;">
+                                    <i class="fas fa-eye" id="toggleCreatePasswordIcon"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="new_department" class="form-label">Department</label>
@@ -1028,5 +1198,327 @@ function confirmEditAttendance() {
         console.error(error);
     });
 }
+
+// Password visibility toggle for Create User form
+document.addEventListener('DOMContentLoaded', function() {
+    const toggleCreatePassword = document.getElementById('toggleCreatePassword');
+    const createPasswordInput = document.getElementById('new_password');
+    const toggleCreatePasswordIcon = document.getElementById('toggleCreatePasswordIcon');
+    
+    if (toggleCreatePassword) {
+        // Hover effect
+        toggleCreatePassword.addEventListener('mouseenter', function() {
+            this.style.color = '#333';
+        });
+        
+        toggleCreatePassword.addEventListener('mouseleave', function() {
+            this.style.color = '#666';
+        });
+        
+        // Toggle visibility
+        toggleCreatePassword.addEventListener('click', function() {
+            if (createPasswordInput.type === 'password') {
+                createPasswordInput.type = 'text';
+                toggleCreatePasswordIcon.classList.remove('fa-eye');
+                toggleCreatePasswordIcon.classList.add('fa-eye-slash');
+            } else {
+                createPasswordInput.type = 'password';
+                toggleCreatePasswordIcon.classList.remove('fa-eye-slash');
+                toggleCreatePasswordIcon.classList.add('fa-eye');
+            }
+        });
+    }
+});
 </script>
+
+<script>
+// Show employee list modal
+function showEmployeeList(type) {
+    const modal = new bootstrap.Modal(document.getElementById('employeeListModal'));
+    const modalTitle = document.getElementById('modalTitle');
+    const modalHeader = document.getElementById('modalHeader');
+    const content = document.getElementById('employeeListContent');
+    
+    // Set title and header color based on type
+    const titles = {
+        'all': { title: 'All Employees', icon: 'users', color: 'bg-primary' },
+        'present': { title: 'Present Today', icon: 'user-check', color: 'bg-success' },
+        'absent': { title: 'Absent Today', icon: 'user-times', color: 'bg-danger' },
+        'late': { title: 'Late Arrivals Today', icon: 'clock', color: 'bg-warning' }
+    };
+    
+    const config = titles[type];
+    modalTitle.innerHTML = `<i class="fas fa-${config.icon} me-2"></i>${config.title}`;
+    modalHeader.className = `modal-header ${config.color}`;
+    
+    // Show loading
+    content.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading employees...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Fetch employee list
+    fetch(`/attendance/hr/employee-list/${type}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.employees && data.employees.length > 0) {
+                let html = '<div class="table-responsive"><table class="table table-hover">';
+                html += '<thead><tr>';
+                html += '<th>Employee ID</th>';
+                html += '<th>Name</th>';
+                html += '<th>Department</th>';
+                
+                if (type === 'present' || type === 'late') {
+                    html += '<th>Check-in Time</th>';
+                    html += '<th>Status</th>';
+                }
+                
+                html += '</tr></thead><tbody>';
+                
+                data.employees.forEach(emp => {
+                    html += '<tr>';
+                    html += `<td>${emp.employee_id || 'N/A'}</td>`;
+                    html += `<td>${emp.name}</td>`;
+                    html += `<td>${emp.department || 'N/A'}</td>`;
+                    
+                    if (type === 'present' || type === 'late') {
+                        html += `<td>${emp.check_in_time || 'N/A'}</td>`;
+                        html += `<td><span class="badge bg-${emp.status_color}">${emp.status}</span></td>`;
+                    }
+                    
+                    html += '</tr>';
+                });
+                
+                html += '</tbody></table></div>';
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = `
+                    <div class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No employees found</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error loading employee list. Please try again.
+                </div>
+            `;
+        });
+}
+
+// Emergency Override Functions
+function showEmergencyOverrideModal() {
+    const modal = new bootstrap.Modal(document.getElementById('emergencyOverrideModal'));
+    loadEmergencyOverrideStatus();
+    modal.show();
+}
+
+function loadEmergencyOverrideStatus() {
+    fetch('/attendance/emergency-override/status/')
+        .then(response => response.json())
+        .then(data => {
+            const statusDiv = document.getElementById('overrideStatus');
+            const enableBtn = document.getElementById('enableOverrideBtn');
+            const disableBtn = document.getElementById('disableOverrideBtn');
+            const reasonInput = document.getElementById('overrideReason');
+            const mainBtn = document.getElementById('emergencyOverrideBtn');
+            
+            if (data.enabled) {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle me-2"></i>Emergency Override is ACTIVE</h5>
+                        <p class="mb-2"><strong>Reason:</strong> ${data.reason || 'Not specified'}</p>
+                        <p class="mb-2"><strong>Enabled by:</strong> ${data.enabled_by || 'Unknown'}</p>
+                        <p class="mb-0"><strong>Enabled at:</strong> ${data.enabled_at || 'Unknown'}</p>
+                        <hr>
+                        <p class="mb-0"><i class="fas fa-info-circle me-2"></i>All employees can check-in from any location</p>
+                    </div>
+                `;
+                enableBtn.style.display = 'none';
+                disableBtn.style.display = 'inline-block';
+                reasonInput.disabled = true;
+                
+                // Update main button
+                mainBtn.className = 'btn btn-lg btn-warning';
+                mainBtn.querySelector('#overrideButtonText').textContent = '🚨 Override ACTIVE';
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-success">
+                        <h5><i class="fas fa-check-circle me-2"></i>Emergency Override is DISABLED</h5>
+                        <p class="mb-0">Normal IP restrictions are active. Employees must be on office network or have approved WFH.</p>
+                    </div>
+                `;
+                enableBtn.style.display = 'inline-block';
+                disableBtn.style.display = 'none';
+                reasonInput.disabled = false;
+                
+                // Update main button
+                mainBtn.className = 'btn btn-lg btn-outline-light';
+                mainBtn.querySelector('#overrideButtonText').textContent = 'Emergency Override';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading override status:', error);
+        });
+}
+
+function toggleEmergencyOverride(action) {
+    const reason = document.getElementById('overrideReason').value;
+    
+    if (action === 'enable' && !reason.trim()) {
+        alert('Please provide a reason for enabling emergency override');
+        return;
+    }
+    
+    const confirmMsg = action === 'enable' 
+        ? `Enable Emergency Override?\n\nThis will allow ALL employees to check-in from ANY location, bypassing IP restrictions.\n\nReason: ${reason}`
+        : 'Disable Emergency Override?\n\nNormal IP restrictions will be restored.';
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('action', action);
+    formData.append('reason', reason);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    
+    fetch('/attendance/emergency-override/toggle/', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error toggling emergency override');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error toggling emergency override');
+    });
+}
+
+// Load override status on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadEmergencyOverrideStatus();
+});
+
+// Toggle attendance filter visibility
+function toggleAttendanceFilters() {
+    const filterType = document.getElementById('attendanceFilterType').value;
+    const startDateFilter = document.getElementById('startDateFilter');
+    const endDateFilter = document.getElementById('endDateFilter');
+    const monthFilter = document.getElementById('monthFilter');
+    const yearFilter = document.getElementById('yearFilter');
+    
+    // Hide all filters first
+    startDateFilter.style.display = 'none';
+    endDateFilter.style.display = 'none';
+    monthFilter.style.display = 'none';
+    yearFilter.style.display = 'none';
+    
+    // Show relevant filters based on type
+    if (filterType === 'date_range') {
+        startDateFilter.style.display = 'block';
+        endDateFilter.style.display = 'block';
+    } else if (filterType === 'month') {
+        monthFilter.style.display = 'block';
+        yearFilter.style.display = 'block';
+    } else if (filterType === 'year') {
+        yearFilter.style.display = 'block';
+    }
+}
+
+// Export attendance to CSV
+function exportAttendanceCSV() {
+    // Get current filter values
+    const filterType = document.querySelector('select[name="attendance_filter"]').value;
+    const startDate = document.querySelector('input[name="start_date"]')?.value || '';
+    const endDate = document.querySelector('input[name="end_date"]')?.value || '';
+    const filterMonth = document.querySelector('select[name="filter_month"]')?.value || '';
+    const filterYear = document.querySelector('select[name="filter_year"]')?.value || '';
+    
+    // Build URL with query parameters
+    let url = '{% url "export_attendance_csv" %}?filter_type=' + filterType;
+    
+    if (filterType === 'date_range' && startDate && endDate) {
+        url += '&start_date=' + startDate + '&end_date=' + endDate;
+    } else if (filterType === 'month' && filterMonth && filterYear) {
+        url += '&filter_month=' + filterMonth + '&filter_year=' + filterYear;
+    } else if (filterType === 'year' && filterYear) {
+        url += '&filter_year=' + filterYear;
+    }
+    
+    // Open CSV download in new window
+    window.location.href = url;
+}
+</script>
+
+<!-- Emergency Override Modal -->
+<div class="modal fade" id="emergencyOverrideModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content glass-card">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    Emergency Override Control
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="overrideStatus">
+                    <!-- Status will be loaded here -->
+                </div>
+                
+                <div class="mb-3">
+                    <label for="overrideReason" class="form-label">Reason for Override</label>
+                    <textarea class="form-control" id="overrideReason" rows="3" 
+                              placeholder="e.g., Regus network down, ISP issue, etc."></textarea>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        This will be logged in audit trail
+                    </small>
+                </div>
+                
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle me-2"></i>What is Emergency Override?</h6>
+                    <ul class="mb-0 small">
+                        <li>Bypasses IP-based office network restrictions</li>
+                        <li>Allows ALL employees to check-in from ANY location</li>
+                        <li>Use only when office network (Regus) is down</li>
+                        <li>All actions are logged in audit trail</li>
+                        <li>Remember to disable when network is restored</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Close
+                </button>
+                <button type="button" class="btn btn-warning" id="enableOverrideBtn" 
+                        onclick="toggleEmergencyOverride('enable')">
+                    <i class="fas fa-power-off me-2"></i>Enable Override
+                </button>
+                <button type="button" class="btn btn-success" id="disableOverrideBtn" 
+                        onclick="toggleEmergencyOverride('disable')" style="display: none;">
+                    <i class="fas fa-check me-2"></i>Disable Override
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
