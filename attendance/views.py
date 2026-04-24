@@ -1593,14 +1593,20 @@ def employee_list_view(request, list_type):
             check_in__isnull=False
         ).select_related('employee__employeeprofile')
         
+        import pytz
+        local_tz = pytz.timezone('Asia/Kolkata')
+        
         for attendance in present_attendance:
+            # Convert check_in time to IST
+            check_in_ist = attendance.check_in.astimezone(local_tz)
+            
             try:
                 profile = attendance.employee.employeeprofile
                 employees.append({
                     'employee_id': profile.employee_id or 'N/A',
                     'name': attendance.employee.get_full_name() or attendance.employee.username,
                     'department': profile.department or 'N/A',
-                    'check_in_time': attendance.check_in.strftime('%I:%M %p'),
+                    'check_in_time': check_in_ist.strftime('%I:%M %p'),
                     'status': attendance.get_status_display(),
                     'status_color': 'success' if attendance.status == 'present' else 'warning' if attendance.status == 'late' else 'info',
                 })
@@ -1609,7 +1615,7 @@ def employee_list_view(request, list_type):
                     'employee_id': 'N/A',
                     'name': attendance.employee.get_full_name() or attendance.employee.username,
                     'department': 'N/A',
-                    'check_in_time': attendance.check_in.strftime('%I:%M %p'),
+                    'check_in_time': check_in_ist.strftime('%I:%M %p'),
                     'status': attendance.get_status_display(),
                     'status_color': 'success',
                 })
@@ -1645,14 +1651,20 @@ def employee_list_view(request, list_type):
             status__in=['late', 'half-day']
         ).select_related('employee__employeeprofile')
         
+        import pytz
+        local_tz = pytz.timezone('Asia/Kolkata')
+        
         for attendance in late_attendance:
+            # Convert check_in time to IST
+            check_in_ist = attendance.check_in.astimezone(local_tz) if attendance.check_in else None
+            
             try:
                 profile = attendance.employee.employeeprofile
                 employees.append({
                     'employee_id': profile.employee_id or 'N/A',
                     'name': attendance.employee.get_full_name() or attendance.employee.username,
                     'department': profile.department or 'N/A',
-                    'check_in_time': attendance.check_in.strftime('%I:%M %p') if attendance.check_in else 'N/A',
+                    'check_in_time': check_in_ist.strftime('%I:%M %p') if check_in_ist else 'N/A',
                     'status': attendance.get_status_display(),
                     'status_color': 'warning' if attendance.status == 'late' else 'info',
                 })
@@ -1661,7 +1673,7 @@ def employee_list_view(request, list_type):
                     'employee_id': 'N/A',
                     'name': attendance.employee.get_full_name() or attendance.employee.username,
                     'department': 'N/A',
-                    'check_in_time': attendance.check_in.strftime('%I:%M %p') if attendance.check_in else 'N/A',
+                    'check_in_time': check_in_ist.strftime('%I:%M %p') if check_in_ist else 'N/A',
                     'status': attendance.get_status_display(),
                     'status_color': 'warning',
                 })
