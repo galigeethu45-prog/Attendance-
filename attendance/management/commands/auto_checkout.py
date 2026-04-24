@@ -13,6 +13,7 @@ class Command(BaseCommand):
         now = timezone.now().astimezone(local_tz)
         today = now.date()
         current_time = now.time()
+        current_hour = now.hour
         
         # Log execution
         self.stdout.write(
@@ -20,6 +21,25 @@ class Command(BaseCommand):
                 f'Auto checkout script running at: {now.strftime("%Y-%m-%d %I:%M %p IST")}'
             )
         )
+        
+        # CRITICAL: Only run at or after 7 PM IST (19:00)
+        if current_hour < 19:
+            self.stdout.write(
+                self.style.ERROR(
+                    f'❌ STOPPED: Auto checkout only runs at or after 7:00 PM IST'
+                )
+            )
+            self.stdout.write(
+                self.style.WARNING(
+                    f'Current time: {now.strftime("%I:%M %p IST")} - Too early!'
+                )
+            )
+            self.stdout.write(
+                self.style.WARNING(
+                    f'Please run this command at 7:00 PM or later.'
+                )
+            )
+            return
         
         # Find all attendance records for today that don't have check_out
         pending_checkouts = Attendance.objects.filter(
