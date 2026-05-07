@@ -1280,13 +1280,13 @@ def leave_approval(request):
 def leave_action(request, leave_id, action):
     """
     Handle leave approval actions based on user role - PARALLEL WORKFLOW
-    TL: Add comment (independent)
-    Manager: Approve/Reject with comment (independent)
-    HR: Final Approve/Reject with comment (can see all previous comments)
+    TL: Add comment (advisory only)
+    Manager: Add comment (advisory only)
+    HR: Final Approve/Reject (has final authority, can approve/reject regardless of TL/Manager input)
     
     Status changes:
     - Request stays 'pending' until HR makes final decision
-    - HR can approve only if Manager approved (or reject anytime)
+    - HR can approve or reject anytime (TL/Manager comments are advisory only)
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
@@ -1385,10 +1385,8 @@ def leave_action(request, leave_id, action):
         leave.hr_comment = comment
         
         if action == 'approve':
-            # Check if manager approved (optional requirement)
-            if not leave.manager_approved:
-                return JsonResponse({'success': False, 'error': 'Manager approval required before HR can approve'})
-            
+            # HR has final authority - no manager approval required
+            # TL and Manager comments are advisory only
             leave.status = 'approved'
             leave.save()
             
@@ -2988,9 +2986,9 @@ def wfh_approval(request):
 def wfh_action(request, wfh_id, action):
     """
     PARALLEL approval workflow - Handle WFH approval actions based on user role
-    TL: Add comment (can act anytime)
-    Manager: Approve/Reject (can act anytime, but should check TL comment)
-    HR: Final Approve/Reject (can only approve if Manager approved)
+    TL: Add comment (advisory only)
+    Manager: Add comment (advisory only)
+    HR: Final Approve/Reject (has final authority, can approve/reject regardless of TL/Manager input)
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
@@ -3077,15 +3075,13 @@ def wfh_action(request, wfh_id, action):
             
             return JsonResponse({'success': True, 'message': 'WFH rejected'})
     
-    # HR action - Final Approve or Reject (can only approve if Manager approved)
+    # HR action - Final Approve or Reject (HR has final authority)
     elif user_role == 'hr' and action in ['approve', 'reject']:
         if not comment:
             return JsonResponse({'success': False, 'error': 'Comment is required'})
         
-        # CRITICAL: HR can only approve if Manager has approved
-        if action == 'approve' and not wfh.manager_approved:
-            return JsonResponse({'success': False, 'error': 'Cannot approve: Manager approval required first'})
-        
+        # HR has final authority - no manager approval required
+        # TL and Manager comments are advisory only
         wfh.hr_comment = comment
         
         if action == 'approve':
@@ -3485,8 +3481,8 @@ def onsite_approval(request):
 def onsite_action(request, onsite_id, action):
     """
     PARALLEL approval workflow - Handle onsite approval actions
-    Manager: Approve/Reject (can act anytime)
-    HR: Final Approve/Reject (can only approve if Manager approved)
+    Manager: Add comment (advisory only)
+    HR: Final Approve/Reject (has final authority, can approve/reject regardless of Manager input)
     """
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
@@ -3549,15 +3545,13 @@ def onsite_action(request, onsite_id, action):
             
             return JsonResponse({'success': True, 'message': 'Onsite request rejected'})
     
-    # HR action - Final Approve or Reject (can only approve if Manager approved)
+    # HR action - Final Approve or Reject (HR has final authority)
     elif user_role == 'hr' and action in ['approve', 'reject']:
         if not comment:
             return JsonResponse({'success': False, 'error': 'Comment is required'})
         
-        # CRITICAL: HR can only approve if Manager has approved
-        if action == 'approve' and not onsite.manager_approved:
-            return JsonResponse({'success': False, 'error': 'Cannot approve: Manager approval required first'})
-        
+        # HR has final authority - no manager approval required
+        # Manager comments are advisory only
         onsite.hr_comment = comment
         
         if action == 'approve':
