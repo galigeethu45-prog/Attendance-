@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}WFH Approval{% endblock %}
+{% block title %}Leave Approval{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row mb-4 fade-in">
         <div class="col-12">
             <h2 class="text-white mb-2" style="font-weight: 700;">
-                <i class="fas fa-home me-2"></i>WFH Approval
+                <i class="fas fa-clipboard-check me-2"></i>Leave Approval
                 {% if user_role == 'team_leader' %}
                 <span class="badge bg-info ms-2">Team Leader</span>
                 {% elif user_role == 'manager' %}
@@ -19,11 +19,11 @@
             </h2>
             <p class="text-white-50">
                 {% if user_role == 'team_leader' %}
-                Review WFH requests and add your comments
+                Review leave requests and add your comments
                 {% elif user_role == 'manager' %}
-                Approve or reject WFH requests reviewed by Team Leaders
+                Approve or reject leave requests reviewed by Team Leaders
                 {% else %}
-                Final approval for WFH requests approved by Managers
+                Final approval for leave requests approved by Managers
                 {% endif %}
             </p>
         </div>
@@ -34,31 +34,31 @@
             <div class="card glass-card fade-in-delay-1">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-list me-2"></i>Pending WFH Requests
+                        <i class="fas fa-list me-2"></i>Pending Leave Requests
                         <span class="badge bg-warning ms-2">{{ pending_requests.count }}</span>
                     </h5>
                 </div>
                 <div class="card-body">
-                    {% for wfh in pending_requests %}
+                    {% for leave in pending_requests %}
                     <!-- Request Card -->
                     <div class="request-card fade-in">
                         <!-- Card Header - Employee Info -->
                         <div class="request-card-header">
-                            {% if wfh.employee.employeeprofile.profile_photo %}
-                            <img src="{{ wfh.employee.employeeprofile.profile_photo.url }}" 
-                                 alt="{{ wfh.employee.get_full_name }}" 
+                            {% if leave.employee.employeeprofile.profile_photo %}
+                            <img src="{{ leave.employee.employeeprofile.profile_photo.url }}" 
+                                 alt="{{ leave.employee.get_full_name }}" 
                                  class="request-card-avatar">
                             {% else %}
                             <div class="request-card-avatar-placeholder">
-                                {{ wfh.employee.first_name.0|default:wfh.employee.username.0 }}
+                                {{ leave.employee.first_name.0|default:leave.employee.username.0 }}
                             </div>
                             {% endif %}
                             <div class="request-card-employee-info">
                                 <div class="request-card-employee-name">
-                                    {{ wfh.employee.get_full_name|default:wfh.employee.username }}
+                                    {{ leave.employee.get_full_name|default:leave.employee.username }}
                                 </div>
                                 <div class="request-card-employee-id">
-                                    {{ wfh.employee.employeeprofile.employee_id|default:wfh.employee.username }}
+                                    {{ leave.employee.employeeprofile.employee_id|default:leave.employee.username }}
                                 </div>
                             </div>
                         </div>
@@ -67,13 +67,22 @@
                         <div class="request-card-body">
                             <div class="request-card-field">
                                 <div class="request-card-label">
+                                    <i class="fas fa-tag"></i> Leave Type
+                                </div>
+                                <div class="request-card-value">
+                                    <span class="badge bg-info">{{ leave.get_leave_type_display }}</span>
+                                </div>
+                            </div>
+
+                            <div class="request-card-field">
+                                <div class="request-card-label">
                                     <i class="fas fa-calendar"></i> Dates
                                 </div>
                                 <div class="request-card-value">
-                                    {% if wfh.selected_dates %}
+                                    {% if leave.selected_dates %}
                                         Multiple dates
                                     {% else %}
-                                        {{ wfh.start_date|date:"M d" }} - {{ wfh.end_date|date:"M d, Y" }}
+                                        {{ leave.start_date|date:"M d" }} - {{ leave.end_date|date:"M d, Y" }}
                                     {% endif %}
                                 </div>
                             </div>
@@ -83,7 +92,7 @@
                                     <i class="fas fa-clock"></i> Days
                                 </div>
                                 <div class="request-card-value">
-                                    {{ wfh.total_days }} day{{ wfh.total_days|pluralize }}
+                                    {{ leave.total_days }} day{{ leave.total_days|pluralize }}
                                 </div>
                             </div>
 
@@ -92,7 +101,7 @@
                                     <i class="fas fa-comment-alt"></i> Reason
                                 </div>
                                 <div class="request-card-value-scrollable">
-                                    {{ wfh.reason }}
+                                    {{ leave.reason }}
                                 </div>
                             </div>
                         </div>
@@ -105,16 +114,16 @@
                                     <i class="fas fa-user-tie"></i> Team Leader
                                 </div>
                                 <div class="request-card-approval-name">
-                                    {% if wfh.tl_comment %}
+                                    {% if leave.tl_comment %}
                                         <i class="fas fa-check-circle text-success"></i>
-                                        {{ wfh.tl_approver.get_full_name|default:wfh.tl_approver.username }}
+                                        {{ leave.tl_approver.get_full_name|default:leave.tl_approver.username }}
                                     {% else %}
                                         <span class="badge bg-secondary">Pending</span>
                                     {% endif %}
                                 </div>
-                                {% if wfh.tl_comment %}
+                                {% if leave.tl_comment %}
                                 <div class="request-card-approval-comment">
-                                    {{ wfh.tl_comment }}
+                                    {{ leave.tl_comment }}
                                 </div>
                                 {% endif %}
                             </div>
@@ -126,16 +135,16 @@
                                     <i class="fas fa-user-shield"></i> Manager
                                 </div>
                                 <div class="request-card-approval-name">
-                                    {% if wfh.manager_comment %}
+                                    {% if leave.manager_comment %}
                                         <i class="fas fa-check-circle text-success"></i>
-                                        {{ wfh.manager_approver.get_full_name|default:wfh.manager_approver.username }}
+                                        {{ leave.manager_approver.get_full_name|default:leave.manager_approver.username }}
                                     {% else %}
                                         <span class="badge bg-secondary">Pending</span>
                                     {% endif %}
                                 </div>
-                                {% if wfh.manager_comment %}
+                                {% if leave.manager_comment %}
                                 <div class="request-card-approval-comment">
-                                    {{ wfh.manager_comment }}
+                                    {{ leave.manager_comment }}
                                 </div>
                                 {% endif %}
                             </div>
@@ -146,7 +155,7 @@
                         <div class="request-card-footer">
                             <button class="btn btn-primary request-card-action-btn" 
                                     data-bs-toggle="modal" 
-                                    data-bs-target="#actionModal{{ wfh.id }}">
+                                    data-bs-target="#actionModal{{ leave.id }}">
                                 {% if user_role == 'team_leader' %}
                                 <i class="fas fa-comment"></i> Add Comment
                                 {% else %}
@@ -157,7 +166,7 @@
                     </div>
 
                     <!-- Action Modal -->
-                    <div class="modal fade" id="actionModal{{ wfh.id }}" tabindex="-1">
+                    <div class="modal fade" id="actionModal{{ leave.id }}" tabindex="-1">
                         <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header">
@@ -174,28 +183,31 @@
                                 </div>
                                 <div class="modal-body">
                                     <div class="mb-3">
-                                        <strong>Employee:</strong> {{ wfh.employee.get_full_name|default:wfh.employee.username }}
+                                        <strong>Employee:</strong> {{ leave.employee.get_full_name|default:leave.employee.username }}
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Leave Type:</strong> {{ leave.get_leave_type_display }}
                                     </div>
                                     <div class="mb-3">
                                         <strong>Duration:</strong>
-                                        {% if wfh.selected_dates %}
-                                            Specific dates ({{ wfh.total_days }} days)
-                                            <br><small class="text-muted">{{ wfh.selected_dates|join:", " }}</small>
+                                        {% if leave.selected_dates %}
+                                            Specific dates ({{ leave.total_days }} days)
+                                            <br><small class="text-muted">{{ leave.selected_dates|join:", " }}</small>
                                         {% else %}
-                                            {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }} ({{ wfh.total_days }} days)
+                                            {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }} ({{ leave.total_days }} days)
                                         {% endif %}
                                     </div>
                                     <div class="mb-3">
-                                        <strong>Reason:</strong> {{ wfh.reason }}
+                                        <strong>Reason:</strong> {{ leave.reason }}
                                     </div>
                                     
                                     {% if user_role != 'team_leader' %}
                                     <div class="mb-3">
                                         <strong>TL Comment:</strong>
-                                        {% if wfh.tl_comment %}
+                                        {% if leave.tl_comment %}
                                             <div class="alert alert-info">
-                                                <small>{{ wfh.tl_comment }}</small>
-                                                <br><small class="text-muted">- {{ wfh.tl_approver.get_full_name|default:wfh.tl_approver.username }} ({{ wfh.tl_approved_at|date:"M d, Y H:i" }})</small>
+                                                <small>{{ leave.tl_comment }}</small>
+                                                <br><small class="text-muted">- {{ leave.tl_approver.get_full_name|default:leave.tl_approver.username }} ({{ leave.tl_approved_at|date:"M d, Y H:i" }})</small>
                                             </div>
                                         {% else %}
                                             <div class="alert alert-warning">
@@ -208,10 +220,10 @@
                                     {% if user_role == 'hr' %}
                                     <div class="mb-3">
                                         <strong>Manager Comment:</strong>
-                                        {% if wfh.manager_comment %}
+                                        {% if leave.manager_comment %}
                                             <div class="alert alert-success">
-                                                <small>{{ wfh.manager_comment }}</small>
-                                                <br><small class="text-muted">- {{ wfh.manager_approver.get_full_name|default:wfh.manager_approver.username }} ({{ wfh.manager_approved_at|date:"M d, Y H:i" }})</small>
+                                                <small>{{ leave.manager_comment }}</small>
+                                                <br><small class="text-muted">- {{ leave.manager_approver.get_full_name|default:leave.manager_approver.username }} ({{ leave.manager_approved_at|date:"M d, Y H:i" }})</small>
                                             </div>
                                         {% else %}
                                             <div class="alert alert-warning">
@@ -222,7 +234,7 @@
                                     {% endif %}
                                     
                                     <div class="mb-3">
-                                        <label for="comment{{ wfh.id }}" class="form-label text-white">
+                                        <label for="comment{{ leave.id }}" class="form-label text-white">
                                             {% if user_role == 'team_leader' %}
                                             Your Comment *
                                             {% elif user_role == 'manager' %}
@@ -231,20 +243,20 @@
                                             HR Comment *
                                             {% endif %}
                                         </label>
-                                        <textarea class="form-control" id="comment{{ wfh.id }}" rows="3" required></textarea>
+                                        <textarea class="form-control" id="comment{{ leave.id }}" rows="3" required></textarea>
                                     </div>
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                     {% if user_role == 'team_leader' %}
-                                    <button type="button" class="btn btn-primary" onclick="submitWFHAction({{ wfh.id }}, 'comment')">
+                                    <button type="button" class="btn btn-primary" onclick="submitAction({{ leave.id }}, 'comment')">
                                         <i class="fas fa-check me-1"></i>Submit Comment
                                     </button>
                                     {% else %}
-                                    <button type="button" class="btn btn-danger" onclick="submitWFHAction({{ wfh.id }}, 'reject')">
+                                    <button type="button" class="btn btn-danger" onclick="submitAction({{ leave.id }}, 'reject')">
                                         <i class="fas fa-times me-1"></i>Reject
                                     </button>
-                                    <button type="button" class="btn btn-success" onclick="submitWFHAction({{ wfh.id }}, 'approve')">
+                                    <button type="button" class="btn btn-success" onclick="submitAction({{ leave.id }}, 'approve')">
                                         <i class="fas fa-check me-1"></i>Approve
                                     </button>
                                     {% endif %}
@@ -256,7 +268,7 @@
                     <div class="request-cards-empty">
                         <i class="fas fa-inbox"></i>
                         <h5>No Pending Requests</h5>
-                        <p>No pending WFH requests at this stage</p>
+                        <p>No pending leave requests at this stage</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -268,8 +280,8 @@
 
 {% block extra_js %}
 <script>
-function submitWFHAction(wfhId, action) {
-    const comment = document.getElementById('comment' + wfhId).value.trim();
+function submitAction(leaveId, action) {
+    const comment = document.getElementById('comment' + leaveId).value.trim();
     
     if (!comment) {
         alert('Please enter a comment');
@@ -279,7 +291,7 @@ function submitWFHAction(wfhId, action) {
     const formData = new FormData();
     formData.append('comment', comment);
     
-    fetch(`/attendance/wfh/action/${wfhId}/${action}/`, {
+    fetch(`/attendance/leave/action/${leaveId}/${action}/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}'

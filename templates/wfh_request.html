@@ -22,16 +22,46 @@
                 <div class="card-body">
                     <form method="post" action="{% url 'wfh_request' %}">
                         {% csrf_token %}
+                        
+                        <!-- Date Selection Mode Toggle -->
                         <div class="mb-3">
-                            <label for="start_date" class="form-label">Start Date</label>
-                            <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            <label for="dateSelectionModeWFH" class="form-label text-white">Selection Mode</label>
+                            <select id="dateSelectionModeWFH" class="form-select">
+                                <option value="range">Date Range (Consecutive Days)</option>
+                                <option value="specific">Specific Dates (Non-consecutive)</option>
+                            </select>
                         </div>
-                        <div class="mb-3">
-                            <label for="end_date" class="form-label">End Date</label>
-                            <input type="date" class="form-control" id="end_date" name="end_date" required>
+
+                        <!-- Date Range Fields (existing) -->
+                        <div id="dateRangeFieldsWFH">
+                            <div class="mb-3">
+                                <label for="start_date" class="form-label text-white">Start Date</label>
+                                <input type="date" class="form-control" id="start_date" name="start_date">
+                            </div>
+                            <div class="mb-3">
+                                <label for="end_date" class="form-label text-white">End Date</label>
+                                <input type="date" class="form-control" id="end_date" name="end_date">
+                            </div>
                         </div>
+
+                        <!-- Specific Dates Fields (new) -->
+                        <div id="specificDatesFieldsWFH" style="display: none;">
+                            <div class="mb-3">
+                                <label for="calendar_picker_wfh" class="form-label text-white">Select Dates (Calendar)</label>
+                                <input type="text" id="calendar_picker_wfh" class="form-control" placeholder="Click to select dates">
+                                <small class="text-muted">Click multiple dates to select non-consecutive days</small>
+                            </div>
+                            <div class="mb-3">
+                                <label for="manual_dates_wfh" class="form-label text-white">Or Enter Manually (comma-separated)</label>
+                                <textarea id="manual_dates_wfh" class="form-control" rows="2" 
+                                          placeholder="2026-05-21, 2026-05-25, 2026-05-30"></textarea>
+                                <small class="text-muted">Format: YYYY-MM-DD, YYYY-MM-DD</small>
+                            </div>
+                            <input type="hidden" id="selected_dates_wfh" name="selected_dates">
+                        </div>
+                        
                         <div class="mb-3">
-                            <label for="reason" class="form-label">Reason</label>
+                            <label for="reason" class="form-label text-white">Reason</label>
                             <textarea class="form-control" id="reason" name="reason" rows="3" required placeholder="Why do you need to work from home?"></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">
@@ -62,8 +92,20 @@
                             <tbody>
                                 {% for wfh in wfh_requests %}
                                 <tr>
-                                    <td>{{ wfh.start_date|date:"M d, Y" }}</td>
-                                    <td>{{ wfh.end_date|date:"M d, Y" }}</td>
+                                    <td>
+                                        {% if wfh.selected_dates %}
+                                            Multiple dates
+                                        {% else %}
+                                            {{ wfh.start_date|date:"M d, Y" }}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if wfh.selected_dates %}
+                                            ({{ wfh.total_days }} days)
+                                        {% else %}
+                                            {{ wfh.end_date|date:"M d, Y" }}
+                                        {% endif %}
+                                    </td>
                                     <td>{{ wfh.total_days }}</td>
                                     <td>
                                         {% if wfh.status == 'pending' %}
@@ -96,17 +138,103 @@
                                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                             </div>
                                             <div class="modal-body">
-                                                <p><strong>Duration:</strong> {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }}</p>
+                                                <p><strong>Duration:</strong> 
+                                                    {% if wfh.selected_dates %}
+                                                        Specific dates ({{ wfh.total_days }} days)
+                                                        <br><small class="text-muted">{{ wfh.selected_dates|join:", " }}</small>
+                                                    {% else %}
+                                                        {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }}
+                                                    {% endif %}
+                                                </p>
                                                 <p><strong>Total Days:</strong> {{ wfh.total_days }}</p>
                                                 <p><strong>Reason:</strong> {{ wfh.reason }}</p>
                                                 <p><strong>Status:</strong> 
                                                     <span class="badge bg-{{ wfh.status }}">{{ wfh.get_status_display }}</span>
                                                 </p>
-                                                {% if wfh.hr_comment %}
-                                                <p><strong>HR Comment:</strong> {{ wfh.hr_comment }}</p>
+                                                
+                                                <!-- Approval Chain -->
+                                                {% if wfh.tl_comment or wfh.manager_comment or wfh.hr_comment %}
+                                                <hr>
+                                                <h6 class="mb-3"><i class="fas fa-sitemap me-2"></i>Approval Chain</h6>
+                                                
+                                                <!-- TL Review -->
+                                                {% if wfh.tl_comment %}
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                                        <strong>Team Leader Review</strong>
+                                                    </div>
+                                                    <div class="alert alert-info mb-0">
+                                                        <small>{{ wfh.tl_comment }}</small>
+                                                        <br><small class="text-muted">
+                                                            - {{ wfh.tl_approver.get_full_name|default:wfh.tl_approver.username }}
+                                                            ({{ wfh.tl_approved_at|date:"M d, Y H:i" }})
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                {% else %}
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-clock text-warning me-2"></i>
+                                                        <strong>Team Leader Review</strong>
+                                                    </div>
+                                                    <small class="text-muted">Pending review</small>
+                                                </div>
                                                 {% endif %}
-                                                {% if wfh.hr_approver %}
-                                                <p><strong>Approved By:</strong> {{ wfh.hr_approver.get_full_name|default:wfh.hr_approver.username }}</p>
+                                                
+                                                <!-- Manager Review -->
+                                                {% if wfh.manager_comment %}
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        {% if wfh.manager_approved %}
+                                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                                        {% else %}
+                                                        <i class="fas fa-times-circle text-danger me-2"></i>
+                                                        {% endif %}
+                                                        <strong>Manager Review</strong>
+                                                    </div>
+                                                    <div class="alert {% if wfh.manager_approved %}alert-success{% else %}alert-danger{% endif %} mb-0">
+                                                        <small>{{ wfh.manager_comment }}</small>
+                                                        <br><small class="text-muted">
+                                                            - {{ wfh.manager_approver.get_full_name|default:wfh.manager_approver.username }}
+                                                            ({{ wfh.manager_approved_at|date:"M d, Y H:i" }})
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                {% elif wfh.tl_comment %}
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-clock text-warning me-2"></i>
+                                                        <strong>Manager Review</strong>
+                                                    </div>
+                                                    <small class="text-muted">Pending review</small>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                <!-- HR Final Decision -->
+                                                {% if wfh.hr_comment %}
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        {% if wfh.status == 'approved' %}
+                                                        <i class="fas fa-check-circle text-success me-2"></i>
+                                                        {% else %}
+                                                        <i class="fas fa-times-circle text-danger me-2"></i>
+                                                        {% endif %}
+                                                        <strong>HR Final Decision</strong>
+                                                    </div>
+                                                    <div class="alert {% if wfh.status == 'approved' %}alert-success{% else %}alert-danger{% endif %} mb-0">
+                                                        <small>{{ wfh.hr_comment }}</small>
+                                                    </div>
+                                                </div>
+                                                {% elif wfh.manager_approved %}
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="fas fa-clock text-warning me-2"></i>
+                                                        <strong>HR Final Decision</strong>
+                                                    </div>
+                                                    <small class="text-muted">Pending final approval</small>
+                                                </div>
+                                                {% endif %}
                                                 {% endif %}
                                             </div>
                                         </div>
@@ -128,7 +256,27 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/form-validation.js' %}"></script>
+<script src="{% static 'js/multi-date-picker.js' %}"></script>
 <script>
+// Initialize multi-date picker for WFH
+document.addEventListener('DOMContentLoaded', function() {
+    initMultiDatePicker(
+        'calendar_picker_wfh',
+        'manual_dates_wfh',
+        'selected_dates_wfh',
+        'dateSelectionModeWFH',
+        'dateRangeFieldsWFH',
+        'specificDatesFieldsWFH'
+    );
+    
+    // Attach validation to form
+    const form = document.querySelector('form[action="{% url "wfh_request" %}"]');
+    if (form) {
+        form.addEventListener('submit', validateWFHRequestForm);
+    }
+});
+
 function cancelWFH(wfhId) {
     if (confirm('Are you sure you want to cancel this WFH request?')) {
         fetch(`/attendance/wfh/cancel/${wfhId}/`, {

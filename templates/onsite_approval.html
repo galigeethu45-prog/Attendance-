@@ -1,29 +1,25 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}WFH Approval{% endblock %}
+{% block title %}Onsite Approval{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="row mb-4 fade-in">
         <div class="col-12">
             <h2 class="text-white mb-2" style="font-weight: 700;">
-                <i class="fas fa-home me-2"></i>WFH Approval
-                {% if user_role == 'team_leader' %}
-                <span class="badge bg-info ms-2">Team Leader</span>
-                {% elif user_role == 'manager' %}
+                <i class="fas fa-building me-2"></i>Onsite Request Approval
+                {% if user_role == 'manager' %}
                 <span class="badge bg-primary ms-2">Manager</span>
                 {% else %}
                 <span class="badge bg-success ms-2">HR</span>
                 {% endif %}
             </h2>
             <p class="text-white-50">
-                {% if user_role == 'team_leader' %}
-                Review WFH requests and add your comments
-                {% elif user_role == 'manager' %}
-                Approve or reject WFH requests reviewed by Team Leaders
+                {% if user_role == 'manager' %}
+                Review and approve/reject onsite visit requests
                 {% else %}
-                Final approval for WFH requests approved by Managers
+                Final approval for onsite requests approved by Managers
                 {% endif %}
             </p>
         </div>
@@ -34,31 +30,31 @@
             <div class="card glass-card fade-in-delay-1">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-list me-2"></i>Pending WFH Requests
+                        <i class="fas fa-list me-2"></i>Pending Onsite Requests
                         <span class="badge bg-warning ms-2">{{ pending_requests.count }}</span>
                     </h5>
                 </div>
                 <div class="card-body">
-                    {% for wfh in pending_requests %}
+                    {% for onsite in pending_requests %}
                     <!-- Request Card -->
                     <div class="request-card fade-in">
                         <!-- Card Header - Employee Info -->
                         <div class="request-card-header">
-                            {% if wfh.employee.employeeprofile.profile_photo %}
-                            <img src="{{ wfh.employee.employeeprofile.profile_photo.url }}" 
-                                 alt="{{ wfh.employee.get_full_name }}" 
+                            {% if onsite.employee.employeeprofile.profile_photo %}
+                            <img src="{{ onsite.employee.employeeprofile.profile_photo.url }}" 
+                                 alt="{{ onsite.employee.get_full_name }}" 
                                  class="request-card-avatar">
                             {% else %}
                             <div class="request-card-avatar-placeholder">
-                                {{ wfh.employee.first_name.0|default:wfh.employee.username.0 }}
+                                {{ onsite.employee.first_name.0|default:onsite.employee.username.0 }}
                             </div>
                             {% endif %}
                             <div class="request-card-employee-info">
                                 <div class="request-card-employee-name">
-                                    {{ wfh.employee.get_full_name|default:wfh.employee.username }}
+                                    {{ onsite.employee.get_full_name|default:onsite.employee.username }}
                                 </div>
                                 <div class="request-card-employee-id">
-                                    {{ wfh.employee.employeeprofile.employee_id|default:wfh.employee.username }}
+                                    {{ onsite.employee.employeeprofile.employee_id|default:onsite.employee.username }}
                                 </div>
                             </div>
                         </div>
@@ -67,104 +63,100 @@
                         <div class="request-card-body">
                             <div class="request-card-field">
                                 <div class="request-card-label">
-                                    <i class="fas fa-calendar"></i> Dates
+                                    <i class="fas fa-tag"></i> Visit Type
                                 </div>
                                 <div class="request-card-value">
-                                    {% if wfh.selected_dates %}
-                                        Multiple dates
-                                    {% else %}
-                                        {{ wfh.start_date|date:"M d" }} - {{ wfh.end_date|date:"M d, Y" }}
-                                    {% endif %}
+                                    <span class="badge bg-info">{{ onsite.get_visit_type_display }}</span>
                                 </div>
                             </div>
 
                             <div class="request-card-field">
                                 <div class="request-card-label">
-                                    <i class="fas fa-clock"></i> Days
+                                    <i class="fas fa-calendar"></i> Date
                                 </div>
                                 <div class="request-card-value">
-                                    {{ wfh.total_days }} day{{ wfh.total_days|pluralize }}
+                                    {{ onsite.visit_date|date:"M d, Y" }}
+                                </div>
+                            </div>
+
+                            <div class="request-card-field">
+                                <div class="request-card-label">
+                                    <i class="fas fa-building"></i> Client
+                                </div>
+                                <div class="request-card-value">
+                                    {{ onsite.client_name }}
+                                </div>
+                            </div>
+
+                            <div class="request-card-field">
+                                <div class="request-card-label">
+                                    <i class="fas fa-clock"></i> Duration
+                                </div>
+                                <div class="request-card-value">
+                                    {{ onsite.expected_duration }}
                                 </div>
                             </div>
 
                             <div class="request-card-field" style="grid-column: 1 / -1;">
                                 <div class="request-card-label">
-                                    <i class="fas fa-comment-alt"></i> Reason
+                                    <i class="fas fa-map-marker-alt"></i> Location
                                 </div>
                                 <div class="request-card-value-scrollable">
-                                    {{ wfh.reason }}
+                                    {{ onsite.location }}
+                                </div>
+                            </div>
+
+                            <div class="request-card-field" style="grid-column: 1 / -1;">
+                                <div class="request-card-label">
+                                    <i class="fas fa-comment-alt"></i> Purpose
+                                </div>
+                                <div class="request-card-value-scrollable">
+                                    {{ onsite.purpose }}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Approval Status Section -->
+                        {% if user_role == 'manager' or user_role == 'hr' %}
                         <div class="request-card-approvals">
-                            {% if user_role != 'team_leader' %}
-                            <div class="request-card-approval-item">
-                                <div class="request-card-approval-header">
-                                    <i class="fas fa-user-tie"></i> Team Leader
-                                </div>
-                                <div class="request-card-approval-name">
-                                    {% if wfh.tl_comment %}
-                                        <i class="fas fa-check-circle text-success"></i>
-                                        {{ wfh.tl_approver.get_full_name|default:wfh.tl_approver.username }}
-                                    {% else %}
-                                        <span class="badge bg-secondary">Pending</span>
-                                    {% endif %}
-                                </div>
-                                {% if wfh.tl_comment %}
-                                <div class="request-card-approval-comment">
-                                    {{ wfh.tl_comment }}
-                                </div>
-                                {% endif %}
-                            </div>
-                            {% endif %}
-
-                            {% if user_role == 'manager' or user_role == 'hr' %}
                             <div class="request-card-approval-item">
                                 <div class="request-card-approval-header">
                                     <i class="fas fa-user-shield"></i> Manager
                                 </div>
                                 <div class="request-card-approval-name">
-                                    {% if wfh.manager_comment %}
+                                    {% if onsite.manager_comment %}
                                         <i class="fas fa-check-circle text-success"></i>
-                                        {{ wfh.manager_approver.get_full_name|default:wfh.manager_approver.username }}
+                                        {{ onsite.manager_approver.get_full_name|default:onsite.manager_approver.username }}
                                     {% else %}
                                         <span class="badge bg-secondary">Pending</span>
                                     {% endif %}
                                 </div>
-                                {% if wfh.manager_comment %}
+                                {% if onsite.manager_comment %}
                                 <div class="request-card-approval-comment">
-                                    {{ wfh.manager_comment }}
+                                    {{ onsite.manager_comment }}
                                 </div>
                                 {% endif %}
                             </div>
-                            {% endif %}
                         </div>
+                        {% endif %}
 
                         <!-- Card Footer - Action Button -->
                         <div class="request-card-footer">
                             <button class="btn btn-primary request-card-action-btn" 
                                     data-bs-toggle="modal" 
-                                    data-bs-target="#actionModal{{ wfh.id }}">
-                                {% if user_role == 'team_leader' %}
-                                <i class="fas fa-comment"></i> Add Comment
-                                {% else %}
+                                    data-bs-target="#actionModal{{ onsite.id }}">
                                 <i class="fas fa-tasks"></i> Review Request
-                                {% endif %}
                             </button>
                         </div>
                     </div>
 
                     <!-- Action Modal -->
-                    <div class="modal fade" id="actionModal{{ wfh.id }}" tabindex="-1">
+                    <div class="modal fade" id="actionModal{{ onsite.id }}" tabindex="-1">
                         <div class="modal-dialog">
                             <div class="modal-content">
                                 <div class="modal-header">
                                     <h5 class="modal-title">
-                                        {% if user_role == 'team_leader' %}
-                                        Add Team Leader Comment
-                                        {% elif user_role == 'manager' %}
+                                        {% if user_role == 'manager' %}
                                         Manager Review
                                         {% else %}
                                         HR Final Decision
@@ -174,44 +166,34 @@
                                 </div>
                                 <div class="modal-body">
                                     <div class="mb-3">
-                                        <strong>Employee:</strong> {{ wfh.employee.get_full_name|default:wfh.employee.username }}
+                                        <strong>Employee:</strong> {{ onsite.employee.get_full_name|default:onsite.employee.username }}
                                     </div>
                                     <div class="mb-3">
-                                        <strong>Duration:</strong>
-                                        {% if wfh.selected_dates %}
-                                            Specific dates ({{ wfh.total_days }} days)
-                                            <br><small class="text-muted">{{ wfh.selected_dates|join:", " }}</small>
-                                        {% else %}
-                                            {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }} ({{ wfh.total_days }} days)
-                                        {% endif %}
+                                        <strong>Visit Type:</strong> {{ onsite.get_visit_type_display }}
                                     </div>
                                     <div class="mb-3">
-                                        <strong>Reason:</strong> {{ wfh.reason }}
+                                        <strong>Date:</strong> {{ onsite.visit_date|date:"M d, Y" }}
                                     </div>
-                                    
-                                    {% if user_role != 'team_leader' %}
                                     <div class="mb-3">
-                                        <strong>TL Comment:</strong>
-                                        {% if wfh.tl_comment %}
-                                            <div class="alert alert-info">
-                                                <small>{{ wfh.tl_comment }}</small>
-                                                <br><small class="text-muted">- {{ wfh.tl_approver.get_full_name|default:wfh.tl_approver.username }} ({{ wfh.tl_approved_at|date:"M d, Y H:i" }})</small>
-                                            </div>
-                                        {% else %}
-                                            <div class="alert alert-warning">
-                                                <small>No TL comment yet</small>
-                                            </div>
-                                        {% endif %}
+                                        <strong>Client/Project:</strong> {{ onsite.client_name }}
                                     </div>
-                                    {% endif %}
+                                    <div class="mb-3">
+                                        <strong>Location:</strong> {{ onsite.location }}
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Purpose:</strong> {{ onsite.purpose }}
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Expected Duration:</strong> {{ onsite.expected_duration }}
+                                    </div>
                                     
                                     {% if user_role == 'hr' %}
                                     <div class="mb-3">
                                         <strong>Manager Comment:</strong>
-                                        {% if wfh.manager_comment %}
+                                        {% if onsite.manager_comment %}
                                             <div class="alert alert-success">
-                                                <small>{{ wfh.manager_comment }}</small>
-                                                <br><small class="text-muted">- {{ wfh.manager_approver.get_full_name|default:wfh.manager_approver.username }} ({{ wfh.manager_approved_at|date:"M d, Y H:i" }})</small>
+                                                <small>{{ onsite.manager_comment }}</small>
+                                                <br><small class="text-muted">- {{ onsite.manager_approver.get_full_name|default:onsite.manager_approver.username }} ({{ onsite.manager_approved_at|date:"M d, Y H:i" }})</small>
                                             </div>
                                         {% else %}
                                             <div class="alert alert-warning">
@@ -222,32 +204,24 @@
                                     {% endif %}
                                     
                                     <div class="mb-3">
-                                        <label for="comment{{ wfh.id }}" class="form-label text-white">
-                                            {% if user_role == 'team_leader' %}
-                                            Your Comment *
-                                            {% elif user_role == 'manager' %}
+                                        <label for="comment{{ onsite.id }}" class="form-label text-white">
+                                            {% if user_role == 'manager' %}
                                             Manager Comment *
                                             {% else %}
                                             HR Comment *
                                             {% endif %}
                                         </label>
-                                        <textarea class="form-control" id="comment{{ wfh.id }}" rows="3" required></textarea>
+                                        <textarea class="form-control" id="comment{{ onsite.id }}" rows="3" required></textarea>
                                     </div>
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                    {% if user_role == 'team_leader' %}
-                                    <button type="button" class="btn btn-primary" onclick="submitWFHAction({{ wfh.id }}, 'comment')">
-                                        <i class="fas fa-check me-1"></i>Submit Comment
-                                    </button>
-                                    {% else %}
-                                    <button type="button" class="btn btn-danger" onclick="submitWFHAction({{ wfh.id }}, 'reject')">
+                                    <button type="button" class="btn btn-danger" onclick="submitOnsiteAction({{ onsite.id }}, 'reject')">
                                         <i class="fas fa-times me-1"></i>Reject
                                     </button>
-                                    <button type="button" class="btn btn-success" onclick="submitWFHAction({{ wfh.id }}, 'approve')">
+                                    <button type="button" class="btn btn-success" onclick="submitOnsiteAction({{ onsite.id }}, 'approve')">
                                         <i class="fas fa-check me-1"></i>Approve
                                     </button>
-                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -256,7 +230,7 @@
                     <div class="request-cards-empty">
                         <i class="fas fa-inbox"></i>
                         <h5>No Pending Requests</h5>
-                        <p>No pending WFH requests at this stage</p>
+                        <p>No pending onsite requests at this stage</p>
                     </div>
                     {% endfor %}
                 </div>
@@ -268,8 +242,8 @@
 
 {% block extra_js %}
 <script>
-function submitWFHAction(wfhId, action) {
-    const comment = document.getElementById('comment' + wfhId).value.trim();
+function submitOnsiteAction(onsiteId, action) {
+    const comment = document.getElementById('comment' + onsiteId).value.trim();
     
     if (!comment) {
         alert('Please enter a comment');
@@ -279,7 +253,7 @@ function submitWFHAction(wfhId, action) {
     const formData = new FormData();
     formData.append('comment', comment);
     
-    fetch(`/attendance/wfh/action/${wfhId}/${action}/`, {
+    fetch(`/attendance/onsite/action/${onsiteId}/${action}/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}'

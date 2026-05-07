@@ -17,18 +17,24 @@
     </div>
 
     <div class="row">
+        <!-- Profile Card -->
         <div class="col-lg-4">
             <div class="card glass-card mb-4 fade-in-delay-1">
                 <div class="card-body text-center">
+                    {% if viewed_profile.profile_photo %}
+                    <img src="{{ viewed_profile.profile_photo.url }}" alt="Profile Photo" class="rounded-circle mb-3" style="width: 100px; height: 100px; object-fit: cover; border: 3px solid rgba(255,255,255,0.3);">
+                    {% else %}
                     <div class="avatar-circle mx-auto mb-3" style="width: 100px; height: 100px; font-size: 3rem;">
                         {{ employee_user.first_name.0|default:employee_user.username.0 }}
                     </div>
+                    {% endif %}
                     <h4 class="text-white">{{ employee_user.get_full_name|default:employee_user.username }}</h4>
                     <p class="text-muted">@{{ employee_user.username }}</p>
                     <p class="mb-1"><strong>Employee ID:</strong> {{ viewed_profile.employee_id|default:"Not set" }}</p>
                     <p class="mb-1"><strong>Department:</strong> {{ viewed_profile.department|default:"Not set" }}</p>
                     <p class="mb-1"><strong>Designation:</strong> {{ viewed_profile.designation|default:"Not set" }}</p>
                     
+                    <!-- Work Mode -->
                     <div class="mt-3 mb-2">
                         <strong>Work Mode:</strong>
                         <span class="badge {% if viewed_profile.work_mode == 'office' %}bg-primary{% elif viewed_profile.work_mode == 'hybrid' %}bg-info{% else %}bg-success{% endif %} ms-1">
@@ -45,6 +51,7 @@
                 </div>
             </div>
 
+            <!-- Contact Information -->
             <div class="card glass-card mb-4 fade-in-delay-2">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-address-card me-2"></i>Contact Information</h5>
@@ -74,7 +81,9 @@
             </div>
         </div>
 
+        <!-- Details and Statistics -->
         <div class="col-lg-8">
+            <!-- Performance Overview -->
             <div class="card glass-card mb-4 fade-in-delay-3">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Performance Overview</h5>
@@ -82,33 +91,34 @@
                 <div class="card-body">
                     <div class="row text-center">
                         <div class="col-md-3 mb-3">
-                            <div class="p-3 bg-light rounded">
+                            <div class="p-3 rounded" style="background: rgba(40, 167, 69, 0.1); border: 1px solid rgba(40, 167, 69, 0.3);">
                                 <h3 class="text-success mb-0">{{ total_present }}</h3>
-                                <small class="text-muted">Present Days</small>
+                                <small class="text-white-50">Present Days</small>
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <div class="p-3 bg-light rounded">
+                            <div class="p-3 rounded" style="background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3);">
                                 <h3 class="text-warning mb-0">{{ total_late }}</h3>
-                                <small class="text-muted">Late Arrivals</small>
+                                <small class="text-white-50">Late Arrivals</small>
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <div class="p-3 bg-light rounded">
+                            <div class="p-3 rounded" style="background: rgba(13, 202, 240, 0.1); border: 1px solid rgba(13, 202, 240, 0.3);">
                                 <h3 class="text-info mb-0">{{ total_half_day }}</h3>
-                                <small class="text-muted">Half Days</small>
+                                <small class="text-white-50">Half Days</small>
                             </div>
                         </div>
                         <div class="col-md-3 mb-3">
-                            <div class="p-3 bg-light rounded">
+                            <div class="p-3 rounded" style="background: rgba(13, 110, 253, 0.1); border: 1px solid rgba(13, 110, 253, 0.3);">
                                 <h3 class="text-primary mb-0">{{ total_hours|floatformat:1 }}h</h3>
-                                <small class="text-muted">Total Hours</small>
+                                <small class="text-white-50">Total Hours</small>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Personal Information -->
             <div class="card glass-card mb-4 fade-in-delay-4">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Personal Information</h5>
@@ -143,6 +153,7 @@
                 </div>
             </div>
 
+            <!-- Recent Attendance -->
             <div class="card glass-card mb-4 fade-in-delay-5">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-calendar-check me-2"></i>Recent Attendance</h5>
@@ -183,6 +194,7 @@
                 </div>
             </div>
 
+            <!-- Leave Requests -->
             <div class="card glass-card fade-in-delay-6">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-calendar-times me-2"></i>Recent Leave Requests</h5>
@@ -226,6 +238,7 @@
     </div>
 </div>
 
+<!-- Change Work Mode Modal -->
 <div class="modal fade" id="changeWorkModeModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">

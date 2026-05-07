@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from . import master_data_views
+from . import office_ip_views
 
 urlpatterns = [
     # Dashboard
@@ -20,6 +21,8 @@ urlpatterns = [
     # Leave management
     path('leave/', views.leave_request, name='leave_request'),
     path('leave/cancel/<int:leave_id>/', views.cancel_leave, name='cancel_leave'),
+    path('leave/approval/', views.leave_approval, name='leave_approval'),
+    path('leave/action/<int:leave_id>/<str:action>/', views.leave_action, name='leave_action'),
     
     # Profile and notifications
     path('profile/', views.profile, name='profile'),
@@ -34,9 +37,18 @@ urlpatterns = [
     path('wfh/', views.wfh_request, name='wfh_request'),
     path('wfh/cancel/<int:wfh_id>/', views.cancel_wfh, name='cancel_wfh'),
     path('wfh/approval/', views.wfh_approval, name='wfh_approval'),
+    path('wfh/action/<int:wfh_id>/<str:action>/', views.wfh_action, name='wfh_action'),
+    
+    # Onsite/Client Visit
+    path('onsite/', views.onsite_request, name='onsite_request'),
+    path('onsite/approval/', views.onsite_approval, name='onsite_approval'),
+    path('onsite/action/<int:onsite_id>/<str:action>/', views.onsite_action, name='onsite_action'),
+    path('onsite/check-in/', views.onsite_check_in, name='onsite_check_in'),
+    path('onsite/check-out/', views.onsite_check_out, name='onsite_check_out'),
     
     # HR functions
     path('hr/', views.hr_dashboard, name='hr_dashboard'),
+    path('hr/employee-attendance/', views.employee_attendance_dashboard, name='employee_attendance_dashboard'),
     path('hr/export-attendance-csv/', views.export_attendance_csv, name='export_attendance_csv'),
     path('hr/employee-list/<str:list_type>/', views.employee_list_view, name='employee_list_view'),
     path('leave/approve/<int:leave_id>/', views.approve_leave, name='approve_leave'),
@@ -49,6 +61,12 @@ urlpatterns = [
     # Emergency Override (HR Only)
     path('emergency-override/status/', views.emergency_override_status, name='emergency_override_status'),
     path('emergency-override/toggle/', views.toggle_emergency_override, name='toggle_emergency_override'),
+    
+    # Office IP Management (HR Only)
+    path('office-ips/', office_ip_views.office_ip_management, name='office_ip_management'),
+    path('office-ips/add/', office_ip_views.add_office_ip, name='add_office_ip'),
+    path('office-ips/remove/', office_ip_views.remove_office_ip, name='remove_office_ip'),
+    path('office-ips/toggle/', office_ip_views.toggle_office_ip, name='toggle_office_ip'),
     
     # Master Data Management (HR Only)
     path('master-data/', master_data_views.master_data_list, name='master_data_list'),

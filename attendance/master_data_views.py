@@ -327,8 +327,8 @@ def change_employee_role(request, user_id):
         user = get_object_or_404(User, id=user_id)
         new_role = request.POST.get('new_role')
         
-        # HR and Admin are treated the same - both have full access
-        valid_roles = ['employee', 'team_leader', 'hr']
+        # Valid roles including Manager
+        valid_roles = ['employee', 'team_leader', 'manager', 'hr']
         if new_role not in valid_roles:
             return JsonResponse({
                 'success': False,
@@ -340,14 +340,15 @@ def change_employee_role(request, user_id):
             old_role = profile.role
             profile.role = new_role
             
-            # Update is_hr flag: True for HR (which includes admin-level access)
-            profile.is_hr = (new_role == 'hr')
+            # Update is_hr flag: True for HR and Manager (both have HR-level access)
+            profile.is_hr = (new_role in ['hr', 'manager'])
             profile.save()
             
             # Log action
             role_display = {
                 'employee': 'Employee',
                 'team_leader': 'Team Leader',
+                'manager': 'Manager',
                 'hr': 'HR/Admin'
             }
             

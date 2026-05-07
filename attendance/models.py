@@ -170,6 +170,7 @@ class EmployeeProfile(models.Model):
     ROLE_CHOICES = [
         ('employee', 'Employee'),
         ('team_leader', 'Team Leader'),
+        ('manager', 'Manager'),
         ('hr', 'HR/Admin'),
     ]
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='employee', db_index=True)
@@ -185,6 +186,22 @@ class EmployeeProfile(models.Model):
 
     def __str__(self):
         return self.employee_id or self.user.username
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save to automatically set is_hr=True when role is 'manager'
+        This ensures managers have HR dashboard access
+        """
+        if self.role == 'manager':
+            self.is_hr = True
+        elif self.role == 'hr':
+            self.is_hr = True
+        elif self.role in ['employee', 'team_leader']:
+            # Don't automatically remove is_hr for employees/TLs
+            # in case they were manually granted HR access
+            pass
+        
+        super().save(*args, **kwargs)
     
     def is_birthday_today(self):
         """
@@ -386,15 +403,51 @@ class LeaveRequest(models.Model):
     leave_type = models.CharField(max_length=20, choices=LEAVE_TYPES)
     start_date = models.DateField(default=timezone.now)
     end_date = models.DateField(default=timezone.now)
+    
+    # Multi-date selection support (JSON field for non-consecutive dates)
+    # Format: ["2026-05-21", "2026-05-25", "2026-05-30"]
+    selected_dates = models.JSONField(null=True, blank=True, help_text="List of specific dates (for non-consecutive leaves)")
+    
     reason = models.TextField(default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     hr_comment = models.TextField(blank=True, null=True)
+    
+    # Hierarchical approval fields
+    tl_comment = models.TextField(blank=True, null=True, help_text="Team Leader's comment")
+    tl_approved = models.BooleanField(default=False, help_text="Team Leader approval status")
+    tl_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='tl_approved_leaves')
+    tl_approved_at = models.DateTimeField(null=True, blank=True)
+    
+    manager_comment = models.TextField(blank=True, null=True, help_text="Manager's comment")
+    manager_approved = models.BooleanField(default=False, help_text="Manager approval status")
+    manager_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='manager_approved_leaves')
+    manager_approved_at = models.DateTimeField(null=True, blank=True)
+    
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
     def total_days(self):
+        """Calculate total days - uses selected_dates if available, otherwise date range"""
+        if self.selected_dates:
+            return len(self.selected_dates)
         return (self.end_date - self.start_date).days + 1
+    
+    def get_dates_list(self):
+        """Get list of all dates covered by this leave request"""
+        if self.selected_dates:
+            # Return selected dates as date objects
+            from datetime import datetime
+            return [datetime.strptime(d, '%Y-%m-%d').date() for d in self.selected_dates]
+        else:
+            # Return date range
+            from datetime import timedelta
+            dates = []
+            current = self.start_date
+            while current <= self.end_date:
+                dates.append(current)
+                current += timedelta(days=1)
+            return dates
 
     def __str__(self):
         return f"{self.employee.username} - {self.get_leave_type_display()} ({self.status})"
@@ -473,19 +526,118 @@ class WFHRequest(models.Model):
     employee = models.ForeignKey(User, on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField()
+    
+    # Multi-date selection support (JSON field for non-consecutive dates)
+    # Format: ["2026-05-21", "2026-05-25", "2026-05-30"]
+    selected_dates = models.JSONField(null=True, blank=True, help_text="List of specific dates (for non-consecutive WFH)")
+    
     reason = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     hr_comment = models.TextField(blank=True, null=True)
     hr_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_wfh_requests')
+    
+    # Hierarchical approval fields
+    tl_comment = models.TextField(blank=True, null=True, help_text="Team Leader's comment")
+    tl_approved = models.BooleanField(default=False, help_text="Team Leader approval status")
+    tl_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='tl_approved_wfh')
+    tl_approved_at = models.DateTimeField(null=True, blank=True)
+    
+    manager_comment = models.TextField(blank=True, null=True, help_text="Manager's comment")
+    manager_approved = models.BooleanField(default=False, help_text="Manager approval status")
+    manager_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='manager_approved_wfh')
+    manager_approved_at = models.DateTimeField(null=True, blank=True)
+    
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
     
     @property
     def total_days(self):
+        """Calculate total days - uses selected_dates if available, otherwise date range"""
+        if self.selected_dates:
+            return len(self.selected_dates)
         return (self.end_date - self.start_date).days + 1
+    
+    def get_dates_list(self):
+        """Get list of all dates covered by this WFH request"""
+        if self.selected_dates:
+            # Return selected dates as date objects
+            from datetime import datetime
+            return [datetime.strptime(d, '%Y-%m-%d').date() for d in self.selected_dates]
+        else:
+            # Return date range
+            from datetime import timedelta
+            dates = []
+            current = self.start_date
+            while current <= self.end_date:
+                dates.append(current)
+                current += timedelta(days=1)
+            return dates
     
     def __str__(self):
         return f"{self.employee.username} - WFH ({self.start_date} to {self.end_date})"
+
+
+# =========================
+# ONSITE/CLIENT VISIT REQUEST
+# =========================
+class OnsiteRequest(models.Model):
+    """
+    Request for onsite/client visit where employee goes directly to client location
+    instead of office. Allows flexible break times during client meetings.
+    """
+    VISIT_TYPES = [
+        ('onsite', 'Onsite Visit (Physical)'),
+        ('online_meeting', 'Online Client Meeting (From Office)'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    employee = models.ForeignKey(User, on_delete=models.CASCADE)
+    visit_type = models.CharField(max_length=20, choices=VISIT_TYPES, default='onsite')
+    visit_date = models.DateField()
+    client_name = models.CharField(max_length=200, help_text="Client/Project name")
+    location = models.TextField(help_text="Client location or 'Online' for virtual meetings")
+    purpose = models.TextField(help_text="Purpose of visit/meeting")
+    expected_duration = models.CharField(max_length=50, help_text="e.g., '2 hours', '10 AM - 4 PM'")
+    
+    # Approval fields
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    hr_comment = models.TextField(blank=True, null=True)
+    hr_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_onsite_requests')
+    
+    # Hierarchical approval
+    manager_comment = models.TextField(blank=True, null=True)
+    manager_approved = models.BooleanField(default=False)
+    manager_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='manager_approved_onsite')
+    manager_approved_at = models.DateTimeField(null=True, blank=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Actual visit tracking
+    actual_check_in = models.DateTimeField(null=True, blank=True, help_text="When employee checked in for onsite visit")
+    actual_check_out = models.DateTimeField(null=True, blank=True, help_text="When employee checked out from onsite visit")
+    
+    class Meta:
+        ordering = ['-visit_date']
+        indexes = [
+            models.Index(fields=['employee', 'visit_date']),
+            models.Index(fields=['status', 'visit_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.username} - {self.get_visit_type_display()} on {self.visit_date}"
+    
+    def is_active_today(self):
+        """Check if this onsite request is for today and approved"""
+        from django.utils import timezone
+        today = timezone.now().date()
+        return self.visit_date == today and self.status == 'approved'
 
 
 # =========================
@@ -547,6 +699,13 @@ class SystemSettings(models.Model):
     System-wide settings (Singleton pattern)
     Only one record should exist in this table
     """
+    # Office Network IP Management
+    office_ips = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of allowed office IP addresses with metadata (JSON format)"
+    )
+    
     # Emergency Override - Bypass IP restrictions
     emergency_override_enabled = models.BooleanField(
         default=False,
@@ -617,3 +776,84 @@ class SystemSettings(models.Model):
         """
         settings = cls.get_settings()
         return settings.emergency_override_enabled
+    
+    def get_active_office_ips(self):
+        """
+        Get list of active office IP addresses
+        Returns: List of IP strings
+        """
+        if not self.office_ips:
+            return []
+        
+        active_ips = []
+        for ip_entry in self.office_ips:
+            if isinstance(ip_entry, dict) and ip_entry.get('is_active', True):
+                active_ips.append(ip_entry.get('ip'))
+        
+        return active_ips
+    
+    def add_office_ip(self, ip_address, description, added_by_user):
+        """
+        Add a new office IP address
+        """
+        from django.utils import timezone
+        
+        if not self.office_ips:
+            self.office_ips = []
+        
+        # Check if IP already exists
+        for ip_entry in self.office_ips:
+            if ip_entry.get('ip') == ip_address:
+                return False, "IP address already exists"
+        
+        # Add new IP
+        new_ip = {
+            'ip': ip_address,
+            'description': description,
+            'added_at': timezone.now().isoformat(),
+            'added_by': added_by_user.username if added_by_user else 'System',
+            'is_active': True
+        }
+        
+        self.office_ips.append(new_ip)
+        self.save()
+        return True, "IP address added successfully"
+    
+    def remove_office_ip(self, ip_address):
+        """
+        Remove an office IP address
+        """
+        if not self.office_ips:
+            return False, "No IPs configured"
+        
+        # Prevent removing last IP
+        active_count = sum(1 for ip in self.office_ips if ip.get('is_active', True))
+        if active_count <= 1:
+            return False, "Cannot remove the last active IP address"
+        
+        # Remove IP
+        self.office_ips = [ip for ip in self.office_ips if ip.get('ip') != ip_address]
+        self.save()
+        return True, "IP address removed successfully"
+    
+    def toggle_office_ip(self, ip_address, is_active):
+        """
+        Enable/disable an office IP address
+        """
+        if not self.office_ips:
+            return False, "No IPs configured"
+        
+        # Prevent disabling last active IP
+        if not is_active:
+            active_count = sum(1 for ip in self.office_ips if ip.get('is_active', True))
+            if active_count <= 1:
+                return False, "Cannot disable the last active IP address"
+        
+        # Toggle IP
+        for ip_entry in self.office_ips:
+            if ip_entry.get('ip') == ip_address:
+                ip_entry['is_active'] = is_active
+                self.save()
+                return True, f"IP address {'enabled' if is_active else 'disabled'} successfully"
+        
+        return False, "IP address not found"

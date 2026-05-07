@@ -92,16 +92,23 @@
                         <i class="fas fa-mug-hot"></i>
                     </div>
                     <h5 class="card-title text-white">Take Break</h5>
+                    
+                    {% if approved_onsite_today %}
+                    <div class="alert alert-success p-2 mb-2" style="font-size: 0.85rem;">
+                        <i class="fas fa-clock me-1"></i>Flexible break times enabled
+                    </div>
+                    {% endif %}
+                    
                     <div class="d-flex gap-2 justify-content-center mb-2">
                         <form method="post" action="{% url 'start_break' 'tea' %}">
                             {% csrf_token %}
                             <button type="submit" 
                                     class="btn btn-outline-info btn-sm" 
-                                    {% if tea_count >= 2 or not tea_break_allowed %}disabled{% endif %}
-                                    {% if not tea_break_allowed %}
+                                    {% if tea_count >= 2 %}disabled{% endif %}
+                                    {% if not tea_break_allowed and not approved_onsite_today %}
                                     data-bs-toggle="tooltip" 
                                     data-bs-placement="top" 
-                                    title="Tea break: 10-11 AM & 4-4:45 PM"
+                                    title="Tea break: 10-11 AM & 4-4:45 PM{% if approved_onsite_today %} (Flexible for onsite){% endif %}"
                                     {% endif %}>
                                 <i class="fas fa-mug-hot me-1"></i>Tea ({{ tea_count }}/2)
                             </button>
@@ -110,19 +117,25 @@
                             {% csrf_token %}
                             <button type="submit" 
                                     class="btn btn-outline-info btn-sm" 
-                                    {% if lunch_count >= 1 or not lunch_break_allowed %}disabled{% endif %}
-                                    {% if not lunch_break_allowed %}
+                                    {% if lunch_count >= 1 %}disabled{% endif %}
+                                    {% if not lunch_break_allowed and not approved_onsite_today %}
                                     data-bs-toggle="tooltip" 
                                     data-bs-placement="top" 
-                                    title="Lunch break: 1:00 PM - 1:45 PM"
+                                    title="Lunch break: 1:00 PM - 1:45 PM{% if approved_onsite_today %} (Flexible for onsite){% endif %}"
                                     {% endif %}>
                                 <i class="fas fa-utensils me-1"></i>Lunch ({{ lunch_count }}/1)
                             </button>
                         </form>
                     </div>
+                    {% if not approved_onsite_today %}
                     <small class="text-muted d-block">
                         <i class="fas fa-clock me-1"></i>Tea: 10-11 AM & 4-4:45 PM | Lunch: 1-1:45 PM
                     </small>
+                    {% else %}
+                    <small class="text-success d-block">
+                        <i class="fas fa-info-circle me-1"></i>Flexible timing for onsite visit
+                    </small>
+                    {% endif %}
                     {% else %}
                     <div class="action-icon bg-secondary">
                         <i class="fas fa-mug-hot"></i>
@@ -164,6 +177,116 @@
             </div>
         </div>
     </div>
+
+    <!-- Onsite Visit Check-In/Out (if approved onsite request exists) -->
+    {% if approved_onsite_today %}
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="alert alert-info glass-card fade-in-delay-1">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h5 class="mb-1">
+                            <i class="fas fa-building me-2"></i>Onsite Visit Today
+                        </h5>
+                        <p class="mb-0">
+                            <strong>Client:</strong> {{ approved_onsite_today.client_name }} | 
+                            <strong>Location:</strong> {{ approved_onsite_today.location }} | 
+                            <strong>Type:</strong> {{ approved_onsite_today.get_visit_type_display }}
+                        </p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% if not approved_onsite_today.actual_check_in %}
+                        <button type="button" class="btn btn-success" onclick="onsiteCheckIn()">
+                            <i class="fas fa-map-marker-check me-1"></i>Onsite Check-In
+                        </button>
+                        {% elif not approved_onsite_today.actual_check_out %}
+                        <div class="text-end">
+                            <span class="badge bg-success mb-2">
+                                <i class="fas fa-check-circle me-1"></i>Checked In: {{ approved_onsite_today.actual_check_in|time:"h:i A" }}
+                            </span>
+                            <br>
+                            <button type="button" class="btn btn-danger" onclick="onsiteCheckOut()">
+                                <i class="fas fa-map-marker-times me-1"></i>Onsite Check-Out
+                            </button>
+                        </div>
+                        {% else %}
+                        <div class="text-end">
+                            <span class="badge bg-success d-block mb-1">
+                                <i class="fas fa-check-circle me-1"></i>In: {{ approved_onsite_today.actual_check_in|time:"h:i A" }}
+                            </span>
+                            <span class="badge bg-danger d-block">
+                                <i class="fas fa-check-double me-1"></i>Out: {{ approved_onsite_today.actual_check_out|time:"h:i A" }}
+                            </span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Manager Quick Stats (if user is manager) -->
+    {% if is_manager %}
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="card glass-card fade-in-delay-1">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Manager Dashboard - Pending Approvals</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center p-3 bg-warning bg-opacity-10 rounded">
+                                <div class="me-3">
+                                    <i class="fas fa-calendar-times fa-2x text-warning"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0 text-white">{{ pending_leave_approvals }}</h4>
+                                    <small class="text-muted">Leave Requests</small>
+                                    <br>
+                                    <a href="{% url 'leave_approval' %}" class="btn btn-sm btn-warning mt-2">
+                                        <i class="fas fa-eye me-1"></i>Review
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center p-3 bg-info bg-opacity-10 rounded">
+                                <div class="me-3">
+                                    <i class="fas fa-home fa-2x text-info"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0 text-white">{{ pending_wfh_approvals }}</h4>
+                                    <small class="text-muted">WFH Requests</small>
+                                    <br>
+                                    <a href="{% url 'wfh_approval' %}" class="btn btn-sm btn-info mt-2">
+                                        <i class="fas fa-eye me-1"></i>Review
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="d-flex align-items-center p-3 bg-primary bg-opacity-10 rounded">
+                                <div class="me-3">
+                                    <i class="fas fa-building fa-2x text-primary"></i>
+                                </div>
+                                <div>
+                                    <h4 class="mb-0 text-white">{{ pending_onsite_approvals }}</h4>
+                                    <small class="text-muted">Onsite Requests</small>
+                                    <br>
+                                    <a href="{% url 'onsite_approval' %}" class="btn btn-sm btn-primary mt-2">
+                                        <i class="fas fa-eye me-1"></i>Review
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Stats Row -->
     <div class="row g-4 mb-4">
@@ -390,5 +513,61 @@ document.addEventListener('DOMContentLoaded', function() {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 });
+
+// Onsite Check-In
+function onsiteCheckIn() {
+    if (!confirm('Are you sure you want to check in for your onsite visit?')) {
+        return;
+    }
+    
+    fetch('{% url "onsite_check_in" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+    });
+}
+
+// Onsite Check-Out
+function onsiteCheckOut() {
+    if (!confirm('Are you sure you want to check out from your onsite visit?')) {
+        return;
+    }
+    
+    fetch('{% url "onsite_check_out" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+    });
+}
 </script>
 {% endblock %}

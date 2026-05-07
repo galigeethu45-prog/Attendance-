@@ -43,40 +43,34 @@ def get_client_ip(request):
 
 def is_on_office_network(request=None):
     """
-    Check if user is accessing from office network (Regus)
-    Uses IP address checking (works on web servers/AWS)
+    Check if user is accessing from office network
+    Now reads allowed IPs from database (SystemSettings model)
     
-    IMPORTANT: Add your Regus office public IP address below
+    This allows HR to manage office IPs without code changes or server restart
     """
     if request is None:
         return False
     
     client_ip = get_client_ip(request)
     
-    # ═══════════════════════════════════════════════════════════════
-    # CONFIGURE YOUR REGUS OFFICE IP ADDRESS HERE:
-    # ═══════════════════════════════════════════════════════════════
-    # Public IP detected from Regus WiFi network
+    # Get allowed IPs from database
+    from attendance.models import SystemSettings
+    settings = SystemSettings.get_settings()
+    allowed_ips = settings.get_active_office_ips()
     
-    ALLOWED_OFFICE_IPS = [
-        # REMOVE THESE LINES IN PRODUCTION - FOR TESTING ONLY:
-        # '127.0.0.1',  # Localhost (for local testing only)
-        # '::1',        # IPv6 localhost (for local testing only)
-        
-        # ADD YOUR ACTUAL REGUS OFFICE PUBLIC IP HERE:
-        '14.195.138.241',  # Regus office public IP (Delhi, India - Tata Teleservices)
-        # Add more office IPs if you have multiple locations:
-        # '123.456.789.012',  # Another office location
-    ]
+    # Fallback to hardcoded IP if database is empty (safety measure)
+    if not allowed_ips:
+        print("⚠️ WARNING: No office IPs configured in database, using fallback")
+        allowed_ips = ['14.195.138.241']  # Fallback to original IP
     
-    # ═══════════════════════════════════════════════════════════════
+    # Check if client IP matches any allowed office IP
+    is_office = client_ip in allowed_ips
     
-    # Check if client IP matches office IP
-    is_office = client_ip in ALLOWED_OFFICE_IPS
-    
-    # Debug logging (remove in production if needed)
+    # Debug logging
     if not is_office:
-        print(f"Access denied - Client IP: {client_ip} not in allowed office IPs")
+        print(f"Access denied - Client IP: {client_ip} not in allowed office IPs: {allowed_ips}")
+    else:
+        print(f"✅ Access granted - Client IP: {client_ip} matches office network")
     
     return is_office
 
@@ -146,8 +140,28 @@ def can_check_in_from_location(user, request=None):
     if has_approved_wfh_today(user):
         return (True, "Approved WFH - Can work from anywhere")
     
-    # Not allowed - must be on office network or have approved WFH
-    return (False, "You must be on office WiFi (Regus) or have approved WFH to check-in")
+    # Not allowed - provide detailed error message
+    client_ip = get_client_ip(request) if request else "Unknown"
+    settings = SystemSettings.get_settings()
+    allowed_ips = settings.get_active_office_ips()
+    
+    # Build detailed error message
+    error_msg = f"❌ Network Check Failed\n\n"
+    error_msg += f"Your IP: {client_ip}\n"
+    error_msg += f"Allowed IPs: {', '.join(allowed_ips) if allowed_ips else 'None configured'}\n\n"
+    
+    # Check if running on localhost
+    if client_ip in ['127.0.0.1', '::1', 'localhost']:
+        error_msg += "⚠️ LOCALHOST DETECTED: You're running Django locally. "
+        error_msg += "The system sees your IP as 127.0.0.1 (localhost), not your public IP. "
+        error_msg += "Solutions:\n"
+        error_msg += "1. Ask HR to enable Emergency Override for testing\n"
+        error_msg += "2. Deploy to a public server (AWS, Heroku, etc.) to use real IP checking\n"
+        error_msg += "3. Submit a WFH request and get it approved"
+    else:
+        error_msg += "You must be on office WiFi (Regus) or have approved WFH to check-in."
+    
+    return (False, error_msg)
 
 
 # =========================
@@ -395,6 +409,14 @@ def dashboard(request):
     current_month = timezone.now().month
     current_year = timezone.now().year
     
+    # Check if user is manager
+    is_manager = False
+    try:
+        profile = request.user.employeeprofile
+        is_manager = profile.role == 'manager'
+    except EmployeeProfile.DoesNotExist:
+        pass
+    
     # Today's attendance
     today_attendance = Attendance.objects.filter(
         employee=request.user,
@@ -467,6 +489,26 @@ def dashboard(request):
         is_read=False
     ).count()
     
+    # Manager-specific data
+    pending_leave_approvals = 0
+    pending_wfh_approvals = 0
+    pending_onsite_approvals = 0
+    
+    if is_manager:
+        # Count ALL pending approvals (parallel workflow - manager sees all)
+        pending_leave_approvals = LeaveRequest.objects.filter(
+            status='pending'
+        ).count()
+        
+        pending_wfh_approvals = WFHRequest.objects.filter(
+            status='pending'
+        ).count()
+        
+        from .models import OnsiteRequest
+        pending_onsite_approvals = OnsiteRequest.objects.filter(
+            status='pending'
+        ).count()
+    
     # Check current time for break button availability
     import pytz
     local_tz = pytz.timezone('Asia/Kolkata')
@@ -491,6 +533,14 @@ def dashboard(request):
     # Total tea count for display
     tea_count = tea_morning_count + tea_evening_count
     
+    # Check for approved onsite request for today
+    from .models import OnsiteRequest
+    approved_onsite_today = OnsiteRequest.objects.filter(
+        employee=request.user,
+        visit_date=today,
+        status='approved'
+    ).first()
+    
     context = {
         'today_attendance': today_attendance,
         'active_break': active_break,
@@ -507,6 +557,11 @@ def dashboard(request):
         'recent_notifications': recent_notifications,
         'unread_notifications': unread_notifications,
         'current_date': timezone.now(),
+        'approved_onsite_today': approved_onsite_today,
+        'is_manager': is_manager,
+        'pending_leave_approvals': pending_leave_approvals,
+        'pending_wfh_approvals': pending_wfh_approvals,
+        'pending_onsite_approvals': pending_onsite_approvals,
     }
     
     return render(request, 'dashboard.html', context)
@@ -522,8 +577,13 @@ def check_in(request):
         can_check_in, reason = can_check_in_from_location(request.user, request)
         
         if not can_check_in:
-            messages.error(request, reason)
-            messages.info(request, 'Please submit a WFH request or come to office.')
+            # Display detailed error message (preserve line breaks)
+            for line in reason.split('\n'):
+                if line.strip():
+                    if '❌' in line or '⚠️' in line:
+                        messages.error(request, line)
+                    else:
+                        messages.warning(request, line)
             return redirect('dashboard')
         
         today = timezone.now().date()
@@ -581,8 +641,13 @@ def check_out(request):
         can_check_out, reason = can_check_in_from_location(request.user, request)
         
         if not can_check_out:
-            messages.error(request, reason)
-            messages.info(request, 'You must be on office WiFi or have approved WFH to check-out.')
+            # Display detailed error message (preserve line breaks)
+            for line in reason.split('\n'):
+                if line.strip():
+                    if '❌' in line or '⚠️' in line:
+                        messages.error(request, line)
+                    else:
+                        messages.warning(request, line)
             return redirect('dashboard')
         
         today = timezone.now().date()
@@ -633,8 +698,13 @@ def start_break(request, break_type):
         can_take_break, reason = can_check_in_from_location(request.user, request)
         
         if not can_take_break:
-            messages.error(request, f'Breaks are only allowed from office network or with approved WFH.')
-            messages.info(request, reason)
+            # Display detailed error message (preserve line breaks)
+            for line in reason.split('\n'):
+                if line.strip():
+                    if '❌' in line or '⚠️' in line:
+                        messages.error(request, line)
+                    else:
+                        messages.warning(request, line)
             return redirect('dashboard')
         
         today = timezone.now().date()
@@ -659,7 +729,15 @@ def start_break(request, break_type):
         current_hour = current_time.hour
         current_minute = current_time.minute
         
-        # No breaks after 5 PM
+        # Check for approved onsite request for today (enables flexible breaks)
+        from .models import OnsiteRequest
+        has_onsite_today = OnsiteRequest.objects.filter(
+            employee=request.user,
+            visit_date=today,
+            status='approved'
+        ).exists()
+        
+        # No breaks after 5 PM (enforced even with onsite request)
         if current_hour >= 17:
             messages.error(request, 'Breaks are not allowed after 5:00 PM.')
             return redirect('dashboard')
@@ -672,34 +750,54 @@ def start_break(request, break_type):
             is_morning = (10 <= current_hour < 11)
             is_evening = (current_hour == 16 and current_minute <= 45)
             
-            if not (is_morning or is_evening):
+            # If NOT in time window AND no onsite request, deny break
+            if not (is_morning or is_evening) and not has_onsite_today:
                 messages.error(request, 'Tea break is only allowed between 10:00 AM - 11:00 AM or 4:00 PM - 4:45 PM.')
                 return redirect('dashboard')
             
-            # Set time slot
-            time_slot = 'morning' if is_morning else 'evening'
+            # Set time slot (use 'flexible' if outside normal windows with onsite)
+            if has_onsite_today and not (is_morning or is_evening):
+                time_slot = 'flexible'
+            else:
+                time_slot = 'morning' if is_morning else 'evening'
             
-            # Check if already taken break in this slot
-            slot_break_count = BreakLog.objects.filter(
-                attendance=attendance,
-                break_type='tea',
-                time_slot=time_slot
-            ).count()
-            
-            if slot_break_count >= 1:
-                slot_name = 'morning (10-11 AM)' if time_slot == 'morning' else 'evening (4-4:45 PM)'
-                messages.error(request, f'You have already taken your {slot_name} tea break today.')
-                return redirect('dashboard')
+            # Check if already taken break in this slot (still enforce limits)
+            if time_slot != 'flexible':
+                slot_break_count = BreakLog.objects.filter(
+                    attendance=attendance,
+                    break_type='tea',
+                    time_slot=time_slot
+                ).count()
+                
+                if slot_break_count >= 1:
+                    slot_name = 'morning (10-11 AM)' if time_slot == 'morning' else 'evening (4-4:45 PM)'
+                    messages.error(request, f'You have already taken your {slot_name} tea break today.')
+                    return redirect('dashboard')
+            else:
+                # For flexible breaks, check total tea count (max 2 per day)
+                total_tea_count = BreakLog.objects.filter(
+                    attendance=attendance,
+                    break_type='tea'
+                ).count()
+                
+                if total_tea_count >= 2:
+                    messages.error(request, 'You have already taken 2 tea breaks today (maximum allowed).')
+                    return redirect('dashboard')
         
         # Lunch break: 1:00 PM - 1:45 PM
         elif break_type == 'lunch':
-            if not (current_hour == 13 and current_minute <= 45):
+            # If NOT in time window AND no onsite request, deny break
+            if not (current_hour == 13 and current_minute <= 45) and not has_onsite_today:
                 messages.error(request, 'Lunch break is only allowed between 1:00 PM and 1:45 PM.')
                 return redirect('dashboard')
             
-            time_slot = 'afternoon'
+            # Set time slot (use 'flexible' if outside normal window with onsite)
+            if has_onsite_today and not (current_hour == 13 and current_minute <= 45):
+                time_slot = 'flexible'
+            else:
+                time_slot = 'afternoon'
             
-            # Check if already taken lunch
+            # Check if already taken lunch (still enforce 1 lunch per day limit)
             lunch_count = BreakLog.objects.filter(
                 attendance=attendance,
                 break_type='lunch'
@@ -720,14 +818,20 @@ def start_break(request, break_type):
             return redirect('dashboard')
         
         # Create new break with time slot
-        BreakLog.objects.create(
+        new_break = BreakLog.objects.create(
             attendance=attendance,
             break_type=break_type,
             time_slot=time_slot,
             break_start=timezone.now()
         )
         
-        messages.success(request, f'{break_type.title()} break started.')
+        # Log flexible break usage if applicable
+        if time_slot == 'flexible':
+            log_action(request.user, 'flexible_break_start', 
+                      f'Started flexible {break_type} break during onsite visit', request)
+            messages.success(request, f'{break_type.title()} break started (flexible timing for onsite visit).')
+        else:
+            messages.success(request, f'{break_type.title()} break started.')
     
     return redirect('dashboard')
 
@@ -848,20 +952,119 @@ def attendance_history(request):
 @login_required
 def leave_request(request):
     if request.method == 'POST':
+        from attendance.validators import DateValidator, FieldValidator, OverlapValidator
+        
         leave_type = request.POST.get('leave_type')
         start_date = request.POST.get('start_date')
         end_date = request.POST.get('end_date')
+        selected_dates_json = request.POST.get('selected_dates')
         reason = request.POST.get('reason')
         
-        LeaveRequest.objects.create(
+        # Validate leave type
+        valid_types = ['sick', 'casual', 'earned', 'menstrual', 'unpaid']
+        is_valid, error = FieldValidator.validate_choice(leave_type, valid_types, "leave type")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('leave_request')
+        
+        # Validate reason
+        is_valid, error = FieldValidator.validate_required(reason, "Reason")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('leave_request')
+        
+        is_valid, error = FieldValidator.validate_length(reason, min_length=10, max_length=500, field_name="Reason")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('leave_request')
+        
+        # Parse and validate selected dates if provided
+        selected_dates = None
+        start_date_obj = None
+        end_date_obj = None
+        
+        if selected_dates_json:
+            selected_dates, error = DateValidator.parse_and_validate_selected_dates(selected_dates_json)
+            if error:
+                messages.error(request, error)
+                return redirect('leave_request')
+            
+            # Set start_date and end_date to first and last selected dates for backward compatibility
+            if selected_dates:
+                from datetime import datetime as dt
+                start_date_obj = dt.strptime(selected_dates[0], '%Y-%m-%d').date()
+                end_date_obj = dt.strptime(selected_dates[-1], '%Y-%m-%d').date()
+        else:
+            # Validate date range
+            is_valid, error = FieldValidator.validate_required(start_date, "Start date")
+            if not is_valid:
+                messages.error(request, error)
+                return redirect('leave_request')
+            
+            is_valid, error = FieldValidator.validate_required(end_date, "End date")
+            if not is_valid:
+                messages.error(request, error)
+                return redirect('leave_request')
+            
+            is_valid, error = DateValidator.validate_date_format(start_date, "Start date")
+            if not is_valid:
+                messages.error(request, error)
+                return redirect('leave_request')
+            
+            is_valid, error = DateValidator.validate_date_format(end_date, "End date")
+            if not is_valid:
+                messages.error(request, error)
+                return redirect('leave_request')
+            
+            try:
+                from datetime import datetime as dt
+                start_date_obj = dt.strptime(start_date, '%Y-%m-%d').date()
+                end_date_obj = dt.strptime(end_date, '%Y-%m-%d').date()
+                
+                is_valid, error = DateValidator.validate_future_date(start_date_obj, "Start date")
+                if not is_valid:
+                    messages.error(request, error)
+                    return redirect('leave_request')
+                
+                is_valid, error = DateValidator.validate_date_range(start_date_obj, end_date_obj)
+                if not is_valid:
+                    messages.error(request, error)
+                    return redirect('leave_request')
+            except ValueError:
+                messages.error(request, 'Invalid date format.')
+                return redirect('leave_request')
+        
+        # Check for overlapping leave requests
+        is_valid, error = OverlapValidator.check_leave_overlap(
+            request.user, start_date_obj, end_date_obj, selected_dates
+        )
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('leave_request')
+        
+        # Create leave request
+        leave_req = LeaveRequest.objects.create(
             employee=request.user,
             leave_type=leave_type,
-            start_date=start_date,
-            end_date=end_date,
+            start_date=start_date_obj,
+            end_date=end_date_obj,
+            selected_dates=selected_dates,  # Store JSON array or None
             reason=reason
         )
         
-        messages.success(request, 'Leave request submitted successfully!')
+        # Notify Team Leaders about new leave request
+        team_leaders = User.objects.filter(employeeprofile__role='tl')
+        for tl in team_leaders:
+            Notification.objects.create(
+                employee=tl,
+                message=f'New leave request from {request.user.get_full_name() or request.user.username} - {leave_type.title()} for {leave_req.total_days} days'
+            )
+        
+        # Log action
+        log_action(request.user, 'leave_request', 
+                  f'Submitted {leave_type} leave request for {leave_req.total_days} days', request)
+        
+        messages.success(request, f'Leave request submitted successfully for {leave_req.total_days} days!')
         return redirect('leave_request')
     
     # Get user's leave requests
@@ -1004,6 +1207,238 @@ def cancel_leave(request, leave_id):
             leave.delete()
             return JsonResponse({'success': True})
     return JsonResponse({'success': False})
+
+
+# =========================
+# LEAVE APPROVAL (HIERARCHICAL)
+# =========================
+@login_required
+def leave_approval(request):
+    """
+    Parallel approval view - ALL approvers see ALL pending requests
+    TL, Manager, and HR can all see and act on requests simultaneously
+    Each role adds their comment/approval independently
+    """
+    from attendance.validators import PermissionValidator
+    
+    # Validate permission
+    if not PermissionValidator.can_approve_leave(request.user):
+        messages.error(request, 'Access denied. You do not have permission to approve leave requests.')
+        return redirect('dashboard')
+    
+    # Check user role
+    try:
+        profile = request.user.employeeprofile
+        user_role = profile.role
+    except EmployeeProfile.DoesNotExist:
+        # If no profile, check if superuser
+        if request.user.is_superuser:
+            user_role = 'hr'
+        else:
+            messages.error(request, 'Access denied. Profile not found.')
+            return redirect('dashboard')
+    
+    # Only TL, Manager, and HR can access
+    if user_role not in ['team_leader', 'manager', 'hr'] and not request.user.is_superuser:
+        messages.error(request, 'Access denied. This page is for Team Leaders, Managers, and HR only.')
+        return redirect('dashboard')
+    
+    # PARALLEL WORKFLOW: Show requests based on what the current role hasn't done yet
+    if user_role == 'team_leader':
+        # TL sees all pending requests where they haven't commented yet
+        pending_requests = LeaveRequest.objects.filter(
+            status='pending',
+            tl_comment__isnull=True
+        ).select_related('employee', 'employee__employeeprofile').order_by('-created_at')
+        
+    elif user_role == 'manager':
+        # Manager sees all pending requests where they haven't approved/rejected yet
+        pending_requests = LeaveRequest.objects.filter(
+            status='pending',
+            manager_comment__isnull=True
+        ).select_related('employee', 'employee__employeeprofile', 'tl_approver').order_by('-created_at')
+        
+    else:  # HR or superuser
+        # HR sees all pending requests where they haven't made final decision yet
+        pending_requests = LeaveRequest.objects.filter(
+            status='pending',
+            hr_comment__isnull=True
+        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+    
+    context = {
+        'pending_requests': pending_requests,
+        'user_role': user_role,
+    }
+    
+    return render(request, 'leave_approval.html', context)
+
+
+# =========================
+# LEAVE ACTION (PARALLEL WORKFLOW)
+# =========================
+@login_required
+def leave_action(request, leave_id, action):
+    """
+    Handle leave approval actions based on user role - PARALLEL WORKFLOW
+    TL: Add comment (independent)
+    Manager: Approve/Reject with comment (independent)
+    HR: Final Approve/Reject with comment (can see all previous comments)
+    
+    Status changes:
+    - Request stays 'pending' until HR makes final decision
+    - HR can approve only if Manager approved (or reject anytime)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    leave = get_object_or_404(LeaveRequest, id=leave_id)
+    
+    # Check user role
+    try:
+        profile = request.user.employeeprofile
+        user_role = profile.role
+    except EmployeeProfile.DoesNotExist:
+        if request.user.is_superuser:
+            user_role = 'hr'
+        else:
+            return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    # Get comment from request
+    comment = request.POST.get('comment', '').strip()
+    
+    # Team Leader action - Add comment (PARALLEL - doesn't block others)
+    if (user_role == 'team_leader' or user_role == 'tl') and action == 'comment':
+        if not comment:
+            return JsonResponse({'success': False, 'error': 'Comment is required'})
+        
+        leave.tl_comment = comment
+        leave.tl_approver = request.user
+        leave.tl_approved_at = timezone.now()
+        leave.tl_approved = True
+        leave.save()
+        
+        # Notify employee
+        Notification.objects.create(
+            employee=leave.employee,
+            message=f'Your leave request has been reviewed by Team Leader: {comment[:50]}...'
+        )
+        
+        # Log action
+        log_action(request.user, 'leave_tl_comment', 
+                  f'Added TL comment for {leave.employee.username}\'s leave request', request, leave.employee)
+        
+        return JsonResponse({'success': True, 'message': 'Comment added successfully'})
+    
+    # Manager action - Approve or Reject (PARALLEL - doesn't require TL comment)
+    elif user_role == 'manager' and action in ['approve', 'reject']:
+        if not comment:
+            return JsonResponse({'success': False, 'error': 'Comment is required'})
+        
+        leave.manager_comment = comment
+        leave.manager_approver = request.user
+        leave.manager_approved_at = timezone.now()
+        
+        if action == 'approve':
+            leave.manager_approved = True
+            leave.save()
+            
+            # Notify employee
+            Notification.objects.create(
+                employee=leave.employee,
+                message=f'Your leave request has been approved by Manager: {comment[:50]}...'
+            )
+            
+            # Notify HR
+            hr_users = User.objects.filter(Q(employeeprofile__is_hr=True) | Q(is_superuser=True))
+            for hr_user in hr_users:
+                Notification.objects.create(
+                    employee=hr_user,
+                    message=f'Leave request from {leave.employee.get_full_name() or leave.employee.username} approved by Manager - ready for final approval'
+                )
+            
+            # Log action
+            log_action(request.user, 'leave_manager_approve', 
+                      f'Approved {leave.employee.username}\'s leave request (Manager level)', request, leave.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Leave approved at Manager level'})
+        else:  # reject
+            leave.manager_approved = False
+            leave.save()
+            
+            # Notify employee
+            Notification.objects.create(
+                employee=leave.employee,
+                message=f'Your leave request has been rejected by Manager: {comment}'
+            )
+            
+            # Log action
+            log_action(request.user, 'leave_manager_reject', 
+                      f'Rejected {leave.employee.username}\'s leave request (Manager level)', request, leave.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Leave rejected by Manager'})
+    
+    # HR action - Final Approve or Reject (PARALLEL - can see all comments)
+    elif user_role == 'hr' and action in ['approve', 'reject']:
+        if not comment:
+            return JsonResponse({'success': False, 'error': 'Comment is required'})
+        
+        leave.hr_comment = comment
+        
+        if action == 'approve':
+            # Check if manager approved (optional requirement)
+            if not leave.manager_approved:
+                return JsonResponse({'success': False, 'error': 'Manager approval required before HR can approve'})
+            
+            leave.status = 'approved'
+            leave.save()
+            
+            # Notify employee
+            Notification.objects.create(
+                employee=leave.employee,
+                message=f'Your leave request has been APPROVED by HR: {comment}'
+            )
+            
+            # Notify manager and TL
+            if leave.manager_approver:
+                Notification.objects.create(
+                    employee=leave.manager_approver,
+                    message=f'Leave request for {leave.employee.get_full_name() or leave.employee.username} has been approved by HR'
+                )
+            if leave.tl_approver:
+                Notification.objects.create(
+                    employee=leave.tl_approver,
+                    message=f'Leave request for {leave.employee.get_full_name() or leave.employee.username} has been approved by HR'
+                )
+            
+            # Log action
+            log_action(request.user, 'leave_hr_approve', 
+                      f'Approved {leave.employee.username}\'s leave request (Final)', request, leave.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Leave approved (Final)'})
+        else:  # reject
+            leave.status = 'rejected'
+            leave.save()
+            
+            # Notify employee
+            Notification.objects.create(
+                employee=leave.employee,
+                message=f'Your leave request has been rejected by HR: {comment}'
+            )
+            
+            # Notify manager
+            if leave.manager_approver:
+                Notification.objects.create(
+                    employee=leave.manager_approver,
+                    message=f'Leave request for {leave.employee.get_full_name() or leave.employee.username} has been rejected by HR'
+                )
+            
+            # Log action
+            log_action(request.user, 'leave_hr_reject', 
+                      f'Rejected {leave.employee.username}\'s leave request (Final)', request, leave.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Leave rejected'})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid action or insufficient permissions'})
 
 
 # =========================
@@ -1178,23 +1613,27 @@ def hr_dashboard(request):
         'attendance__employee__employeeprofile'
     ).order_by('-break_start')
     
+    # Get IST timezone
+    import pytz
+    local_tz = pytz.timezone('Asia/Kolkata')
+    
     # Apply period filter
     if break_period == 'today':
-        # Use timezone-aware date range for today
+        # Use timezone-aware date range for today in IST
         today_start = timezone.datetime.combine(today, timezone.datetime.min.time())
         today_end = timezone.datetime.combine(today, timezone.datetime.max.time())
-        today_start = timezone.make_aware(today_start)
-        today_end = timezone.make_aware(today_end)
+        today_start = local_tz.localize(today_start)
+        today_end = local_tz.localize(today_end)
         break_logs = break_logs.filter(break_start__range=(today_start, today_end))
     elif break_period == 'week':
         week_start = today - timedelta(days=today.weekday())
         week_start_dt = timezone.datetime.combine(week_start, timezone.datetime.min.time())
-        week_start_dt = timezone.make_aware(week_start_dt)
+        week_start_dt = local_tz.localize(week_start_dt)
         break_logs = break_logs.filter(break_start__gte=week_start_dt)
     elif break_period == 'month':
         month_start = today.replace(day=1)
         month_start_dt = timezone.datetime.combine(month_start, timezone.datetime.min.time())
-        month_start_dt = timezone.make_aware(month_start_dt)
+        month_start_dt = local_tz.localize(month_start_dt)
         break_logs = break_logs.filter(break_start__gte=month_start_dt)
     # else: all time (no filter)
     
@@ -1251,6 +1690,15 @@ def hr_dashboard(request):
     page_number = request.GET.get('page')
     audit_logs_page = paginator.get_page(page_number)
     
+    # Office IP Management
+    from attendance.models import SystemSettings
+    settings = SystemSettings.get_settings()
+    office_ips = settings.office_ips or []
+    current_ip = get_client_ip(request)
+    
+    # Detect if running on localhost
+    is_localhost = current_ip in ['127.0.0.1', '::1', 'localhost']
+    
     context = {
         'total_employees': total_employees,
         'present_today': present_today,
@@ -1277,6 +1725,10 @@ def hr_dashboard(request):
         'filter_month': filter_month,
         'filter_year': filter_year,
         'available_years': range(2020, timezone.now().year + 2),  # Year dropdown
+        # Office IP Management
+        'office_ips': office_ips,
+        'current_ip': current_ip,
+        'is_localhost': is_localhost,
     }
     
     return render(request, 'hr_dashboard.html', context)
@@ -1546,6 +1998,180 @@ def export_attendance_csv(request):
         ])
     
     return response
+
+
+# =========================
+# EMPLOYEE ATTENDANCE DASHBOARD (HR/MANAGER ONLY)
+# =========================
+@login_required
+def employee_attendance_dashboard(request):
+    """
+    Comprehensive employee attendance dashboard for HR and Managers
+    Shows attendance statistics per employee with filtering options
+    """
+    # Check if user is HR, Manager, or superuser
+    is_authorized = False
+    if request.user.is_superuser:
+        is_authorized = True
+    else:
+        try:
+            profile = request.user.employeeprofile
+            if profile.is_hr or profile.role == 'manager':
+                is_authorized = True
+        except EmployeeProfile.DoesNotExist:
+            pass
+    
+    if not is_authorized:
+        messages.error(request, 'Access denied. HR or Manager access required.')
+        return redirect('dashboard')
+    
+    # Get filter parameters
+    employee_id_filter = request.GET.get('employee_id', '')
+    department_filter = request.GET.get('department', '')
+    start_date_str = request.GET.get('start_date', '')
+    end_date_str = request.GET.get('end_date', '')
+    export_csv = request.GET.get('export', '') == 'csv'
+    
+    # Default date range: current month
+    today = timezone.now().date()
+    if not start_date_str:
+        start_date = today.replace(day=1)
+    else:
+        try:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            start_date = today.replace(day=1)
+    
+    if not end_date_str:
+        end_date = today
+    else:
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            end_date = today
+    
+    # Get all active employees
+    employees_query = User.objects.filter(is_active=True).select_related('employeeprofile')
+    
+    # Apply filters
+    if employee_id_filter:
+        employees_query = employees_query.filter(employeeprofile__employee_id__icontains=employee_id_filter)
+    
+    if department_filter:
+        employees_query = employees_query.filter(employeeprofile__department=department_filter)
+    
+    # Calculate statistics for each employee
+    employee_stats = []
+    total_present = 0
+    total_absent = 0
+    total_late = 0
+    total_half_days = 0
+    total_hours = 0
+    
+    for employee in employees_query:
+        try:
+            profile = employee.employeeprofile
+            employee_id = profile.employee_id or 'N/A'
+            department = profile.department or 'N/A'
+            profile_photo = profile.profile_photo.url if profile.profile_photo else None
+        except EmployeeProfile.DoesNotExist:
+            employee_id = 'N/A'
+            department = 'N/A'
+            profile_photo = None
+        
+        # Get attendance records for date range
+        attendance_records = Attendance.objects.filter(
+            employee=employee,
+            date__range=[start_date, end_date]
+        )
+        
+        # Calculate statistics
+        present_days = attendance_records.filter(status='present').count()
+        late_days = attendance_records.filter(status='late').count()
+        half_days = attendance_records.filter(status='half-day').count()
+        
+        # Total working days in range
+        total_days = (end_date - start_date).days + 1
+        absent_days = total_days - attendance_records.count()
+        
+        # Total hours worked
+        hours_sum = attendance_records.aggregate(Sum('total_work_hours'))['total_work_hours__sum'] or 0
+        
+        # Update totals
+        total_present += present_days
+        total_absent += absent_days
+        total_late += late_days
+        total_half_days += half_days
+        total_hours += hours_sum
+        
+        employee_stats.append({
+            'employee': employee,
+            'employee_id': employee_id,
+            'name': employee.get_full_name() or employee.username,
+            'department': department,
+            'profile_photo': profile_photo,
+            'present_days': present_days,
+            'absent_days': absent_days,
+            'late_days': late_days,
+            'half_days': half_days,
+            'total_hours': round(hours_sum, 2),
+        })
+    
+    # Sort by name
+    employee_stats.sort(key=lambda x: x['name'])
+    
+    # Handle CSV export
+    if export_csv:
+        import csv
+        from django.http import HttpResponse
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="employee_attendance_{start_date}_to_{end_date}.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Employee ID', 'Name', 'Department', 'Present Days', 'Absent Days', 'Late Arrivals', 'Half Days', 'Total Hours'])
+        
+        for stat in employee_stats:
+            writer.writerow([
+                stat['employee_id'],
+                stat['name'],
+                stat['department'],
+                stat['present_days'],
+                stat['absent_days'],
+                stat['late_days'],
+                stat['half_days'],
+                f"{stat['total_hours']:.2f}h",
+            ])
+        
+        # Log CSV export
+        log_action(request.user, 'csv_export', f'Exported employee attendance dashboard CSV for {start_date} to {end_date}', request)
+        
+        return response
+    
+    # Get list of departments for filter dropdown
+    departments = EmployeeProfile.objects.values_list('department', flat=True).distinct().exclude(department='')
+    
+    # Summary statistics
+    summary_stats = {
+        'total_employees': len(employee_stats),
+        'total_present': total_present,
+        'total_absent': total_absent,
+        'total_late': total_late,
+        'total_half_days': total_half_days,
+        'total_hours': round(total_hours, 2),
+    }
+    
+    context = {
+        'employee_stats': employee_stats,
+        'summary_stats': summary_stats,
+        'departments': departments,
+        'start_date': start_date,
+        'end_date': end_date,
+        'employee_id_filter': employee_id_filter,
+        'department_filter': department_filter,
+    }
+    
+    return render(request, 'employee_attendance_dashboard.html', context)
 
 
 # =========================
@@ -2165,11 +2791,77 @@ def delete_user(request, user_id):
 @login_required
 def wfh_request(request):
     if request.method == 'POST':
+        from attendance.validators import DateValidator, FieldValidator, OverlapValidator
+        
         start_date = request.POST.get('start_date')
         end_date = request.POST.get('end_date')
+        selected_dates_json = request.POST.get('selected_dates')
         reason = request.POST.get('reason')
         
-        # Convert to date objects
+        # Validate reason
+        is_valid, error = FieldValidator.validate_required(reason, "Reason")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('wfh_request')
+        
+        is_valid, error = FieldValidator.validate_length(reason, min_length=10, max_length=500, field_name="Reason")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('wfh_request')
+        
+        # Parse and validate selected dates if provided
+        selected_dates = None
+        if selected_dates_json:
+            selected_dates, error = DateValidator.parse_and_validate_selected_dates(selected_dates_json)
+            if error:
+                messages.error(request, error)
+                return redirect('wfh_request')
+            
+            # Set start_date and end_date to first and last selected dates for backward compatibility
+            if selected_dates:
+                start_date = selected_dates[0]
+                end_date = selected_dates[-1]
+        else:
+            # Validate date range
+            is_valid, error = FieldValidator.validate_required(start_date, "Start date")
+            if not is_valid:
+                messages.error(request, error)
+                return redirect('wfh_request')
+            
+            is_valid, error = FieldValidator.validate_required(end_date, "End date")
+            if not is_valid:
+                messages.error(request, error)
+                return redirect('wfh_request')
+            
+            is_valid, error = DateValidator.validate_date_format(start_date, "Start date")
+            if not is_valid:
+                messages.error(request, error)
+                return redirect('wfh_request')
+            
+            is_valid, error = DateValidator.validate_date_format(end_date, "End date")
+            if not is_valid:
+                messages.error(request, error)
+                return redirect('wfh_request')
+            
+            try:
+                from datetime import datetime as dt
+                start_obj = dt.strptime(start_date, '%Y-%m-%d').date()
+                end_obj = dt.strptime(end_date, '%Y-%m-%d').date()
+                
+                is_valid, error = DateValidator.validate_future_date(start_obj, "Start date")
+                if not is_valid:
+                    messages.error(request, error)
+                    return redirect('wfh_request')
+                
+                is_valid, error = DateValidator.validate_date_range(start_obj, end_obj)
+                if not is_valid:
+                    messages.error(request, error)
+                    return redirect('wfh_request')
+            except ValueError:
+                messages.error(request, 'Invalid date format.')
+                return redirect('wfh_request')
+        
+        # Convert to date objects for storage
         try:
             start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
@@ -2177,44 +2869,45 @@ def wfh_request(request):
             messages.error(request, 'Invalid date format.')
             return redirect('wfh_request')
         
-        # Validate dates
-        today = timezone.now().date()
-        if start_date_obj < today:
-            messages.error(request, 'Cannot request WFH for past dates.')
+        # Check for overlapping WFH requests
+        is_valid, error = OverlapValidator.check_wfh_overlap(
+            request.user, start_date, end_date, selected_dates
+        )
+        if not is_valid:
+            messages.error(request, error)
             return redirect('wfh_request')
-        
-        if end_date_obj < start_date_obj:
-            messages.error(request, 'End date must be after start date.')
-            return redirect('wfh_request')
-        
-        # Calculate total days
-        total_days = (end_date_obj - start_date_obj).days + 1
         
         # NO WFH LIMIT - Employees can request unlimited WFH days
         # Limit validation removed as per management decision
         
         # Create WFH request
-        WFHRequest.objects.create(
+        wfh_req = WFHRequest.objects.create(
             employee=request.user,
             start_date=start_date_obj,
             end_date=end_date_obj,
+            selected_dates=selected_dates,  # Store JSON array or None
             reason=reason
         )
         
-        # Notify HR
-        hr_users = User.objects.filter(
-            Q(employeeprofile__is_hr=True) | Q(is_superuser=True)
-        )
-        for hr_user in hr_users:
+        # Calculate total days for notification
+        if selected_dates:
+            total_days = len(selected_dates)
+        else:
+            total_days = (end_date_obj - start_date_obj).days + 1
+        
+        # Notify Team Leaders (TL) for hierarchical approval
+        team_leaders = User.objects.filter(employeeprofile__role='tl')
+        for tl in team_leaders:
             Notification.objects.create(
-                employee=hr_user,
-                message=f'{request.user.get_full_name() or request.user.username} has requested WFH from {start_date_obj.strftime("%b %d")} to {end_date_obj.strftime("%b %d, %Y")}'
+                employee=tl,
+                message=f'New WFH request from {request.user.get_full_name() or request.user.username} for {total_days} days'
             )
         
         # Log action
-        log_action(request.user, 'wfh_request', f'Requested WFH from {start_date_obj} to {end_date_obj}', request)
+        log_action(request.user, 'wfh_request', 
+                  f'Requested WFH for {total_days} days from {start_date_obj} to {end_date_obj}', request)
         
-        messages.success(request, 'WFH request submitted successfully!')
+        messages.success(request, f'WFH request submitted successfully for {total_days} days!')
         return redirect('wfh_request')
     
     # Get user's WFH requests
@@ -2247,77 +2940,201 @@ def cancel_wfh(request, wfh_id):
 
 
 # =========================
-# WFH APPROVAL (HR ONLY)
+# WFH APPROVAL (HIERARCHICAL)
 # =========================
 @login_required
 def wfh_approval(request):
-    # Only HR or superuser can access
-    if not request.user.is_superuser:
-        try:
-            if not request.user.employeeprofile.is_hr:
-                messages.error(request, 'Access denied. HR only.')
-                return redirect('dashboard')
-        except EmployeeProfile.DoesNotExist:
-            messages.error(request, 'Profile not found.')
+    """
+    PARALLEL approval view - all approvers see requests simultaneously
+    TL: Sees all pending requests (can add comment)
+    Manager: Sees all pending requests (can approve/reject if TL commented)
+    HR: Sees all pending requests (can approve/reject if Manager approved)
+    """
+    # Check user role
+    try:
+        profile = request.user.employeeprofile
+        user_role = profile.role
+    except EmployeeProfile.DoesNotExist:
+        # If no profile, check if superuser
+        if request.user.is_superuser:
+            user_role = 'hr'
+        else:
+            messages.error(request, 'Access denied. Profile not found.')
             return redirect('dashboard')
     
-    if request.method == 'POST':
-        wfh_id = request.POST.get('wfh_id')
-        action = request.POST.get('action')
-        hr_comment = request.POST.get('hr_comment', '')
+    # Only TL, Manager, and HR can access
+    if user_role not in ['team_leader', 'manager', 'hr'] and not request.user.is_superuser:
+        messages.error(request, 'Access denied. This page is for Team Leaders, Managers, and HR only.')
+        return redirect('dashboard')
+    
+    # PARALLEL WORKFLOW: All roles see all pending requests
+    # The action handler will enforce the approval hierarchy
+    pending_requests = WFHRequest.objects.filter(
+        status='pending'
+    ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+    
+    context = {
+        'pending_requests': pending_requests,
+        'user_role': user_role,
+    }
+    
+    return render(request, 'wfh_approval.html', context)
+
+
+# =========================
+# WFH ACTION (HIERARCHICAL)
+# =========================
+@login_required
+def wfh_action(request, wfh_id, action):
+    """
+    PARALLEL approval workflow - Handle WFH approval actions based on user role
+    TL: Add comment (can act anytime)
+    Manager: Approve/Reject (can act anytime, but should check TL comment)
+    HR: Final Approve/Reject (can only approve if Manager approved)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    wfh = get_object_or_404(WFHRequest, id=wfh_id)
+    
+    # Check user role
+    try:
+        profile = request.user.employeeprofile
+        user_role = profile.role
+    except EmployeeProfile.DoesNotExist:
+        if request.user.is_superuser:
+            user_role = 'hr'
+        else:
+            return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    # Get comment from request
+    comment = request.POST.get('comment', '').strip()
+    
+    # Team Leader action - Add comment (can act anytime)
+    if user_role == 'team_leader' and action == 'comment':
+        if not comment:
+            return JsonResponse({'success': False, 'error': 'Comment is required'})
         
-        wfh = get_object_or_404(WFHRequest, id=wfh_id)
+        wfh.tl_comment = comment
+        wfh.tl_approver = request.user
+        wfh.tl_approved_at = timezone.now()
+        wfh.tl_approved = True
+        wfh.save()
+        
+        # Notify Manager
+        managers = User.objects.filter(employeeprofile__role='manager')
+        for manager in managers:
+            Notification.objects.create(
+                employee=manager,
+                message=f'WFH request from {wfh.employee.get_full_name() or wfh.employee.username} has TL comment'
+            )
+        
+        # Log action
+        log_action(request.user, 'wfh_tl_comment', 
+                  f'Added TL comment for {wfh.employee.username}\'s WFH request', request, wfh.employee)
+        
+        return JsonResponse({'success': True, 'message': 'Comment added successfully'})
+    
+    # Manager action - Approve or Reject (can act anytime)
+    elif user_role == 'manager' and action in ['approve', 'reject']:
+        if not comment:
+            return JsonResponse({'success': False, 'error': 'Comment is required'})
+        
+        wfh.manager_comment = comment
+        wfh.manager_approver = request.user
+        wfh.manager_approved_at = timezone.now()
+        
+        if action == 'approve':
+            wfh.manager_approved = True
+            wfh.save()
+            
+            # Notify HR
+            hr_users = User.objects.filter(Q(employeeprofile__is_hr=True) | Q(is_superuser=True))
+            for hr_user in hr_users:
+                Notification.objects.create(
+                    employee=hr_user,
+                    message=f'WFH request from {wfh.employee.get_full_name() or wfh.employee.username} approved by Manager'
+                )
+            
+            # Log action
+            log_action(request.user, 'wfh_manager_approve', 
+                      f'Approved {wfh.employee.username}\'s WFH request (Manager level)', request, wfh.employee)
+            
+            return JsonResponse({'success': True, 'message': 'WFH approved at Manager level'})
+        else:  # reject
+            wfh.status = 'rejected'
+            wfh.save()
+            
+            # Notify employee
+            Notification.objects.create(
+                employee=wfh.employee,
+                message=f'Your WFH request has been rejected by Manager: {comment}'
+            )
+            
+            # Log action
+            log_action(request.user, 'wfh_manager_reject', 
+                      f'Rejected {wfh.employee.username}\'s WFH request (Manager level)', request, wfh.employee)
+            
+            return JsonResponse({'success': True, 'message': 'WFH rejected'})
+    
+    # HR action - Final Approve or Reject (can only approve if Manager approved)
+    elif user_role == 'hr' and action in ['approve', 'reject']:
+        if not comment:
+            return JsonResponse({'success': False, 'error': 'Comment is required'})
+        
+        # CRITICAL: HR can only approve if Manager has approved
+        if action == 'approve' and not wfh.manager_approved:
+            return JsonResponse({'success': False, 'error': 'Cannot approve: Manager approval required first'})
+        
+        wfh.hr_comment = comment
         
         if action == 'approve':
             wfh.status = 'approved'
             wfh.hr_approver = request.user
-            wfh.hr_comment = hr_comment
             wfh.save()
             
-            # Send notification to employee
+            # Notify employee
             Notification.objects.create(
                 employee=wfh.employee,
-                message=f'Your WFH request from {wfh.start_date.strftime("%b %d")} to {wfh.end_date.strftime("%b %d, %Y")} has been approved.'
+                message=f'Your WFH request has been approved by HR: {comment}'
             )
             
-            # Log action
-            log_action(request.user, 'wfh_approve', f'Approved WFH request for {wfh.employee.username} from {wfh.start_date} to {wfh.end_date}', request, target_user=wfh.employee)
+            # Notify manager
+            if wfh.manager_approver:
+                Notification.objects.create(
+                    employee=wfh.manager_approver,
+                    message=f'WFH request for {wfh.employee.get_full_name() or wfh.employee.username} has been approved by HR'
+                )
             
-            messages.success(request, 'WFH request approved successfully!')
-        
-        elif action == 'reject':
+            # Log action
+            log_action(request.user, 'wfh_hr_approve', 
+                      f'Approved {wfh.employee.username}\'s WFH request (Final)', request, wfh.employee)
+            
+            return JsonResponse({'success': True, 'message': 'WFH approved (Final)'})
+        else:  # reject
             wfh.status = 'rejected'
-            wfh.hr_approver = request.user
-            wfh.hr_comment = hr_comment
             wfh.save()
             
-            # Send notification to employee
+            # Notify employee
             Notification.objects.create(
                 employee=wfh.employee,
-                message=f'Your WFH request from {wfh.start_date.strftime("%b %d")} to {wfh.end_date.strftime("%b %d, %Y")} has been rejected.'
+                message=f'Your WFH request has been rejected by HR: {comment}'
             )
             
-            # Log action
-            log_action(request.user, 'wfh_reject', f'Rejected WFH request for {wfh.employee.username} from {wfh.start_date} to {wfh.end_date}', request, target_user=wfh.employee)
+            # Notify manager
+            if wfh.manager_approver:
+                Notification.objects.create(
+                    employee=wfh.manager_approver,
+                    message=f'WFH request for {wfh.employee.get_full_name() or wfh.employee.username} has been rejected by HR'
+                )
             
-            messages.warning(request, 'WFH request rejected.')
-        
-        return redirect('wfh_approval')
+            # Log action
+            log_action(request.user, 'wfh_hr_reject', 
+                      f'Rejected {wfh.employee.username}\'s WFH request (Final)', request, wfh.employee)
+            
+            return JsonResponse({'success': True, 'message': 'WFH rejected'})
     
-    # Get pending WFH requests
-    pending_wfh = WFHRequest.objects.filter(
-        status='pending'
-    ).select_related('employee').order_by('-created_at')
-    
-    # Get all WFH records
-    all_wfh = WFHRequest.objects.all().select_related('employee', 'hr_approver').order_by('-created_at')[:50]
-    
-    context = {
-        'pending_wfh': pending_wfh,
-        'all_wfh': all_wfh,
-    }
-    
-    return render(request, 'wfh_approval.html', context)
+    return JsonResponse({'success': False, 'error': 'Invalid action or insufficient permissions'})
 
 
 
@@ -2405,11 +3222,19 @@ def emergency_override_status(request):
     
     settings = SystemSettings.get_settings()
     
+    # Convert timestamp to IST for display
+    import pytz
+    enabled_at_display = None
+    if settings.emergency_override_enabled_at:
+        local_tz = pytz.timezone('Asia/Kolkata')
+        enabled_at_ist = settings.emergency_override_enabled_at.astimezone(local_tz)
+        enabled_at_display = enabled_at_ist.strftime('%Y-%m-%d %H:%M:%S')
+    
     return JsonResponse({
         'enabled': settings.emergency_override_enabled,
         'reason': settings.emergency_override_reason or '',
         'enabled_by': settings.emergency_override_enabled_by.get_full_name() if settings.emergency_override_enabled_by else None,
-        'enabled_at': settings.emergency_override_enabled_at.strftime('%Y-%m-%d %H:%M:%S') if settings.emergency_override_enabled_at else None,
+        'enabled_at': enabled_at_display,
     })
 
 
@@ -2474,4 +3299,399 @@ def toggle_emergency_override(request):
     settings = SystemSettings.get_settings()
     return render(request, 'emergency_override.html', {
         'settings': settings,
+    })
+
+
+# =========================
+# ONSITE REQUEST
+# =========================
+@login_required
+def onsite_request(request):
+    """
+    Employee can request onsite/client visit
+    Allows flexible break times during client meetings
+    """
+    if request.method == 'POST':
+        from attendance.validators import DateValidator, FieldValidator, OverlapValidator
+        
+        visit_type = request.POST.get('visit_type')
+        visit_date = request.POST.get('visit_date')
+        client_name = request.POST.get('client_name')
+        location = request.POST.get('location')
+        purpose = request.POST.get('purpose')
+        expected_duration = request.POST.get('expected_duration')
+        
+        # Validate visit type
+        valid_types = ['onsite', 'online_meeting']
+        is_valid, error = FieldValidator.validate_choice(visit_type, valid_types, "visit type")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        # Validate visit date
+        is_valid, error = FieldValidator.validate_required(visit_date, "Visit date")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        is_valid, error = DateValidator.validate_date_format(visit_date, "Visit date")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        try:
+            from datetime import datetime as dt
+            visit_date_obj = dt.strptime(visit_date, '%Y-%m-%d').date()
+            
+            is_valid, error = DateValidator.validate_future_date(visit_date_obj, "Visit date")
+            if not is_valid:
+                messages.error(request, error)
+                return redirect('onsite_request')
+        except ValueError:
+            messages.error(request, 'Invalid date format.')
+            return redirect('onsite_request')
+        
+        # Validate client name
+        is_valid, error = FieldValidator.validate_required(client_name, "Client/Project name")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        is_valid, error = FieldValidator.validate_length(client_name, min_length=2, max_length=100, field_name="Client/Project name")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        # Validate location
+        is_valid, error = FieldValidator.validate_required(location, "Location")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        is_valid, error = FieldValidator.validate_length(location, min_length=2, max_length=200, field_name="Location")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        # Validate purpose
+        is_valid, error = FieldValidator.validate_required(purpose, "Purpose")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        is_valid, error = FieldValidator.validate_length(purpose, min_length=10, max_length=500, field_name="Purpose")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        # Validate expected duration
+        is_valid, error = FieldValidator.validate_required(expected_duration, "Expected duration")
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        # Check for overlapping onsite requests
+        is_valid, error = OverlapValidator.check_onsite_overlap(request.user, visit_date_obj)
+        if not is_valid:
+            messages.error(request, error)
+            return redirect('onsite_request')
+        
+        # Create onsite request
+        from .models import OnsiteRequest
+        onsite = OnsiteRequest.objects.create(
+            employee=request.user,
+            visit_type=visit_type,
+            visit_date=visit_date_obj,
+            client_name=client_name,
+            location=location,
+            purpose=purpose,
+            expected_duration=expected_duration
+        )
+        
+        # Notify Manager
+        managers = User.objects.filter(employeeprofile__role='manager')
+        for manager in managers:
+            Notification.objects.create(
+                employee=manager,
+                message=f'{request.user.get_full_name() or request.user.username} has requested {onsite.get_visit_type_display()} on {visit_date_obj.strftime("%b %d, %Y")}'
+            )
+        
+        # Log action
+        log_action(request.user, 'onsite_request', 
+                  f'Requested {visit_type} visit on {visit_date_obj} - Client: {client_name}', request)
+        
+        messages.success(request, 'Onsite request submitted successfully!')
+        return redirect('onsite_request')
+    
+    # Get user's onsite requests
+    from .models import OnsiteRequest
+    onsite_requests = OnsiteRequest.objects.filter(
+        employee=request.user
+    ).order_by('-visit_date')
+    
+    context = {
+        'onsite_requests': onsite_requests,
+    }
+    
+    return render(request, 'onsite_request.html', context)
+
+
+# =========================
+# ONSITE APPROVAL
+# =========================
+@login_required
+def onsite_approval(request):
+    """
+    PARALLEL approval for onsite requests - all approvers see requests simultaneously
+    Manager: Can approve/reject anytime
+    HR: Can approve/reject (can only approve if Manager approved)
+    """
+    from .models import OnsiteRequest
+    
+    # Check user role
+    try:
+        profile = request.user.employeeprofile
+        user_role = profile.role
+    except EmployeeProfile.DoesNotExist:
+        if request.user.is_superuser:
+            user_role = 'hr'
+        else:
+            messages.error(request, 'Access denied. Profile not found.')
+            return redirect('dashboard')
+    
+    # Only Manager and HR can access
+    if user_role not in ['manager', 'hr'] and not request.user.is_superuser:
+        messages.error(request, 'Access denied. This page is for Managers and HR only.')
+        return redirect('dashboard')
+    
+    # PARALLEL WORKFLOW: Both roles see all pending requests
+    # The action handler will enforce the approval hierarchy
+    pending_requests = OnsiteRequest.objects.filter(
+        status='pending'
+    ).select_related('employee', 'employee__employeeprofile', 'manager_approver').order_by('-visit_date')
+    
+    context = {
+        'pending_requests': pending_requests,
+        'user_role': user_role,
+    }
+    
+    return render(request, 'onsite_approval.html', context)
+
+
+# =========================
+# ONSITE ACTION
+# =========================
+@login_required
+def onsite_action(request, onsite_id, action):
+    """
+    PARALLEL approval workflow - Handle onsite approval actions
+    Manager: Approve/Reject (can act anytime)
+    HR: Final Approve/Reject (can only approve if Manager approved)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    from .models import OnsiteRequest
+    onsite = get_object_or_404(OnsiteRequest, id=onsite_id)
+    
+    # Check user role
+    try:
+        profile = request.user.employeeprofile
+        user_role = profile.role
+    except EmployeeProfile.DoesNotExist:
+        if request.user.is_superuser:
+            user_role = 'hr'
+        else:
+            return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    # Get comment from request
+    comment = request.POST.get('comment', '').strip()
+    
+    # Manager action - Approve or Reject (can act anytime)
+    if user_role == 'manager' and action in ['approve', 'reject']:
+        if not comment:
+            return JsonResponse({'success': False, 'error': 'Comment is required'})
+        
+        onsite.manager_comment = comment
+        onsite.manager_approver = request.user
+        onsite.manager_approved_at = timezone.now()
+        
+        if action == 'approve':
+            onsite.manager_approved = True
+            onsite.save()
+            
+            # Notify HR
+            hr_users = User.objects.filter(Q(employeeprofile__is_hr=True) | Q(is_superuser=True))
+            for hr_user in hr_users:
+                Notification.objects.create(
+                    employee=hr_user,
+                    message=f'Onsite request from {onsite.employee.get_full_name() or onsite.employee.username} approved by Manager'
+                )
+            
+            # Log action
+            log_action(request.user, 'onsite_manager_approve', 
+                      f'Approved {onsite.employee.username}\'s onsite request (Manager level)', request, onsite.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Onsite request approved at Manager level'})
+        else:  # reject
+            onsite.status = 'rejected'
+            onsite.save()
+            
+            # Notify employee
+            Notification.objects.create(
+                employee=onsite.employee,
+                message=f'Your onsite request for {onsite.visit_date.strftime("%b %d, %Y")} has been rejected by Manager: {comment}'
+            )
+            
+            # Log action
+            log_action(request.user, 'onsite_manager_reject', 
+                      f'Rejected {onsite.employee.username}\'s onsite request (Manager level)', request, onsite.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Onsite request rejected'})
+    
+    # HR action - Final Approve or Reject (can only approve if Manager approved)
+    elif user_role == 'hr' and action in ['approve', 'reject']:
+        if not comment:
+            return JsonResponse({'success': False, 'error': 'Comment is required'})
+        
+        # CRITICAL: HR can only approve if Manager has approved
+        if action == 'approve' and not onsite.manager_approved:
+            return JsonResponse({'success': False, 'error': 'Cannot approve: Manager approval required first'})
+        
+        onsite.hr_comment = comment
+        
+        if action == 'approve':
+            onsite.status = 'approved'
+            onsite.hr_approver = request.user
+            onsite.save()
+            
+            # Notify employee
+            Notification.objects.create(
+                employee=onsite.employee,
+                message=f'Your onsite request for {onsite.visit_date.strftime("%b %d, %Y")} has been approved by HR: {comment}'
+            )
+            
+            # Notify manager
+            if onsite.manager_approver:
+                Notification.objects.create(
+                    employee=onsite.manager_approver,
+                    message=f'Onsite request for {onsite.employee.get_full_name() or onsite.employee.username} has been approved by HR'
+                )
+            
+            # Log action
+            log_action(request.user, 'onsite_hr_approve', 
+                      f'Approved {onsite.employee.username}\'s onsite request (Final)', request, onsite.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Onsite request approved (Final)'})
+        else:  # reject
+            onsite.status = 'rejected'
+            onsite.save()
+            
+            # Notify employee
+            Notification.objects.create(
+                employee=onsite.employee,
+                message=f'Your onsite request for {onsite.visit_date.strftime("%b %d, %Y")} has been rejected by HR: {comment}'
+            )
+            
+            # Notify manager
+            if onsite.manager_approver:
+                Notification.objects.create(
+                    employee=onsite.manager_approver,
+                    message=f'Onsite request for {onsite.employee.get_full_name() or onsite.employee.username} has been rejected by HR'
+                )
+            
+            # Log action
+            log_action(request.user, 'onsite_hr_reject', 
+                      f'Rejected {onsite.employee.username}\'s onsite request (Final)', request, onsite.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Onsite request rejected'})
+    
+    return JsonResponse({'success': False, 'error': 'Invalid action or insufficient permissions'})
+
+
+# =========================
+# ONSITE CHECK-IN
+# =========================
+@login_required
+def onsite_check_in(request):
+    """
+    Check-in for approved onsite visit
+    Allowed from any location (not restricted to office network)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    from .models import OnsiteRequest
+    today = timezone.now().date()
+    
+    # Check if there's an approved onsite request for today
+    onsite = OnsiteRequest.objects.filter(
+        employee=request.user,
+        visit_date=today,
+        status='approved'
+    ).first()
+    
+    if not onsite:
+        return JsonResponse({'success': False, 'error': 'No approved onsite request for today'})
+    
+    if onsite.actual_check_in:
+        return JsonResponse({'success': False, 'error': 'Already checked in for onsite visit'})
+    
+    # Record check-in
+    onsite.actual_check_in = timezone.now()
+    onsite.save()
+    
+    # Log action
+    log_action(request.user, 'onsite_check_in', 
+              f'Checked in for onsite visit - Client: {onsite.client_name}', request)
+    
+    return JsonResponse({'success': True, 'message': 'Checked in for onsite visit successfully'})
+
+
+# =========================
+# ONSITE CHECK-OUT
+# =========================
+@login_required
+def onsite_check_out(request):
+    """
+    Check-out from onsite visit
+    Calculates total onsite hours
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    from .models import OnsiteRequest
+    today = timezone.now().date()
+    
+    # Check if there's an approved onsite request for today
+    onsite = OnsiteRequest.objects.filter(
+        employee=request.user,
+        visit_date=today,
+        status='approved'
+    ).first()
+    
+    if not onsite:
+        return JsonResponse({'success': False, 'error': 'No approved onsite request for today'})
+    
+    if not onsite.actual_check_in:
+        return JsonResponse({'success': False, 'error': 'Please check in first'})
+    
+    if onsite.actual_check_out:
+        return JsonResponse({'success': False, 'error': 'Already checked out from onsite visit'})
+    
+    # Record check-out
+    onsite.actual_check_out = timezone.now()
+    onsite.save()
+    
+    # Calculate total hours
+    duration = onsite.actual_check_out - onsite.actual_check_in
+    total_hours = round(duration.total_seconds() / 3600, 2)
+    
+    # Log action
+    log_action(request.user, 'onsite_check_out', 
+              f'Checked out from onsite visit - Total hours: {total_hours}', request)
+    
+    return JsonResponse({
+        'success': True, 
+        'message': f'Checked out successfully. Total onsite hours: {total_hours}'
     })

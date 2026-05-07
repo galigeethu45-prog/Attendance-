@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Employee Attendance Dashboard - Attendance System{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-chart-line me-2"></i>Employee Attendance Dashboard
+            </h2>
+            <p class="text-white" style="opacity: 0.9;">
+                Comprehensive attendance statistics for {{ start_date|date:"M d, Y" }} to {{ end_date|date:"M d, Y" }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Filter Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card glass-card fade-in-delay-1">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" action="{% url 'employee_attendance_dashboard' %}" class="row g-3">
+                        <div class="col-md-3">
+                            <label for="employee_id" class="form-label text-white">Employee ID</label>
+                            <input type="text" class="form-control" id="employee_id" name="employee_id" 
+                                   value="{{ employee_id_filter }}" placeholder="Search by Employee ID">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="department" class="form-label text-white">Department</label>
+                            <select class="form-select" id="department" name="department">
+                                <option value="">All Departments</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept }}" {% if department_filter == dept %}selected{% endif %}>
+                                    {{ dept }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="start_date" class="form-label text-white">Start Date</label>
+                            <input type="date" class="form-control" id="start_date" name="start_date" 
+                                   value="{{ start_date|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="end_date" class="form-label text-white">End Date</label>
+                            <input type="date" class="form-control" id="end_date" name="end_date" 
+                                   value="{{ end_date|date:'Y-m-d' }}" required>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-1"></i>Apply Filters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-2">
+            <div class="card stat-card glass-card fade-in-delay-1">
+                <div class="card-body text-center">
+                    <h3 class="mb-0 text-white">{{ summary_stats.total_employees }}</h3>
+                    <small class="text-muted">Total Employees</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card stat-card glass-card fade-in-delay-2">
+                <div class="card-body text-center">
+                    <h3 class="mb-0 text-success">{{ summary_stats.total_present }}</h3>
+                    <small class="text-muted">Present Days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card stat-card glass-card fade-in-delay-3">
+                <div class="card-body text-center">
+                    <h3 class="mb-0 text-danger">{{ summary_stats.total_absent }}</h3>
+                    <small class="text-muted">Absent Days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card stat-card glass-card fade-in-delay-4">
+                <div class="card-body text-center">
+                    <h3 class="mb-0 text-warning">{{ summary_stats.total_late }}</h3>
+                    <small class="text-muted">Late Arrivals</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card stat-card glass-card fade-in-delay-5">
+                <div class="card-body text-center">
+                    <h3 class="mb-0 text-info">{{ summary_stats.total_half_days }}</h3>
+                    <small class="text-muted">Half Days</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card stat-card glass-card fade-in-delay-6">
+                <div class="card-body text-center">
+                    <h3 class="mb-0 text-primary">{{ summary_stats.total_hours|floatformat:1 }}h</h3>
+                    <small class="text-muted">Total Hours</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Button -->
+    <div class="row mb-3">
+        <div class="col-12 text-end">
+            <a href="?employee_id={{ employee_id_filter }}&department={{ department_filter }}&start_date={{ start_date|date:'Y-m-d' }}&end_date={{ end_date|date:'Y-m-d' }}&export=csv" 
+               class="btn btn-success">
+                <i class="fas fa-file-csv me-1"></i>Export to CSV
+            </a>
+        </div>
+    </div>
+
+    <!-- Employee Statistics Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card glass-card fade-in-delay-2">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Employee Statistics</h5>
+                    <span class="badge bg-primary">{{ employee_stats|length }} Employees</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover employee-stats-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 250px;">EMPLOYEE</th>
+                                    <th style="width: 120px;">EMPLOYEE ID</th>
+                                    <th style="width: 180px;">DEPARTMENT</th>
+                                    <th class="text-center" style="width: 100px;">PRESENT</th>
+                                    <th class="text-center" style="width: 100px;">ABSENT</th>
+                                    <th class="text-center" style="width: 100px;">LATE</th>
+                                    <th class="text-center" style="width: 110px;">HALF DAYS</th>
+                                    <th class="text-center" style="width: 120px;">TOTAL HOURS</th>
+                                    <th class="text-center" style="width: 130px;">ACTIONS</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stat in employee_stats %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center gap-3">
+                                            {% if stat.profile_photo %}
+                                            <img src="{{ stat.profile_photo }}" alt="{{ stat.name }}" 
+                                                 class="stats-avatar">
+                                            {% else %}
+                                            <div class="stats-avatar-placeholder">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            {% endif %}
+                                            <span class="employee-name">{{ stat.name }}</span>
+                                        </div>
+                                    </td>
+                                    <td><span class="text-white">{{ stat.employee_id }}</span></td>
+                                    <td><span class="text-white">{{ stat.department }}</span></td>
+                                    <td class="text-center">
+                                        <span class="stats-badge stats-badge-success">{{ stat.present_days }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stats-badge stats-badge-danger">{{ stat.absent_days }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stats-badge stats-badge-warning">{{ stat.late_days }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stats-badge stats-badge-info">{{ stat.half_days }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="text-white" style="font-weight: 600; font-size: 0.95rem;">{{ stat.total_hours|floatformat:1 }}h</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'employee_details' stat.employee.id %}" 
+                                           class="btn btn-sm btn-outline-primary" style="padding: 6px 16px; border-radius: 8px; font-weight: 600;">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center text-muted py-4">
+                                        No employees found matching the filters
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Set default date range to current month if not specified
+document.addEventListener('DOMContentLoaded', function() {
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    // If dates are empty, set to current month
+    if (!startDateInput.value) {
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDateInput.value = firstDay.toISOString().split('T')[0];
+    }
+    
+    if (!endDateInput.value) {
+        const today = new Date();
+        endDateInput.value = today.toISOString().split('T')[0];
+    }
+});
+</script>
+{% endblock %}

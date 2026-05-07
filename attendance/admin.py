@@ -12,7 +12,8 @@ from .models import (
     AuditLog,
     WFHRequest,
     EmployeeMasterData,
-    SystemSettings
+    SystemSettings,
+    OnsiteRequest
 )
 
 # =========================
@@ -238,3 +239,33 @@ class SystemSettingsAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # Prevent deletion
         return False
+
+
+# =========================
+# ONSITE REQUEST ADMIN
+# =========================
+@admin.register(OnsiteRequest)
+class OnsiteRequestAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'visit_type', 'visit_date', 'client_name', 'status', 'manager_approved', 'created_at')
+    list_filter = ('status', 'visit_type', 'visit_date', 'manager_approved')
+    search_fields = ('employee__username', 'employee__first_name', 'employee__last_name', 'client_name', 'location')
+    readonly_fields = ('created_at', 'updated_at', 'manager_approved_at')
+    
+    fieldsets = (
+        ('Visit Information', {
+            'fields': ('employee', 'visit_type', 'visit_date', 'client_name', 'location', 'purpose', 'expected_duration')
+        }),
+        ('Approval Status', {
+            'fields': ('status', 'manager_approved', 'manager_approver', 'manager_approved_at', 'manager_comment', 'hr_approver', 'hr_comment')
+        }),
+        ('Actual Visit Tracking', {
+            'fields': ('actual_check_in', 'actual_check_out')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at')
+        }),
+    )
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('employee', 'hr_approver', 'manager_approver')

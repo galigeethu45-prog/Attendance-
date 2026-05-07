@@ -131,6 +131,11 @@
                 <i class="fas fa-chart-bar me-1"></i>Reports
             </a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#officeips">
+                <i class="fas fa-network-wired me-1"></i>Office Network
+            </a>
+        </li>
     </ul>
 
     <div class="tab-content">
@@ -217,54 +222,67 @@
 
                     <!-- Attendance Table -->
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover attendance-table">
                             <thead>
                                 <tr>
-                                    <th>Employee</th>
-                                    <th>Department</th>
-                                    <th>Date</th>
-                                    <th>Check In</th>
-                                    <th>Check Out</th>
-                                    <th>Work Hours</th>
-                                    <th>Status</th>
-                                    <th>Breaks</th>
-                                    <th>Actions</th>
+                                    <th style="width: 250px;">EMPLOYEE</th>
+                                    <th style="width: 150px;">DEPARTMENT</th>
+                                    <th style="width: 130px;">DATE</th>
+                                    <th style="width: 110px;">CHECK IN</th>
+                                    <th style="width: 110px;">CHECK OUT</th>
+                                    <th style="width: 120px;">WORK HOURS</th>
+                                    <th style="width: 120px;">STATUS</th>
+                                    <th style="width: 90px;">BREAKS</th>
+                                    <th style="width: 100px;">ACTIONS</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for attendance in today_attendance %}
                                 <tr>
                                     <td>
-                                        <div class="d-flex align-items-center">
-                                            <div class="avatar-circle me-2">
+                                        <div class="d-flex align-items-center gap-3">
+                                            {% if attendance.employee.employeeprofile.profile_photo %}
+                                            <img src="{{ attendance.employee.employeeprofile.profile_photo.url }}" 
+                                                 alt="{{ attendance.employee.get_full_name }}" 
+                                                 class="attendance-avatar">
+                                            {% else %}
+                                            <div class="attendance-avatar-placeholder">
                                                 {{ attendance.employee.first_name.0|default:attendance.employee.username.0 }}
                                             </div>
-                                            <div>
-                                                <div>{{ attendance.employee.get_full_name|default:attendance.employee.username }}</div>
-                                                <small class="text-muted">{{ attendance.employee.username }}</small>
+                                            {% endif %}
+                                            <div class="employee-info">
+                                                <div class="employee-name">{{ attendance.employee.get_full_name|default:attendance.employee.username }}</div>
+                                                <small class="employee-id">{{ attendance.employee.employeeprofile.employee_id|default:attendance.employee.username }}</small>
                                             </div>
                                         </div>
                                     </td>
-                                    <td>{{ attendance.employee.employeeprofile.department }}</td>
-                                    <td>{{ attendance.date|date:"M d, Y" }}</td>
-                                    <td>{{ attendance.check_in|time:"h:i A"|default:"-" }}</td>
-                                    <td>{{ attendance.check_out|time:"h:i A"|default:"-" }}</td>
-                                    <td>{{ attendance.get_work_hours_display }}</td>
+                                    <td><span class="text-white">{{ attendance.employee.employeeprofile.department|default:"-" }}</span></td>
+                                    <td><span class="text-white">{{ attendance.date|date:"M d, Y" }}</span></td>
+                                    <td><span class="text-white">{{ attendance.check_in|time:"h:i A"|default:"-" }}</span></td>
+                                    <td><span class="text-white">{{ attendance.check_out|time:"h:i A"|default:"-" }}</span></td>
+                                    <td><span class="text-white">{{ attendance.get_work_hours_display }}</span></td>
                                     <td>
-                                        <span class="badge bg-{{ attendance.status }}">
+                                        <span class="badge 
+                                            {% if attendance.status == 'present' %}bg-success
+                                            {% elif attendance.status == 'absent' %}bg-danger
+                                            {% elif attendance.status == 'late' %}bg-warning
+                                            {% elif attendance.status == 'half_day' %}bg-info
+                                            {% elif attendance.status == 'on_leave' %}bg-secondary
+                                            {% else %}bg-primary
+                                            {% endif %}" style="padding: 6px 14px; border-radius: 8px; font-weight: 600;">
                                             {{ attendance.get_status_display }}
                                         </span>
                                         {% if attendance.status_modified_by %}
-                                        <br><small class="text-muted" title="Modified by {{ attendance.status_modified_by.username }} on {{ attendance.status_modified_at|date:'M d, Y h:i A' }}">
+                                        <br><small class="text-muted" style="font-size: 0.75rem;" title="Modified by {{ attendance.status_modified_by.username }} on {{ attendance.status_modified_at|date:'M d, Y h:i A' }}">
                                             <i class="fas fa-edit"></i> Edited
                                         </small>
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        <span class="badge bg-info">{{ attendance.breaks.count }}</span>
+                                    <td class="text-center">
+                                        <span class="badge bg-info" style="padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;">{{ attendance.breaks.count }}</span>
                                     </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-warning" onclick="editAttendanceStatus({{ attendance.id }}, '{{ attendance.employee.get_full_name|default:attendance.employee.username }}', '{{ attendance.status }}', '{{ attendance.date|date:'M d, Y' }}')" title="Edit Status">
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-warning" onclick="editAttendanceStatus({{ attendance.id }}, '{{ attendance.employee.get_full_name|default:attendance.employee.username }}', '{{ attendance.status }}', '{{ attendance.date|date:'M d, Y' }}')" title="Edit Status" style="padding: 8px 16px; border-radius: 8px;">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                     </td>
@@ -415,7 +433,8 @@
                 </div>
                 <div class="card-body">
                     <!-- Filters -->
-                    <form method="get" action="{% url 'hr_dashboard' %}" class="mb-4">
+                    <form method="get" action="{% url 'hr_dashboard' %}#breaklogs" class="mb-4">
+                        <input type="hidden" name="tab" value="breaklogs">
                         <div class="row g-3">
                             <div class="col-md-3">
                                 <label class="form-label text-white">Filter by Period</label>
@@ -438,7 +457,7 @@
                             </div>
                             <div class="col-md-2">
                                 <label class="form-label text-white">&nbsp;</label>
-                                <a href="{% url 'hr_dashboard' %}" class="btn btn-secondary w-100">
+                                <a href="{% url 'hr_dashboard' %}#breaklogs" class="btn btn-secondary w-100">
                                     <i class="fas fa-redo me-1"></i>Reset
                                 </a>
                             </div>
@@ -549,9 +568,13 @@
                             <div class="card glass-card h-100 {% if emp.is_birthday_today %}birthday-card{% endif %}">
                                 <div class="card-body">
                                     <div class="d-flex align-items-center mb-3">
+                                        {% if emp.profile_photo %}
+                                        <img src="{{ emp.profile_photo.url }}" alt="Profile" class="rounded-circle me-3" style="width: 50px; height: 50px; object-fit: cover; border: 2px solid rgba(255,255,255,0.3);">
+                                        {% else %}
                                         <div class="avatar-circle me-3" style="width: 50px; height: 50px; font-size: 1.5rem;">
                                             {{ emp.user.first_name.0|default:emp.user.username.0 }}
                                         </div>
+                                        {% endif %}
                                         <div class="flex-grow-1">
                                             <h6 class="mb-0 text-white">
                                                 {{ emp.user.get_full_name|default:emp.user.username }}
@@ -613,11 +636,29 @@
                                         <p class="mb-1 text-white">{{ emp.date_of_joining|date:"M d, Y"|default:"Not set" }}</p>
                                     </div>
                                     
+                                    <div class="mb-2">
+                                        <small class="text-muted">Role:</small>
+                                        <p class="mb-1">
+                                            {% if emp.role == 'hr' %}
+                                            <span class="badge bg-danger"><i class="fas fa-user-tie me-1"></i>HR/Admin</span>
+                                            {% elif emp.role == 'manager' %}
+                                            <span class="badge bg-warning"><i class="fas fa-user-shield me-1"></i>Manager</span>
+                                            {% elif emp.role == 'team_leader' %}
+                                            <span class="badge bg-info"><i class="fas fa-users me-1"></i>Team Leader</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary"><i class="fas fa-user me-1"></i>Employee</span>
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                    
                                     <div class="d-flex gap-2 mt-2">
                                         <button class="btn btn-sm btn-primary flex-fill" onclick="viewEmployeeDetails('{{ emp.user.id }}')">
-                                            <i class="fas fa-eye me-1"></i>View Details
+                                            <i class="fas fa-eye me-1"></i>View
                                         </button>
                                         {% if not emp.user.is_superuser %}
+                                        <button class="btn btn-sm btn-info" onclick="changeRole('{{ emp.user.id }}', '{{ emp.employee_id }}', '{{ emp.role }}')" title="Change Role">
+                                            <i class="fas fa-user-shield"></i>
+                                        </button>
                                         <button class="btn btn-sm btn-danger" onclick="deleteUser('{{ emp.user.id }}', '{{ emp.user.get_full_name|default:emp.user.username }}')">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -837,6 +878,175 @@
                 </div>
             </div>
         </div>
+
+        <!-- Office IP Management Tab -->
+        <div class="tab-pane fade" id="officeips">
+            <div class="card glass-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-network-wired me-2"></i>Office Network IP Management
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Info Alert -->
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle me-2"></i>About Office IP Management
+                        </h6>
+                        <p class="mb-2">
+                            Manage allowed office IP addresses for attendance check-in. Employees in "Office" work mode 
+                            must check-in from one of these IP addresses (unless they have approved WFH or Emergency Override is enabled).
+                        </p>
+                        <hr>
+                        <p class="mb-0">
+                            <strong>Your Current IP:</strong> <code class="text-primary" id="currentUserIP">{{ current_ip }}</code>
+                            <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyCurrentIP()">
+                                <i class="fas fa-copy me-1"></i>Copy
+                            </button>
+                        </p>
+                    </div>
+
+                    <!-- Localhost Warning -->
+                    {% if is_localhost %}
+                    <div class="alert alert-warning mb-4">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>⚠️ LOCALHOST DETECTED
+                        </h6>
+                        <p class="mb-2">
+                            <strong>You're running Django locally (localhost).</strong> The system detects your IP as <code>{{ current_ip }}</code>, 
+                            not your public IP address.
+                        </p>
+                        <hr>
+                        <p class="mb-2"><strong>Why IP checking doesn't work on localhost:</strong></p>
+                        <ul class="mb-2">
+                            <li>When Django runs on your computer (localhost), it only sees <code>127.0.0.1</code></li>
+                            <li>Your public IP (from whatismyipaddress.com) is only visible when deployed on a public server</li>
+                            <li>Adding your public IP here won't help for local testing</li>
+                        </ul>
+                        <hr>
+                        <p class="mb-2"><strong>Solutions for testing:</strong></p>
+                        <ol class="mb-0">
+                            <li><strong>Enable Emergency Override</strong> (scroll down) - Bypasses all IP restrictions temporarily</li>
+                            <li><strong>Deploy to AWS/Heroku</strong> - Then IP checking will work with real public IPs</li>
+                            <li><strong>Submit WFH Request</strong> - Approved WFH bypasses IP restrictions</li>
+                        </ol>
+                    </div>
+                    {% endif %}
+
+                    <!-- Add New IP Form -->
+                    <div class="card bg-dark border-primary mb-4">
+                        <div class="card-header bg-primary">
+                            <h6 class="mb-0 text-white">
+                                <i class="fas fa-plus-circle me-2"></i>Add New Office IP
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <form id="addIPForm" onsubmit="addOfficeIP(event)">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="newIPAddress" class="form-label text-white">IP Address *</label>
+                                        <input type="text" class="form-control" id="newIPAddress" 
+                                               placeholder="e.g., 192.168.1.1" required
+                                               pattern="^(\d{1,3}\.){3}\d{1,3}$"
+                                               title="Enter valid IPv4 address (e.g., 192.168.1.1)">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="newIPDescription" class="form-label text-white">Description *</label>
+                                        <input type="text" class="form-control" id="newIPDescription" 
+                                               placeholder="e.g., Main Office - Regus Delhi" required>
+                                    </div>
+                                    <div class="col-md-2 d-flex align-items-end">
+                                        <button type="submit" class="btn btn-success w-100">
+                                            <i class="fas fa-plus me-1"></i>Add IP
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Current Office IPs List -->
+                    <div class="card bg-dark border-success">
+                        <div class="card-header bg-success">
+                            <h6 class="mb-0 text-white">
+                                <i class="fas fa-list me-2"></i>Configured Office IPs
+                                <span class="badge bg-light text-dark ms-2" id="ipCount">{{ office_ips|length }}</span>
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="officeIPsList">
+                                {% if office_ips %}
+                                <div class="table-responsive">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 180px;">IP Address</th>
+                                                <th>Description</th>
+                                                <th style="width: 150px;">Added By</th>
+                                                <th style="width: 180px;">Added On</th>
+                                                <th style="width: 100px;" class="text-center">Status</th>
+                                                <th style="width: 150px;" class="text-center">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="ipsTableBody">
+                                            {% for ip_entry in office_ips %}
+                                            <tr id="ip-row-{{ forloop.counter }}">
+                                                <td>
+                                                    <code class="text-primary" style="font-size: 0.95rem;">{{ ip_entry.ip }}</code>
+                                                </td>
+                                                <td>
+                                                    <span class="text-white">{{ ip_entry.description }}</span>
+                                                </td>
+                                                <td>
+                                                    <span class="text-muted">{{ ip_entry.added_by }}</span>
+                                                </td>
+                                                <td>
+                                                    <span class="text-muted">{{ ip_entry.added_at|date:"M d, Y H:i" }}</span>
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if ip_entry.is_active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                    {% else %}
+                                                    <span class="badge bg-secondary">Disabled</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    <button class="btn btn-sm btn-danger" 
+                                                            onclick="removeOfficeIP('{{ ip_entry.ip }}', {{ forloop.counter }})"
+                                                            title="Remove IP">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-network-wired fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">No office IPs configured yet. Add your first IP above.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Help Section -->
+                    <div class="alert alert-warning mt-4">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-question-circle me-2"></i>How to Find Your Office IP
+                        </h6>
+                        <ol class="mb-0">
+                            <li>Connect to your office WiFi network</li>
+                            <li>Visit <a href="https://whatismyipaddress.com" target="_blank" class="alert-link">whatismyipaddress.com</a></li>
+                            <li>Copy the IP address shown</li>
+                            <li>Add it using the form above</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -874,6 +1084,49 @@
     box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
 }
 </style>
+
+<!-- Change Role Modal -->
+<div class="modal fade" id="changeRoleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header bg-info">
+                <h5 class="modal-title text-white">
+                    <i class="fas fa-user-shield me-2"></i>Change Employee Role
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-white">Change role for Employee ID: <strong id="roleEmpId" class="text-info"></strong></p>
+                <div class="mb-3">
+                    <label for="newRole" class="form-label text-white">Select Role</label>
+                    <select class="form-select" id="newRole" required>
+                        <option value="employee">Employee - Basic attendance features</option>
+                        <option value="team_leader">Team Leader (TL) - First approval level</option>
+                        <option value="manager">Manager - Second approval level + HR access</option>
+                        <option value="hr">HR/Admin - Full system access</option>
+                    </select>
+                </div>
+                <div class="alert alert-info">
+                    <strong><i class="fas fa-info-circle me-2"></i>Role Permissions:</strong><br>
+                    <small>
+                        <strong>Employee:</strong> Check in/out, breaks, leave requests<br>
+                        <strong>Team Leader:</strong> + Add comments to leave/WFH requests<br>
+                        <strong>Manager:</strong> + Approve/reject after TL review + HR dashboard<br>
+                        <strong>HR/Admin:</strong> Full system access + final approval
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-info" onclick="confirmChangeRole()">
+                    <i class="fas fa-check me-1"></i>Change Role
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock %}
 
@@ -1465,6 +1718,48 @@ function exportAttendanceCSV() {
     // Open CSV download in new window
     window.location.href = url;
 }
+
+// Change Role Function
+let currentRoleUserId = null;
+
+function changeRole(userId, empId, currentRole) {
+    currentRoleUserId = userId;
+    document.getElementById('roleEmpId').textContent = empId;
+    document.getElementById('newRole').value = currentRole || 'employee';
+    new bootstrap.Modal(document.getElementById('changeRoleModal')).show();
+}
+
+function confirmChangeRole() {
+    const newRole = document.getElementById('newRole').value;
+    
+    if (!newRole) {
+        alert('Please select a role');
+        return;
+    }
+    
+    fetch(`/attendance/user/change-role/${currentRoleUserId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: `new_role=${encodeURIComponent(newRole)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Role changed successfully!');
+            bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error changing role');
+        console.error(error);
+    });
+}
 </script>
 
 <!-- Emergency Override Modal -->
@@ -1520,5 +1815,105 @@ function exportAttendanceCSV() {
         </div>
     </div>
 </div>
+
+<script>
+// ========================================
+// OFFICE IP MANAGEMENT FUNCTIONS
+// ========================================
+
+function copyCurrentIP() {
+    const ipElement = document.getElementById('currentUserIP');
+    const ip = ipElement.textContent;
+    
+    navigator.clipboard.writeText(ip).then(() => {
+        alert('IP address copied to clipboard: ' + ip);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+}
+
+function addOfficeIP(event) {
+    event.preventDefault();
+    
+    const ipAddress = document.getElementById('newIPAddress').value.trim();
+    const description = document.getElementById('newIPDescription').value.trim();
+    
+    if (!ipAddress || !description) {
+        alert('Please fill in all fields');
+        return;
+    }
+    
+    // Show loading
+    const submitBtn = event.target.querySelector('button[type="submit"]');
+    const originalHTML = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Adding...';
+    
+    // Send AJAX request
+    fetch('{% url "add_office_ip" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `ip_address=${encodeURIComponent(ipAddress)}&description=${encodeURIComponent(description)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload(); // Reload to show new IP
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalHTML;
+    });
+}
+
+function removeOfficeIP(ipAddress, rowNumber) {
+    if (!confirm(`Are you sure you want to remove IP: ${ipAddress}?\n\nThis action cannot be undone.`)) {
+        return;
+    }
+    
+    // Send AJAX request
+    fetch('{% url "remove_office_ip" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `ip_address=${encodeURIComponent(ipAddress)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // Remove row from table
+            const row = document.getElementById(`ip-row-${rowNumber}`);
+            if (row) {
+                row.remove();
+            }
+            // Update count
+            const tbody = document.getElementById('ipsTableBody');
+            const count = tbody ? tbody.children.length : 0;
+            const countBadge = document.getElementById('ipCount');
+            if (countBadge) {
+                countBadge.textContent = count;
+            }
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error: ' + error);
+    });
+}
+</script>
 
 {% endblock %}
