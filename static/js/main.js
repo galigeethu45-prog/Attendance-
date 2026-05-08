@@ -323,3 +323,19 @@ if ('serviceWorker' in navigator) {
         // navigator.serviceWorker.register('/static/js/sw.js');
     });
 }
+
+
+// Force modal to open centered on screen (not at scroll position)
+document.addEventListener('DOMContentLoaded', function() {
+    // Listen for all modal show events
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('show.bs.modal', function() {
+            // Scroll page to top when modal opens
+            window.scrollTo({
+                top: 0,
+                behavior: 'instant' // instant, not smooth
+            });
+        });
+    });
+});
