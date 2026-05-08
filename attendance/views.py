@@ -1594,8 +1594,22 @@ def hr_dashboard(request):
         # Absent = employees with approved OT who didn't check-in
         absent_today = len([emp_id for emp_id in employees_with_ot if emp_id not in checked_in_employees])
     else:
-        # Regular working day - count all who didn't check-in as absent
-        absent_today = total_employees - present_today
+        # Regular working day
+        # Get employees on leave and WFH
+        employees_on_leave = LeaveRequest.objects.filter(
+            status='approved',
+            start_date__lte=today,
+            end_date__gte=today
+        ).values_list('employee_id', flat=True)
+        
+        employees_on_wfh = WFHRequest.objects.filter(
+            status='approved',
+            start_date__lte=today,
+            end_date__gte=today
+        ).values_list('employee_id', flat=True)
+        
+        # Absent = Total - Present - Leave - WFH
+        absent_today = total_employees - present_today - len(employees_on_leave) - len(employees_on_wfh)
     
     late_arrivals = today_attendance.filter(status__in=['late', 'half-day']).count()
     

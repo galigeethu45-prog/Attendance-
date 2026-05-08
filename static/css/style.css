@@ -2178,18 +2178,20 @@ input:-webkit-autofill:active {
 
 /* Modal backdrop should only dim the background, NOT the modal */
 .modal-backdrop {
-    background-color: rgba(15, 23, 42, 0.85) !important;
+    background-color: rgba(15, 23, 42, 0.75) !important;
     z-index: 1040 !important;
 }
 
 /* Ensure backdrop doesn't cover modal */
 .modal-backdrop.show {
-    opacity: 0.85 !important;
+    opacity: 1 !important;
 }
 
 /* Modal should be above backdrop and fully bright */
 .modal {
     z-index: 1055 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
 }
 
 .modal.show {
@@ -2199,6 +2201,23 @@ input:-webkit-autofill:active {
 .modal-dialog {
     z-index: 1056 !important;
     position: relative;
+    margin: 1.75rem auto !important;
+    max-width: 800px !important;
+}
+
+/* Make modal scrollable for long content */
+.modal-dialog-scrollable {
+    max-height: calc(100vh - 3.5rem) !important;
+}
+
+.modal-dialog-scrollable .modal-content {
+    max-height: calc(100vh - 3.5rem) !important;
+    overflow: hidden !important;
+}
+
+.modal-dialog-scrollable .modal-body {
+    overflow-y: auto !important;
+    max-height: calc(100vh - 210px) !important;
 }
 
 /* Modal content should be fully visible and bright - NOT dimmed */
