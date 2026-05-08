@@ -41,6 +41,9 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'overtime' %}"><i class="fas fa-clock me-1"></i>Overtime</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'holiday_calendar' %}"><i class="fas fa-calendar-day me-1"></i>Holidays</a>
+                    </li>
                     
                     <!-- Approval Links for TL, Manager, HR -->
                     {% if user.is_superuser or employee_profile and employee_profile.role in 'team_leader,manager,hr' %}

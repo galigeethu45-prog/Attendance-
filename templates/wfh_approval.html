@@ -231,7 +231,7 @@
                                             HR Comment *
                                             {% endif %}
                                         </label>
-                                        <textarea class="form-control" id="comment{{ wfh.id }}" rows="3" required></textarea>
+                                        <textarea class="form-control" id="comment{{ wfh.id }}" rows="3" placeholder="Optional: Add your comment here"></textarea>
                                     </div>
                                 </div>
                                 <div class="modal-footer">
@@ -271,10 +271,7 @@
 function submitWFHAction(wfhId, action) {
     const comment = document.getElementById('comment' + wfhId).value.trim();
     
-    if (!comment) {
-        alert('Please enter a comment');
-        return;
-    }
+    // Comment is optional - no validation needed
     
     const formData = new FormData();
     formData.append('comment', comment);

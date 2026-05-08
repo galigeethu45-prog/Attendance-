@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import master_data_views
 from . import office_ip_views
+from . import holiday_views
 
 urlpatterns = [
     # Dashboard
@@ -77,4 +78,11 @@ urlpatterns = [
     path('user/reset-password/<int:user_id>/', master_data_views.reset_employee_password, name='reset_employee_password'),
     path('user/change-role/<int:user_id>/', master_data_views.change_employee_role, name='change_employee_role'),
     path('attendance/edit-status/<int:attendance_id>/', master_data_views.edit_attendance_status, name='edit_attendance_status'),
+    
+    # Holiday Calendar
+    path('holidays/', holiday_views.holiday_calendar, name='holiday_calendar'),
+    path('holidays/manage/', holiday_views.hr_manage_holidays, name='hr_manage_holidays'),
+    path('holidays/add/', holiday_views.add_holiday, name='add_holiday'),
+    path('holidays/delete/<int:holiday_id>/', holiday_views.delete_holiday, name='delete_holiday'),
+    path('holidays/auto-generate/', holiday_views.auto_generate_holidays, name='auto_generate_holidays'),
 ]

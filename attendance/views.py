@@ -573,6 +573,29 @@ def dashboard(request):
 @login_required
 def check_in(request):
     if request.method == 'POST':
+        today = timezone.now().date()
+        
+        # HOLIDAY CHECK: Check if today is a holiday
+        from attendance.models import CompanyHoliday
+        is_holiday, holiday = CompanyHoliday.is_holiday(today)
+        
+        if is_holiday:
+            # Check if user has approved OT for today
+            approved_ot = Overtime.objects.filter(
+                employee=request.user,
+                date=today,
+                status='approved'
+            ).exists()
+            
+            if not approved_ot:
+                # No OT approval - show warning but allow check-in
+                messages.warning(request, f'⚠️ Today is a holiday: {holiday.name}')
+                messages.info(request, 'You don\'t have approved OT for today. This will be counted as a regular working day.')
+                messages.info(request, 'If you need to work on a holiday, please request OT approval first.')
+                # Continue with check-in (count as normal day)
+            else:
+                messages.info(request, f'✅ Holiday OT: Working on {holiday.name} with approved overtime.')
+        
         # Validate location/network
         can_check_in, reason = can_check_in_from_location(request.user, request)
         
@@ -585,8 +608,6 @@ def check_in(request):
                     else:
                         messages.warning(request, line)
             return redirect('dashboard')
-        
-        today = timezone.now().date()
         
         attendance, created = Attendance.objects.get_or_create(
             employee=request.user,
@@ -1379,10 +1400,8 @@ def leave_action(request, leave_id, action):
     
     # HR action - Final Approve or Reject (PARALLEL - can see all comments)
     elif user_role == 'hr' and action in ['approve', 'reject']:
-        if not comment:
-            return JsonResponse({'success': False, 'error': 'Comment is required'})
-        
-        leave.hr_comment = comment
+        # Comment is optional for HR
+        leave.hr_comment = comment if comment else ''
         
         if action == 'approve':
             # HR has final authority - no manager approval required
@@ -1391,9 +1410,10 @@ def leave_action(request, leave_id, action):
             leave.save()
             
             # Notify employee
+            comment_text = f': {comment}' if comment else ''
             Notification.objects.create(
                 employee=leave.employee,
-                message=f'Your leave request has been APPROVED by HR: {comment}'
+                message=f'Your leave request has been APPROVED by HR{comment_text}'
             )
             
             # Notify manager and TL
@@ -1418,9 +1438,10 @@ def leave_action(request, leave_id, action):
             leave.save()
             
             # Notify employee
+            comment_text = f': {comment}' if comment else ''
             Notification.objects.create(
                 employee=leave.employee,
-                message=f'Your leave request has been rejected by HR: {comment}'
+                message=f'Your leave request has been rejected by HR{comment_text}'
             )
             
             # Notify manager
@@ -1548,12 +1569,49 @@ def hr_dashboard(request):
     
     today = timezone.now().date()
     
+    # Check if today is a holiday
+    from attendance.models import CompanyHoliday
+    is_today_holiday, holiday_obj = CompanyHoliday.is_holiday(today)
+    
     # Statistics
     total_employees = User.objects.filter(is_active=True).count()
     today_attendance = Attendance.objects.filter(date=today)
     present_today = today_attendance.filter(check_in__isnull=False).count()
-    absent_today = total_employees - present_today
+    
+    # Calculate absent - exclude if today is a holiday
+    if is_today_holiday:
+        # On holidays, only count as absent if they have approved OT but didn't check-in
+        from attendance.models import Overtime
+        employees_with_ot = Overtime.objects.filter(
+            date=today,
+            status='approved'
+        ).values_list('employee_id', flat=True)
+        
+        checked_in_employees = today_attendance.filter(
+            check_in__isnull=False
+        ).values_list('employee_id', flat=True)
+        
+        # Absent = employees with approved OT who didn't check-in
+        absent_today = len([emp_id for emp_id in employees_with_ot if emp_id not in checked_in_employees])
+    else:
+        # Regular working day - count all who didn't check-in as absent
+        absent_today = total_employees - present_today
+    
     late_arrivals = today_attendance.filter(status__in=['late', 'half-day']).count()
+    
+    # NEW: Count employees on approved leave today
+    leave_today = LeaveRequest.objects.filter(
+        status='approved',
+        start_date__lte=today,
+        end_date__gte=today
+    ).count()
+    
+    # NEW: Count employees on approved WFH today
+    wfh_today = WFHRequest.objects.filter(
+        status='approved',
+        start_date__lte=today,
+        end_date__gte=today
+    ).count()
     
     pending_leaves = LeaveRequest.objects.filter(status='pending').count()
     
@@ -1702,6 +1760,8 @@ def hr_dashboard(request):
         'present_today': present_today,
         'absent_today': absent_today,
         'late_arrivals': late_arrivals,
+        'leave_today': leave_today,  # NEW
+        'wfh_today': wfh_today,  # NEW
         'pending_leaves': pending_leaves,
         'today_attendance': today_attendance_list,
         'pending_leave_requests': pending_leave_requests,
@@ -1914,19 +1974,62 @@ def export_attendance_csv(request):
         half_days = emp_attendance.filter(status='half-day').count()
         total_hours = emp_attendance.aggregate(Sum('total_work_hours'))['total_work_hours__sum'] or 0
         
-        # Calculate absent days (working days - present days)
+        # Calculate absent days (working days - present days - holidays)
+        from attendance.models import CompanyHoliday
+        
         if filter_type == 'date_range' and start_date and end_date:
-            total_days = (end_date_obj - start_date_obj).days + 1
+            # Count working days (excluding holidays)
+            working_days = CompanyHoliday.count_working_days(start_date_obj, end_date_obj)
         elif filter_type == 'month' and filter_month and filter_year:
+            # Count working days in the month
             import calendar
-            total_days = calendar.monthrange(year_num, month_num)[1]
+            from datetime import date
+            month_start = date(year_num, month_num, 1)
+            last_day = calendar.monthrange(year_num, month_num)[1]
+            month_end = date(year_num, month_num, last_day)
+            working_days = CompanyHoliday.count_working_days(month_start, month_end)
         elif filter_type == 'year' and filter_year:
-            total_days = 365 if year_num % 4 != 0 else 366
+            # Count working days in the year
+            from datetime import date
+            year_start = date(year_num, 1, 1)
+            year_end = date(year_num, 12, 31)
+            working_days = CompanyHoliday.count_working_days(year_start, year_end)
         else:
-            total_days = 1
+            # Single day - check if it's a working day
+            working_days = 1 if CompanyHoliday.is_working_day(today) else 0
         
         attended_days = emp_attendance.count()
-        absent_days = max(0, total_days - attended_days)
+        
+        # Get approved leave days for this period
+        if filter_type == 'date_range' and start_date and end_date:
+            leave_requests = LeaveRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date__lte=end_date_obj,
+                end_date__gte=start_date_obj
+            )
+            leave_days = sum([leave.total_days for leave in leave_requests])
+        elif filter_type == 'month' and filter_month and filter_year:
+            leave_requests = LeaveRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date__month=month_num,
+                start_date__year=year_num
+            )
+            leave_days = sum([leave.total_days for leave in leave_requests])
+        elif filter_type == 'year' and filter_year:
+            leave_requests = LeaveRequest.objects.filter(
+                employee=employee,
+                status='approved',
+                start_date__year=year_num
+            )
+            leave_days = sum([leave.total_days for leave in leave_requests])
+        else:
+            leave_days = 0
+        
+        # Absent = Working Days - Attended Days - Leave Days
+        # (This excludes holidays automatically since working_days already excludes them)
+        absent_days = max(0, working_days - attended_days - leave_days)
         
         # WFH days
         if filter_type == 'date_range' and start_date and end_date:
@@ -2245,28 +2348,85 @@ def employee_list_view(request, list_type):
                 })
     
     elif list_type == 'absent':
-        # Employees who didn't check in today
-        all_users = User.objects.filter(is_active=True).select_related('employeeprofile')
-        checked_in_users = Attendance.objects.filter(
-            date=today,
-            check_in__isnull=False
-        ).values_list('employee_id', flat=True)
+        # Employees who didn't check in today (excluding holidays, leave, WFH)
+        from attendance.models import CompanyHoliday
         
-        for user in all_users:
-            if user.id not in checked_in_users:
+        # Check if today is a holiday
+        is_today_holiday, holiday_obj = CompanyHoliday.is_holiday(today)
+        
+        if is_today_holiday:
+            # On holidays, only show employees with approved OT who didn't check-in
+            from attendance.models import Overtime
+            employees_with_ot = Overtime.objects.filter(
+                date=today,
+                status='approved'
+            ).values_list('employee_id', flat=True)
+            
+            checked_in_users = Attendance.objects.filter(
+                date=today,
+                check_in__isnull=False
+            ).values_list('employee_id', flat=True)
+            
+            # Absent = employees with approved OT who didn't check-in
+            absent_user_ids = [emp_id for emp_id in employees_with_ot if emp_id not in checked_in_users]
+            absent_users = User.objects.filter(id__in=absent_user_ids).select_related('employeeprofile')
+            
+            for user in absent_users:
                 try:
                     profile = user.employeeprofile
                     employees.append({
                         'employee_id': profile.employee_id or 'N/A',
                         'name': user.get_full_name() or user.username,
                         'department': profile.department or 'N/A',
+                        'note': 'Has approved OT but not checked-in',
                     })
                 except EmployeeProfile.DoesNotExist:
                     employees.append({
                         'employee_id': 'N/A',
                         'name': user.get_full_name() or user.username,
                         'department': 'N/A',
+                        'note': 'Has approved OT but not checked-in',
                     })
+        else:
+            # Regular working day - exclude employees on leave or WFH
+            all_users = User.objects.filter(is_active=True).select_related('employeeprofile')
+            checked_in_users = Attendance.objects.filter(
+                date=today,
+                check_in__isnull=False
+            ).values_list('employee_id', flat=True)
+            
+            # Get employees on approved leave today
+            employees_on_leave = LeaveRequest.objects.filter(
+                status='approved',
+                start_date__lte=today,
+                end_date__gte=today
+            ).values_list('employee_id', flat=True)
+            
+            # Get employees on approved WFH today
+            employees_on_wfh = WFHRequest.objects.filter(
+                status='approved',
+                start_date__lte=today,
+                end_date__gte=today
+            ).values_list('employee_id', flat=True)
+            
+            for user in all_users:
+                # Exclude if: checked-in, on leave, or on WFH
+                if (user.id not in checked_in_users and 
+                    user.id not in employees_on_leave and 
+                    user.id not in employees_on_wfh):
+                    try:
+                        profile = user.employeeprofile
+                        employees.append({
+                            'employee_id': profile.employee_id or 'N/A',
+                            'name': user.get_full_name() or user.username,
+                            'department': profile.department or 'N/A',
+                        })
+                    except EmployeeProfile.DoesNotExist:
+                        employees.append({
+                            'employee_id': 'N/A',
+                            'name': user.get_full_name() or user.username,
+                            'department': 'N/A',
+                        })
     
     elif list_type == 'late':
         # Employees who arrived late today
@@ -2300,6 +2460,64 @@ def employee_list_view(request, list_type):
                     'check_in_time': check_in_ist.strftime('%I:%M %p') if check_in_ist else 'N/A',
                     'status': attendance.get_status_display(),
                     'status_color': 'warning',
+                })
+    
+    elif list_type == 'leave':
+        # Employees on approved leave today
+        leave_requests = LeaveRequest.objects.filter(
+            status='approved',
+            start_date__lte=today,
+            end_date__gte=today
+        ).select_related('employee__employeeprofile')
+        
+        for leave in leave_requests:
+            try:
+                profile = leave.employee.employeeprofile
+                # Calculate duration
+                duration = f"{leave.start_date.strftime('%b %d')} - {leave.end_date.strftime('%b %d')}"
+                employees.append({
+                    'employee_id': profile.employee_id or 'N/A',
+                    'name': leave.employee.get_full_name() or leave.employee.username,
+                    'department': profile.department or 'N/A',
+                    'leave_type': leave.get_leave_type_display(),
+                    'duration': duration,
+                })
+            except EmployeeProfile.DoesNotExist:
+                duration = f"{leave.start_date.strftime('%b %d')} - {leave.end_date.strftime('%b %d')}"
+                employees.append({
+                    'employee_id': 'N/A',
+                    'name': leave.employee.get_full_name() or leave.employee.username,
+                    'department': 'N/A',
+                    'leave_type': leave.get_leave_type_display(),
+                    'duration': duration,
+                })
+    
+    elif list_type == 'wfh':
+        # Employees on approved WFH today
+        wfh_requests = WFHRequest.objects.filter(
+            status='approved',
+            start_date__lte=today,
+            end_date__gte=today
+        ).select_related('employee__employeeprofile')
+        
+        for wfh in wfh_requests:
+            try:
+                profile = wfh.employee.employeeprofile
+                # Calculate duration
+                duration = f"{wfh.start_date.strftime('%b %d')} - {wfh.end_date.strftime('%b %d')}"
+                employees.append({
+                    'employee_id': profile.employee_id or 'N/A',
+                    'name': wfh.employee.get_full_name() or wfh.employee.username,
+                    'department': profile.department or 'N/A',
+                    'duration': duration,
+                })
+            except EmployeeProfile.DoesNotExist:
+                duration = f"{wfh.start_date.strftime('%b %d')} - {wfh.end_date.strftime('%b %d')}"
+                employees.append({
+                    'employee_id': 'N/A',
+                    'name': wfh.employee.get_full_name() or wfh.employee.username,
+                    'department': 'N/A',
+                    'duration': duration,
                 })
     
     return JsonResponse({'employees': employees})
@@ -3077,12 +3295,8 @@ def wfh_action(request, wfh_id, action):
     
     # HR action - Final Approve or Reject (HR has final authority)
     elif user_role == 'hr' and action in ['approve', 'reject']:
-        if not comment:
-            return JsonResponse({'success': False, 'error': 'Comment is required'})
-        
-        # HR has final authority - no manager approval required
-        # TL and Manager comments are advisory only
-        wfh.hr_comment = comment
+        # Comment is optional for HR
+        wfh.hr_comment = comment if comment else ''
         
         if action == 'approve':
             wfh.status = 'approved'
@@ -3090,9 +3304,10 @@ def wfh_action(request, wfh_id, action):
             wfh.save()
             
             # Notify employee
+            comment_text = f': {comment}' if comment else ''
             Notification.objects.create(
                 employee=wfh.employee,
-                message=f'Your WFH request has been approved by HR: {comment}'
+                message=f'Your WFH request has been approved by HR{comment_text}'
             )
             
             # Notify manager
@@ -3112,9 +3327,10 @@ def wfh_action(request, wfh_id, action):
             wfh.save()
             
             # Notify employee
+            comment_text = f': {comment}' if comment else ''
             Notification.objects.create(
                 employee=wfh.employee,
-                message=f'Your WFH request has been rejected by HR: {comment}'
+                message=f'Your WFH request has been rejected by HR{comment_text}'
             )
             
             # Notify manager
@@ -3547,12 +3763,8 @@ def onsite_action(request, onsite_id, action):
     
     # HR action - Final Approve or Reject (HR has final authority)
     elif user_role == 'hr' and action in ['approve', 'reject']:
-        if not comment:
-            return JsonResponse({'success': False, 'error': 'Comment is required'})
-        
-        # HR has final authority - no manager approval required
-        # Manager comments are advisory only
-        onsite.hr_comment = comment
+        # Comment is optional for HR
+        onsite.hr_comment = comment if comment else ''
         
         if action == 'approve':
             onsite.status = 'approved'
@@ -3560,9 +3772,10 @@ def onsite_action(request, onsite_id, action):
             onsite.save()
             
             # Notify employee
+            comment_text = f': {comment}' if comment else ''
             Notification.objects.create(
                 employee=onsite.employee,
-                message=f'Your onsite request for {onsite.visit_date.strftime("%b %d, %Y")} has been approved by HR: {comment}'
+                message=f'Your onsite request for {onsite.visit_date.strftime("%b %d, %Y")} has been approved by HR{comment_text}'
             )
             
             # Notify manager
@@ -3582,9 +3795,10 @@ def onsite_action(request, onsite_id, action):
             onsite.save()
             
             # Notify employee
+            comment_text = f': {comment}' if comment else ''
             Notification.objects.create(
                 employee=onsite.employee,
-                message=f'Your onsite request for {onsite.visit_date.strftime("%b %d, %Y")} has been rejected by HR: {comment}'
+                message=f'Your onsite request for {onsite.visit_date.strftime("%b %d, %Y")} has been rejected by HR{comment_text}'
             )
             
             # Notify manager

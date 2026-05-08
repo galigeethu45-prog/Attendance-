@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Manage Holidays - HR{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="text-white mb-0" style="font-weight: 700;">
+                    <i class="fas fa-calendar-plus me-2"></i>Manage Company Holidays
+                </h2>
+                <a href="{% url 'holiday_calendar' %}" class="btn btn-secondary">
+                    <i class="fas fa-calendar-day me-2"></i>View Calendar
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Year Selector & Auto-Generate -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card glass-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>Select Year
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="d-flex gap-2">
+                        <select name="year" class="form-select">
+                            {% for y in available_years %}
+                            <option value="{{ y }}" {% if year == y %}selected{% endif %}>{{ y }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i>Load
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card glass-card border-warning">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0 text-dark">
+                        <i class="fas fa-magic me-2"></i>Auto-Generate Holidays
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        Automatically generate all Sundays, 2nd Saturdays, and 4th Saturdays for {{ year }}
+                    </p>
+                    <button type="button" class="btn btn-warning" onclick="autoGenerateHolidays()">
+                        <i class="fas fa-wand-magic-sparkles me-2"></i>Generate for {{ year }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add New Holiday -->
+    <div class="card glass-card mb-4 border-success">
+        <div class="card-header bg-success">
+            <h5 class="mb-0 text-white">
+                <i class="fas fa-plus-circle me-2"></i>Add New Holiday
+            </h5>
+        </div>
+        <div class="card-body">
+            <form id="addHolidayForm" onsubmit="addHoliday(event)">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="holidayDate" class="form-label text-white">Date *</label>
+                        <input type="date" class="form-control" id="holidayDate" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="holidayName" class="form-label text-white">Holiday Name *</label>
+                        <input type="text" class="form-control" id="holidayName" 
+                               placeholder="e.g., Republic Day" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="holidayType" class="form-label text-white">Type *</label>
+                        <select class="form-select" id="holidayType" required>
+                            <option value="">Select Type</option>
+                            {% for type_code, type_name in holiday_types %}
+                            <option value="{{ type_code }}">{{ type_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label text-white">&nbsp;</label>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-plus me-1"></i>Add Holiday
+                        </button>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <label for="holidayDescription" class="form-label text-white">Description (Optional)</label>
+                        <textarea class="form-control" id="holidayDescription" rows="2" 
+                                  placeholder="Additional details about the holiday"></textarea>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Holidays List by Type -->
+    <div class="row">
+        {% for type_code, type_name in holiday_types %}
+        <div class="col-lg-6 mb-4">
+            <div class="card glass-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        {% if type_code == 'weekly_off' %}
+                            <i class="fas fa-sun text-warning me-2"></i>
+                        {% elif type_code == 'second_saturday' or type_code == 'fourth_saturday' %}
+                            <i class="fas fa-calendar-week text-info me-2"></i>
+                        {% elif type_code == 'national' %}
+                            <i class="fas fa-flag text-danger me-2"></i>
+                        {% elif type_code == 'company' %}
+                            <i class="fas fa-building text-success me-2"></i>
+                        {% else %}
+                            <i class="fas fa-star text-primary me-2"></i>
+                        {% endif %}
+                        {{ type_name }}
+                    </h5>
+                    <span class="badge bg-secondary">
+                        {% if type_code == 'weekly_off' %}{{ holidays_by_type.weekly_off.count }}
+                        {% elif type_code == 'second_saturday' %}{{ holidays_by_type.second_saturday.count }}
+                        {% elif type_code == 'fourth_saturday' %}{{ holidays_by_type.fourth_saturday.count }}
+                        {% elif type_code == 'national' %}{{ holidays_by_type.national.count }}
+                        {% elif type_code == 'company' %}{{ holidays_by_type.company.count }}
+                        {% elif type_code == 'optional' %}{{ holidays_by_type.optional.count }}
+                        {% else %}0{% endif %}
+                    </span>
+                </div>
+                <div class="card-body" style="max-height: 400px; overflow-y: auto;">
+                    {% if type_code == 'weekly_off' and holidays_by_type.weekly_off %}
+                        {% include 'partials/holiday_table.html' with type_holidays=holidays_by_type.weekly_off %}
+                    {% elif type_code == 'second_saturday' and holidays_by_type.second_saturday %}
+                        {% include 'partials/holiday_table.html' with type_holidays=holidays_by_type.second_saturday %}
+                    {% elif type_code == 'fourth_saturday' and holidays_by_type.fourth_saturday %}
+                        {% include 'partials/holiday_table.html' with type_holidays=holidays_by_type.fourth_saturday %}
+                    {% elif type_code == 'national' and holidays_by_type.national %}
+                        {% include 'partials/holiday_table.html' with type_holidays=holidays_by_type.national %}
+                    {% elif type_code == 'company' and holidays_by_type.company %}
+                        {% include 'partials/holiday_table.html' with type_holidays=holidays_by_type.company %}
+                    {% elif type_code == 'optional' and holidays_by_type.optional %}
+                        {% include 'partials/holiday_table.html' with type_holidays=holidays_by_type.optional %}
+                    {% else %}
+                    <p class="text-muted text-center mb-0">No holidays in this category</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card glass-card border-info">
+                <div class="card-header bg-info">
+                    <h5 class="mb-0 text-white">
+                        <i class="fas fa-chart-bar me-2"></i>Holiday Summary {{ year }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-2">
+                            <h3 class="text-warning">{{ holidays_by_type.weekly_off.count }}</h3>
+                            <small class="text-muted">Sundays</small>
+                        </div>
+                        <div class="col-md-2">
+                            <h3 class="text-info">{{ holidays_by_type.second_saturday.count }}</h3>
+                            <small class="text-muted">2nd Saturdays</small>
+                        </div>
+                        <div class="col-md-2">
+                            <h3 class="text-info">{{ holidays_by_type.fourth_saturday.count }}</h3>
+                            <small class="text-muted">4th Saturdays</small>
+                        </div>
+                        <div class="col-md-2">
+                            <h3 class="text-danger">{{ holidays_by_type.national.count }}</h3>
+                            <small class="text-muted">National</small>
+                        </div>
+                        <div class="col-md-2">
+                            <h3 class="text-success">{{ holidays_by_type.company.count }}</h3>
+                            <small class="text-muted">Company</small>
+                        </div>
+                        <div class="col-md-2">
+                            <h3 class="text-primary">{{ holidays.count }}</h3>
+                            <small class="text-muted">Total Holidays</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Add Holiday
+function addHoliday(event) {
+    event.preventDefault();
+    
+    const date = document.getElementById('holidayDate').value;
+    const name = document.getElementById('holidayName').value;
+    const type = document.getElementById('holidayType').value;
+    const description = document.getElementById('holidayDescription').value;
+    
+    if (!date || !name || !type) {
+        alert('Please fill all required fields');
+        return;
+    }
+    
+    fetch('{% url "add_holiday" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'date': date,
+            'name': name,
+            'holiday_type': type,
+            'description': description
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to add holiday');
+    });
+}
+
+// Delete Holiday
+function deleteHoliday(holidayId, holidayName, holidayDate) {
+    if (!confirm(`Are you sure you want to delete "${holidayName}" on ${holidayDate}?`)) {
+        return;
+    }
+    
+    fetch(`/holidays/delete/${holidayId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            // Remove row from table
+            const row = document.getElementById(`holiday-row-${holidayId}`);
+            if (row) {
+                row.remove();
+            }
+            // Reload to update counts
+            setTimeout(() => location.reload(), 500);
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to delete holiday');
+    });
+}
+
+// Auto-Generate Holidays
+function autoGenerateHolidays() {
+    const year = {{ year }};
+    
+    if (!confirm(`This will auto-generate all Sundays, 2nd Saturdays, and 4th Saturdays for ${year}. Continue?`)) {
+        return;
+    }
+    
+    fetch('{% url "auto_generate_holidays" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: new URLSearchParams({
+            'year': year
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to auto-generate holidays');
+    });
+}
+</script>
+{% endblock %}

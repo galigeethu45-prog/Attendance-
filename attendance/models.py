@@ -428,10 +428,17 @@ class LeaveRequest(models.Model):
 
     @property
     def total_days(self):
-        """Calculate total days - uses selected_dates if available, otherwise date range"""
-        if self.selected_dates:
-            return len(self.selected_dates)
-        return (self.end_date - self.start_date).days + 1
+        """Calculate total days - uses selected_dates if available, otherwise date range
+        EXCLUDES HOLIDAYS from the count"""
+        dates_list = self.get_dates_list()
+        
+        # Count only working days (exclude holidays)
+        working_days = 0
+        for date in dates_list:
+            if CompanyHoliday.is_working_day(date):
+                working_days += 1
+        
+        return working_days
     
     def get_dates_list(self):
         """Get list of all dates covered by this leave request"""
@@ -552,10 +559,17 @@ class WFHRequest(models.Model):
     
     @property
     def total_days(self):
-        """Calculate total days - uses selected_dates if available, otherwise date range"""
-        if self.selected_dates:
-            return len(self.selected_dates)
-        return (self.end_date - self.start_date).days + 1
+        """Calculate total days - uses selected_dates if available, otherwise date range
+        EXCLUDES HOLIDAYS from the count"""
+        dates_list = self.get_dates_list()
+        
+        # Count only working days (exclude holidays)
+        working_days = 0
+        for date in dates_list:
+            if CompanyHoliday.is_working_day(date):
+                working_days += 1
+        
+        return working_days
     
     def get_dates_list(self):
         """Get list of all dates covered by this WFH request"""
@@ -857,3 +871,195 @@ class SystemSettings(models.Model):
                 return True, f"IP address {'enabled' if is_active else 'disabled'} successfully"
         
         return False, "IP address not found"
+
+
+
+# =========================
+# COMPANY HOLIDAY CALENDAR
+# =========================
+class CompanyHoliday(models.Model):
+    """
+    Company Holiday Calendar
+    Manages all holidays including weekly offs, 2nd/4th Saturdays, and company holidays
+    """
+    HOLIDAY_TYPES = [
+        ('weekly_off', 'Weekly Off (Sunday)'),
+        ('second_saturday', '2nd Saturday'),
+        ('fourth_saturday', '4th Saturday'),
+        ('national', 'National Holiday'),
+        ('company', 'Company Holiday'),
+        ('optional', 'Optional Holiday'),
+    ]
+    
+    date = models.DateField(db_index=True, help_text='Holiday date')
+    name = models.CharField(max_length=200, help_text='Holiday name (e.g., Republic Day)')
+    holiday_type = models.CharField(
+        max_length=20,
+        choices=HOLIDAY_TYPES,
+        default='company',
+        help_text='Type of holiday'
+    )
+    description = models.TextField(blank=True, null=True, help_text='Additional details about the holiday')
+    is_active = models.BooleanField(default=True, help_text='Whether this holiday is active')
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Company Holiday'
+        verbose_name_plural = 'Company Holidays'
+        ordering = ['date']
+    
+    def __str__(self):
+        return f"{self.name} - {self.date.strftime('%d %b %Y')}"
+    
+    @classmethod
+    def is_holiday(cls, date):
+        """
+        Check if a given date is a holiday
+        Returns: (Boolean, Holiday object or None)
+        """
+        holiday = cls.objects.filter(date=date, is_active=True).first()
+        return (holiday is not None, holiday)
+    
+    @classmethod
+    def get_holidays_for_month(cls, year, month):
+        """
+        Get all holidays for a specific month
+        """
+        from datetime import date
+        start_date = date(year, month, 1)
+        if month == 12:
+            end_date = date(year + 1, 1, 1)
+        else:
+            end_date = date(year, month + 1, 1)
+        
+        return cls.objects.filter(
+            date__gte=start_date,
+            date__lt=end_date,
+            is_active=True
+        ).order_by('date')
+    
+    @classmethod
+    def get_holidays_for_year(cls, year):
+        """
+        Get all holidays for a specific year
+        """
+        from datetime import date
+        start_date = date(year, 1, 1)
+        end_date = date(year + 1, 1, 1)
+        
+        return cls.objects.filter(
+            date__gte=start_date,
+            date__lt=end_date,
+            is_active=True
+        ).order_by('date')
+    
+    @classmethod
+    def auto_generate_weekly_offs(cls, year):
+        """
+        Auto-generate all Sundays for a given year
+        """
+        from datetime import date, timedelta
+        
+        # Start from first Sunday of the year
+        current_date = date(year, 1, 1)
+        # Find first Sunday
+        while current_date.weekday() != 6:  # 6 = Sunday
+            current_date += timedelta(days=1)
+        
+        created_count = 0
+        while current_date.year == year:
+            # Create or update Sunday holiday
+            holiday, created = cls.objects.get_or_create(
+                date=current_date,
+                name='Sunday',
+                defaults={
+                    'holiday_type': 'weekly_off',
+                    'description': 'Weekly off',
+                    'is_active': True
+                }
+            )
+            if created:
+                created_count += 1
+            
+            current_date += timedelta(days=7)  # Next Sunday
+        
+        return created_count
+    
+    @classmethod
+    def auto_generate_saturdays(cls, year):
+        """
+        Auto-generate 2nd and 4th Saturdays for a given year
+        """
+        from datetime import date
+        import calendar
+        
+        created_count = 0
+        
+        for month in range(1, 13):
+            # Get all Saturdays in the month
+            saturdays = []
+            for day in range(1, calendar.monthrange(year, month)[1] + 1):
+                d = date(year, month, day)
+                if d.weekday() == 5:  # 5 = Saturday
+                    saturdays.append(d)
+            
+            # 2nd Saturday
+            if len(saturdays) >= 2:
+                second_sat = saturdays[1]
+                holiday, created = cls.objects.get_or_create(
+                    date=second_sat,
+                    name='2nd Saturday',
+                    defaults={
+                        'holiday_type': 'second_saturday',
+                        'description': 'Second Saturday of the month',
+                        'is_active': True
+                    }
+                )
+                if created:
+                    created_count += 1
+            
+            # 4th Saturday
+            if len(saturdays) >= 4:
+                fourth_sat = saturdays[3]
+                holiday, created = cls.objects.get_or_create(
+                    date=fourth_sat,
+                    name='4th Saturday',
+                    defaults={
+                        'holiday_type': 'fourth_saturday',
+                        'description': 'Fourth Saturday of the month',
+                        'is_active': True
+                    }
+                )
+                if created:
+                    created_count += 1
+        
+        return created_count
+    
+    @classmethod
+    def is_working_day(cls, date):
+        """
+        Check if a date is a working day (not a holiday)
+        Returns: Boolean
+        """
+        is_hol, _ = cls.is_holiday(date)
+        return not is_hol
+    
+    @classmethod
+    def count_working_days(cls, start_date, end_date):
+        """
+        Count working days between two dates (excluding holidays)
+        """
+        from datetime import timedelta
+        
+        working_days = 0
+        current_date = start_date
+        
+        while current_date <= end_date:
+            if cls.is_working_day(current_date):
+                working_days += 1
+            current_date += timedelta(days=1)
+        
+        return working_days

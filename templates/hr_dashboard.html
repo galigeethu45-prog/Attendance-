@@ -89,6 +89,42 @@
         </div>
     </div>
 
+    <!-- Second Row of Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-5 clickable-card" onclick="showEmployeeList('leave')" style="cursor: pointer; transition: transform 0.2s;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">On Leave Today</p>
+                            <h3 class="mb-0">{{ leave_today }}</h3>
+                            <small class="text-info"><i class="fas fa-mouse-pointer me-1"></i>Click to view</small>
+                        </div>
+                        <div class="stat-icon bg-info bg-opacity-10">
+                            <i class="fas fa-calendar-times text-info fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-6 clickable-card" onclick="showEmployeeList('wfh')" style="cursor: pointer; transition: transform 0.2s;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Working From Home</p>
+                            <h3 class="mb-0">{{ wfh_today }}</h3>
+                            <small class="text-primary"><i class="fas fa-mouse-pointer me-1"></i>Click to view</small>
+                        </div>
+                        <div class="stat-icon bg-primary bg-opacity-10">
+                            <i class="fas fa-home text-primary fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Tabs -->
     <ul class="nav nav-tabs mb-4" role="tablist">
         <li class="nav-item">
@@ -99,11 +135,6 @@
         <li class="nav-item">
             <a class="nav-link" data-bs-toggle="tab" href="#masterdata">
                 <i class="fas fa-database me-1"></i>Master Data
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#leaves">
-                <i class="fas fa-calendar-alt me-1"></i>Leave Requests
             </a>
         </li>
         <li class="nav-item">
@@ -122,13 +153,13 @@
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#wfh">
-                <i class="fas fa-home me-1"></i>WFH Requests
+            <a class="nav-link" data-bs-toggle="tab" href="#reports">
+                <i class="fas fa-chart-bar me-1"></i>Reports
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#reports">
-                <i class="fas fa-chart-bar me-1"></i>Reports
+            <a class="nav-link" data-bs-toggle="tab" href="#holidays">
+                <i class="fas fa-calendar-day me-1"></i>Holiday Calendar
             </a>
         </li>
         <li class="nav-item">
@@ -225,22 +256,21 @@
                         <table class="table table-hover attendance-table">
                             <thead>
                                 <tr>
-                                    <th style="width: 250px;">EMPLOYEE</th>
-                                    <th style="width: 150px;">DEPARTMENT</th>
-                                    <th style="width: 130px;">DATE</th>
-                                    <th style="width: 110px;">CHECK IN</th>
-                                    <th style="width: 110px;">CHECK OUT</th>
-                                    <th style="width: 120px;">WORK HOURS</th>
-                                    <th style="width: 120px;">STATUS</th>
-                                    <th style="width: 90px;">BREAKS</th>
-                                    <th style="width: 100px;">ACTIONS</th>
+                                    <th style="width: 200px;">EMPLOYEE</th>
+                                    <th style="width: 100px;">DEPT</th>
+                                    <th style="width: 90px;">DATE</th>
+                                    <th style="width: 100px;">TIME</th>
+                                    <th style="width: 80px;">HOURS</th>
+                                    <th style="width: 100px;">STATUS</th>
+                                    <th style="width: 60px;">BREAKS</th>
+                                    <th style="width: 70px;">ACTION</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for attendance in today_attendance %}
                                 <tr>
                                     <td>
-                                        <div class="d-flex align-items-center gap-3">
+                                        <div class="d-flex align-items-center gap-2">
                                             {% if attendance.employee.employeeprofile.profile_photo %}
                                             <img src="{{ attendance.employee.employeeprofile.profile_photo.url }}" 
                                                  alt="{{ attendance.employee.get_full_name }}" 
@@ -251,16 +281,20 @@
                                             </div>
                                             {% endif %}
                                             <div class="employee-info">
-                                                <div class="employee-name">{{ attendance.employee.get_full_name|default:attendance.employee.username }}</div>
-                                                <small class="employee-id">{{ attendance.employee.employeeprofile.employee_id|default:attendance.employee.username }}</small>
+                                                <div class="employee-name" style="font-size: 0.9rem;">{{ attendance.employee.get_full_name|default:attendance.employee.username }}</div>
+                                                <small class="employee-id" style="font-size: 0.75rem;">{{ attendance.employee.employeeprofile.employee_id|default:attendance.employee.username }}</small>
                                             </div>
                                         </div>
                                     </td>
-                                    <td><span class="text-white">{{ attendance.employee.employeeprofile.department|default:"-" }}</span></td>
-                                    <td><span class="text-white">{{ attendance.date|date:"M d, Y" }}</span></td>
-                                    <td><span class="text-white">{{ attendance.check_in|time:"h:i A"|default:"-" }}</span></td>
-                                    <td><span class="text-white">{{ attendance.check_out|time:"h:i A"|default:"-" }}</span></td>
-                                    <td><span class="text-white">{{ attendance.get_work_hours_display }}</span></td>
+                                    <td><span class="text-white" style="font-size: 0.85rem;">{{ attendance.employee.employeeprofile.department|default:"-" }}</span></td>
+                                    <td><span class="text-white" style="font-size: 0.85rem;">{{ attendance.date|date:"M d" }}</span></td>
+                                    <td>
+                                        <div style="font-size: 0.85rem;">
+                                            <div class="text-success"><i class="fas fa-sign-in-alt me-1"></i>{{ attendance.check_in|time:"h:i A"|default:"-" }}</div>
+                                            <div class="text-danger"><i class="fas fa-sign-out-alt me-1"></i>{{ attendance.check_out|time:"h:i A"|default:"-" }}</div>
+                                        </div>
+                                    </td>
+                                    <td><span class="text-white" style="font-size: 0.85rem;">{{ attendance.get_work_hours_display }}</span></td>
                                     <td>
                                         <span class="badge 
                                             {% if attendance.status == 'present' %}bg-success
@@ -269,27 +303,27 @@
                                             {% elif attendance.status == 'half_day' %}bg-info
                                             {% elif attendance.status == 'on_leave' %}bg-secondary
                                             {% else %}bg-primary
-                                            {% endif %}" style="padding: 6px 14px; border-radius: 8px; font-weight: 600;">
+                                            {% endif %}" style="padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.75rem;">
                                             {{ attendance.get_status_display }}
                                         </span>
                                         {% if attendance.status_modified_by %}
-                                        <br><small class="text-muted" style="font-size: 0.75rem;" title="Modified by {{ attendance.status_modified_by.username }} on {{ attendance.status_modified_at|date:'M d, Y h:i A' }}">
-                                            <i class="fas fa-edit"></i> Edited
+                                        <br><small class="text-muted" style="font-size: 0.7rem;" title="Modified by {{ attendance.status_modified_by.username }} on {{ attendance.status_modified_at|date:'M d, Y h:i A' }}">
+                                            <i class="fas fa-edit"></i>
                                         </small>
                                         {% endif %}
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge bg-info" style="padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 0.9rem;">{{ attendance.breaks.count }}</span>
+                                        <span class="badge bg-info" style="padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;">{{ attendance.breaks.count }}</span>
                                     </td>
                                     <td class="text-center">
-                                        <button class="btn btn-sm btn-warning" onclick="editAttendanceStatus({{ attendance.id }}, '{{ attendance.employee.get_full_name|default:attendance.employee.username }}', '{{ attendance.status }}', '{{ attendance.date|date:'M d, Y' }}')" title="Edit Status" style="padding: 8px 16px; border-radius: 8px;">
+                                        <button class="btn btn-sm btn-warning" onclick="editAttendanceStatus({{ attendance.id }}, '{{ attendance.employee.get_full_name|default:attendance.employee.username }}', '{{ attendance.status }}', '{{ attendance.date|date:'M d, Y' }}')" title="Edit Status" style="padding: 6px 10px; border-radius: 6px;">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="9" class="text-center text-muted py-4">No attendance records found for selected filter</td>
+                                    <td colspan="8" class="text-center text-muted py-4">No attendance records found for selected filter</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -370,56 +404,6 @@
                             <li>System validates against master data</li>
                             <li>If match → Account created | If no match → Registration denied</li>
                         </ol>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Leave Requests Tab -->
-        <div class="tab-pane fade" id="leaves">
-            <div class="card glass-card">
-                <div class="card-header">
-                    <h5 class="mb-0">Pending Leave Requests</h5>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Employee</th>
-                                    <th>Type</th>
-                                    <th>Start Date</th>
-                                    <th>End Date</th>
-                                    <th>Days</th>
-                                    <th>Reason</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for leave in pending_leave_requests %}
-                                <tr>
-                                    <td>{{ leave.employee.get_full_name|default:leave.employee.username }}</td>
-                                    <td>{{ leave.get_leave_type_display }}</td>
-                                    <td>{{ leave.start_date|date:"M d, Y" }}</td>
-                                    <td>{{ leave.end_date|date:"M d, Y" }}</td>
-                                    <td>{{ leave.total_days }}</td>
-                                    <td>{{ leave.reason|truncatewords:10 }}</td>
-                                    <td>
-                                        <button class="btn btn-sm btn-success" onclick="approveLeave({{ leave.id }})">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        <button class="btn btn-sm btn-danger" onclick="rejectLeave({{ leave.id }})">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="7" class="text-center text-muted py-4">No pending leave requests</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>
@@ -811,48 +795,6 @@
             </div>
         </div>
 
-        <!-- WFH Requests Tab -->
-        <div class="tab-pane fade" id="wfh">
-            <div class="card glass-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="fas fa-home me-2"></i>Work From Home Requests</h5>
-                    <a href="{% url 'wfh_approval' %}" class="btn btn-primary btn-sm">
-                        <i class="fas fa-external-link-alt me-1"></i>Full WFH Management
-                    </a>
-                </div>
-                <div class="card-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Quick Overview:</strong> For detailed WFH management, approval, and history, visit the dedicated WFH Approval page.
-                    </div>
-                    
-                    <h6 class="text-white mb-3">Recent WFH Requests</h6>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Employee</th>
-                                    <th>Start Date</th>
-                                    <th>End Date</th>
-                                    <th>Days</th>
-                                    <th>Status</th>
-                                    <th>Requested</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
-                                        <i class="fas fa-arrow-right me-2"></i>
-                                        Visit <a href="{% url 'wfh_approval' %}" class="text-primary">WFH Approval Page</a> to view and manage all requests
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Reports Tab -->
         <div class="tab-pane fade" id="reports">
             <div class="row">
@@ -873,6 +815,139 @@
                         </div>
                         <div class="card-body">
                             <canvas id="departmentChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Holiday Calendar Tab -->
+        <div class="tab-pane fade" id="holidays">
+            <div class="card glass-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-day me-2"></i>Company Holiday Management
+                    </h5>
+                    <a href="{% url 'hr_manage_holidays' %}" class="btn btn-primary">
+                        <i class="fas fa-cog me-2"></i>Manage Holidays
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle me-2"></i>About Holiday Calendar
+                        </h6>
+                        <p class="mb-2">
+                            The holiday calendar system automatically manages company holidays including:
+                        </p>
+                        <ul class="mb-2">
+                            <li><strong>Weekly Offs:</strong> All Sundays are automatically marked as holidays</li>
+                            <li><strong>2nd & 4th Saturdays:</strong> Automatically calculated for each month</li>
+                            <li><strong>Company Holidays:</strong> National and company-specific holidays (manually added by HR)</li>
+                        </ul>
+                        <hr>
+                        <p class="mb-0">
+                            <strong>Impact on Leave Calculation:</strong> Holidays are automatically excluded when calculating leave duration. 
+                            For example, if an employee requests leave from Monday to Friday and Wednesday is a holiday, 
+                            only 4 days will be deducted from their leave balance.
+                        </p>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-primary bg-opacity-10 border-primary h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-calendar-alt fa-3x text-primary mb-3"></i>
+                                    <h6 class="text-white">View Calendar</h6>
+                                    <p class="text-muted small mb-3">View all holidays in calendar format</p>
+                                    <a href="{% url 'holiday_calendar' %}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-eye me-1"></i>Open Calendar
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-success bg-opacity-10 border-success h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-plus-circle fa-3x text-success mb-3"></i>
+                                    <h6 class="text-white">Add Holidays</h6>
+                                    <p class="text-muted small mb-3">Add national or company holidays</p>
+                                    <a href="{% url 'hr_manage_holidays' %}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-plus me-1"></i>Add Holiday
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-warning bg-opacity-10 border-warning h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-magic fa-3x text-warning mb-3"></i>
+                                    <h6 class="text-white">Auto-Generate</h6>
+                                    <p class="text-muted small mb-3">Auto-generate Sundays & Saturdays</p>
+                                    <a href="{% url 'hr_manage_holidays' %}" class="btn btn-sm btn-warning">
+                                        <i class="fas fa-wand-magic-sparkles me-1"></i>Generate
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Holiday Check-in Policy -->
+                    <div class="card bg-dark border-danger mb-4">
+                        <div class="card-header bg-danger">
+                            <h6 class="mb-0 text-white">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Holiday Check-in Policy
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-white mb-2">
+                                <strong>What happens when an employee tries to check-in on a holiday?</strong>
+                            </p>
+                            <ol class="text-muted mb-0">
+                                <li>System checks if the date is a holiday</li>
+                                <li>If holiday detected, system checks for approved Overtime (OT) request</li>
+                                <li><strong>If OT approved:</strong> Check-in allowed, counted as overtime work</li>
+                                <li><strong>If NO OT:</strong> Warning shown but check-in still allowed, counted as normal working day</li>
+                            </ol>
+                            <div class="alert alert-warning mt-3 mb-0">
+                                <i class="fas fa-lightbulb me-2"></i>
+                                <strong>Note:</strong> Employees working on holidays without OT approval will have their attendance 
+                                counted as a regular working day, not as overtime.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- How It Works -->
+                    <div class="card bg-dark border-info">
+                        <div class="card-header bg-info">
+                            <h6 class="mb-0 text-white">
+                                <i class="fas fa-cogs me-2"></i>How Holiday System Works
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6 class="text-white">Automatic Features:</h6>
+                                    <ul class="text-muted">
+                                        <li>Sundays auto-marked as weekly offs</li>
+                                        <li>2nd & 4th Saturdays auto-calculated</li>
+                                        <li>Holidays excluded from leave count</li>
+                                        <li>Holiday check-in validation</li>
+                                        <li>Absent calculation excludes holidays</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6 class="text-white">Manual Management:</h6>
+                                    <ul class="text-muted">
+                                        <li>Add national holidays (Republic Day, etc.)</li>
+                                        <li>Add company-specific holidays</li>
+                                        <li>Add optional holidays</li>
+                                        <li>Edit or delete holidays</li>
+                                        <li>View holiday calendar</li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1497,7 +1572,9 @@ function showEmployeeList(type) {
         'all': { title: 'All Employees', icon: 'users', color: 'bg-primary' },
         'present': { title: 'Present Today', icon: 'user-check', color: 'bg-success' },
         'absent': { title: 'Absent Today', icon: 'user-times', color: 'bg-danger' },
-        'late': { title: 'Late Arrivals Today', icon: 'clock', color: 'bg-warning' }
+        'late': { title: 'Late Arrivals Today', icon: 'clock', color: 'bg-warning' },
+        'leave': { title: 'On Leave Today', icon: 'calendar-times', color: 'bg-info' },
+        'wfh': { title: 'Working From Home Today', icon: 'home', color: 'bg-primary' }
     };
     
     const config = titles[type];
@@ -1530,6 +1607,12 @@ function showEmployeeList(type) {
                 if (type === 'present' || type === 'late') {
                     html += '<th>Check-in Time</th>';
                     html += '<th>Status</th>';
+                } else if (type === 'leave') {
+                    html += '<th>Leave Type</th>';
+                    html += '<th>Duration</th>';
+                } else if (type === 'wfh') {
+                    html += '<th>WFH Duration</th>';
+                    html += '<th>Status</th>';
                 }
                 
                 html += '</tr></thead><tbody>';
@@ -1543,6 +1626,12 @@ function showEmployeeList(type) {
                     if (type === 'present' || type === 'late') {
                         html += `<td>${emp.check_in_time || 'N/A'}</td>`;
                         html += `<td><span class="badge bg-${emp.status_color}">${emp.status}</span></td>`;
+                    } else if (type === 'leave') {
+                        html += `<td><span class="badge bg-info">${emp.leave_type || 'N/A'}</span></td>`;
+                        html += `<td>${emp.duration || 'N/A'}</td>`;
+                    } else if (type === 'wfh') {
+                        html += `<td>${emp.duration || 'N/A'}</td>`;
+                        html += `<td><span class="badge bg-success">Approved</span></td>`;
                     }
                     
                     html += '</tr>';

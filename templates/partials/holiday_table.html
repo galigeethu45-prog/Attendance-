@@ -1,0 +1,34 @@
+<div class="table-responsive">
+    <table class="table table-hover table-sm">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th class="text-center">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for holiday in type_holidays %}
+            <tr id="holiday-row-{{ holiday.id }}">
+                <td>
+                    <strong class="text-white">{{ holiday.date|date:"M d, Y" }}</strong>
+                    <br><small class="text-muted">{{ holiday.date|date:"l" }}</small>
+                </td>
+                <td>
+                    <span class="text-white">{{ holiday.name }}</span>
+                    {% if holiday.description %}
+                    <br><small class="text-muted">{{ holiday.description }}</small>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-danger" 
+                            onclick="deleteHoliday({{ holiday.id }}, '{{ holiday.name }}', '{{ holiday.date|date:"M d, Y" }}')"
+                            title="Delete Holiday">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
