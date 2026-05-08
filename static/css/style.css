@@ -2173,7 +2173,7 @@ input:-webkit-autofill:active {
 
 
 /* ===================================
-   MODAL - NO BACKDROP, ALWAYS CENTERED
+   MODAL - NO BACKDROP, CENTERED
    =================================== */
 
 /* Remove backdrop completely - no blackout */
@@ -2181,50 +2181,43 @@ input:-webkit-autofill:active {
     display: none !important;
 }
 
-/* Modal should always be centered on screen, not at scroll position */
+/* Modal positioning - let Bootstrap handle it */
 .modal {
     z-index: 1055 !important;
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
 }
 
 .modal.show {
     z-index: 1055 !important;
 }
 
-/* Modal dialog - always centered */
+/* Modal dialog - centered */
 .modal-dialog {
     z-index: 1056 !important;
     position: relative;
-    margin: 0 auto !important;
+    margin: 1.75rem auto !important;
     max-width: 800px !important;
-    width: 90% !important;
+}
+
+/* Center modal vertically */
+.modal-dialog-centered {
+    display: flex !important;
+    align-items: center !important;
+    min-height: calc(100% - 3.5rem) !important;
 }
 
 /* Make modal scrollable for long content */
 .modal-dialog-scrollable {
-    max-height: 90vh !important;
-    display: flex !important;
+    max-height: calc(100vh - 3.5rem) !important;
 }
 
 .modal-dialog-scrollable .modal-content {
-    max-height: 90vh !important;
+    max-height: calc(100vh - 3.5rem) !important;
     overflow: hidden !important;
-    display: flex !important;
-    flex-direction: column !important;
 }
 
 .modal-dialog-scrollable .modal-body {
     overflow-y: auto !important;
-    flex: 1 !important;
+    max-height: calc(100vh - 210px) !important;
 }
 
 /* Modal content - bright and visible */
