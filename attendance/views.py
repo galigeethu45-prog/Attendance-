@@ -1577,55 +1577,42 @@ def hr_dashboard(request):
     total_employees = User.objects.filter(is_active=True).count()
     today_attendance = Attendance.objects.filter(date=today)
     present_today = today_attendance.filter(check_in__isnull=False).count()
-    
-    # Calculate absent - exclude if today is a holiday
-    if is_today_holiday:
-        # On holidays, only count as absent if they have approved OT but didn't check-in
-        from attendance.models import Overtime
-        employees_with_ot = Overtime.objects.filter(
-            date=today,
-            status='approved'
-        ).values_list('employee_id', flat=True)
-        
-        checked_in_employees = today_attendance.filter(
-            check_in__isnull=False
-        ).values_list('employee_id', flat=True)
-        
-        # Absent = employees with approved OT who didn't check-in
-        absent_today = len([emp_id for emp_id in employees_with_ot if emp_id not in checked_in_employees])
-    else:
-        # Regular working day
-        # Get employees on leave and WFH
-        employees_on_leave = LeaveRequest.objects.filter(
-            status='approved',
-            start_date__lte=today,
-            end_date__gte=today
-        ).values_list('employee_id', flat=True)
-        
-        employees_on_wfh = WFHRequest.objects.filter(
-            status='approved',
-            start_date__lte=today,
-            end_date__gte=today
-        ).values_list('employee_id', flat=True)
-        
-        # Absent = Total - Present - Leave - WFH
-        absent_today = total_employees - present_today - len(employees_on_leave) - len(employees_on_wfh)
-    
     late_arrivals = today_attendance.filter(status__in=['late', 'half-day']).count()
     
-    # NEW: Count employees on approved leave today
+    # Count employees on approved leave today
     leave_today = LeaveRequest.objects.filter(
         status='approved',
         start_date__lte=today,
         end_date__gte=today
     ).count()
     
-    # NEW: Count employees on approved WFH today
+    # Count employees on approved WFH today
     wfh_today = WFHRequest.objects.filter(
         status='approved',
         start_date__lte=today,
         end_date__gte=today
     ).count()
+    
+    # Calculate absent - Simple logic
+    # Absent = employees who didn't check-in AND don't have leave/WFH approval
+    checked_in_ids = today_attendance.filter(check_in__isnull=False).values_list('employee_id', flat=True)
+    leave_ids = LeaveRequest.objects.filter(
+        status='approved',
+        start_date__lte=today,
+        end_date__gte=today
+    ).values_list('employee_id', flat=True)
+    wfh_ids = WFHRequest.objects.filter(
+        status='approved',
+        start_date__lte=today,
+        end_date__gte=today
+    ).values_list('employee_id', flat=True)
+    
+    # Get all employee IDs
+    all_employee_ids = User.objects.filter(is_active=True).values_list('id', flat=True)
+    
+    # Absent = all employees - (checked-in + leave + wfh)
+    absent_ids = set(all_employee_ids) - set(checked_in_ids) - set(leave_ids) - set(wfh_ids)
+    absent_today = len(absent_ids)
     
     pending_leaves = LeaveRequest.objects.filter(status='pending').count()
     

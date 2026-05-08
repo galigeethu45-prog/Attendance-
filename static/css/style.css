@@ -2173,21 +2173,20 @@ input:-webkit-autofill:active {
 
 
 /* ===================================
-   FIX MODAL BACKDROP - ONLY DIM BACKGROUND, NOT MODAL
+   FIX MODAL BACKDROP - LIGHTER BACKGROUND
    =================================== */
 
-/* Modal backdrop should only dim the background, NOT the modal */
+/* Modal backdrop should be light, not complete blackout */
 .modal-backdrop {
-    background-color: rgba(15, 23, 42, 0.75) !important;
+    background-color: rgba(15, 23, 42, 0.5) !important;
     z-index: 1040 !important;
 }
 
-/* Ensure backdrop doesn't cover modal */
 .modal-backdrop.show {
     opacity: 1 !important;
 }
 
-/* Modal should be above backdrop and fully bright */
+/* Modal should be above backdrop */
 .modal {
     z-index: 1055 !important;
     overflow-x: hidden !important;
@@ -2220,7 +2219,7 @@ input:-webkit-autofill:active {
     max-height: calc(100vh - 210px) !important;
 }
 
-/* Modal content should be fully visible and bright - NOT dimmed */
+/* Modal content - bright and visible */
 .modal-content {
     background: rgba(30, 41, 59, 0.98) !important;
     backdrop-filter: blur(20px) !important;
@@ -2232,11 +2231,12 @@ input:-webkit-autofill:active {
     opacity: 1 !important;
 }
 
-/* Ensure all modal content is fully visible */
+/* Ensure all modal content is fully visible and bright */
 .modal-header,
 .modal-body,
 .modal-footer {
     opacity: 1 !important;
+    color: #fff !important;
     position: relative !important;
     z-index: 1058 !important;
 }
