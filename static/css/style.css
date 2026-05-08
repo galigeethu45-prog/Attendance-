@@ -2173,73 +2173,50 @@ input:-webkit-autofill:active {
 
 
 /* ===================================
-   MODAL - NO BACKDROP, CENTERED
+   MODAL - LIGHT BACKDROP, BOOTSTRAP DEFAULT
    =================================== */
 
-/* Remove backdrop completely - no blackout */
+/* Light backdrop instead of dark */
 .modal-backdrop {
-    display: none !important;
+    background-color: rgba(15, 23, 42, 0.3) !important;
 }
 
-/* Modal positioning - let Bootstrap handle it */
+.modal-backdrop.show {
+    opacity: 1 !important;
+}
+
+/* Let Bootstrap handle modal positioning */
 .modal {
     z-index: 1055 !important;
 }
 
-.modal.show {
-    z-index: 1055 !important;
-}
-
-/* Modal dialog - centered */
+/* Modal dialog */
 .modal-dialog {
-    z-index: 1056 !important;
-    position: relative;
-    margin: 1.75rem auto !important;
     max-width: 800px !important;
 }
 
-/* Center modal vertically */
-.modal-dialog-centered {
-    display: flex !important;
-    align-items: center !important;
-    min-height: calc(100% - 3.5rem) !important;
-}
-
 /* Make modal scrollable for long content */
-.modal-dialog-scrollable {
-    max-height: calc(100vh - 3.5rem) !important;
-}
-
 .modal-dialog-scrollable .modal-content {
-    max-height: calc(100vh - 3.5rem) !important;
-    overflow: hidden !important;
+    max-height: 90vh !important;
 }
 
 .modal-dialog-scrollable .modal-body {
     overflow-y: auto !important;
-    max-height: calc(100vh - 210px) !important;
 }
 
 /* Modal content - bright and visible */
 .modal-content {
     background: rgba(30, 41, 59, 0.98) !important;
     backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
     border: 1px solid rgba(59, 130, 246, 0.3) !important;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5) !important;
-    position: relative !important;
-    z-index: 1057 !important;
-    opacity: 1 !important;
 }
 
-/* Ensure all modal content is fully visible and bright */
+/* Ensure all modal content is visible */
 .modal-header,
 .modal-body,
 .modal-footer {
-    opacity: 1 !important;
     color: #fff !important;
-    position: relative !important;
-    z-index: 1058 !important;
 }
 
 /* All text and elements in modal should be fully visible */
@@ -2524,4 +2501,11 @@ input[type="time"]:invalid {
 
 .is-invalid {
     border-color: #EF4444 !important;
+}
+
+
+/* Allow page scrolling when modal is open */
+body.modal-open {
+    overflow: auto !important;
+    padding-right: 0 !important;
 }
