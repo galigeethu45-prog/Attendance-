@@ -202,15 +202,26 @@
                                         {% else %}
                                         <span class="badge bg-danger">Rejected</span>
                                         {% endif %}
+                                        
+                                        <!-- Show approval progress for pending requests -->
+                                        {% if leave.status == 'pending' %}
+                                            <br>
+                                            <small class="text-muted">
+                                                {% if leave.manager_approved %}
+                                                    <i class="fas fa-check text-success"></i> Manager ✓
+                                                {% elif leave.leave_type != 'sick' %}
+                                                    <i class="fas fa-clock text-warning"></i> Manager pending
+                                                {% endif %}
+                                            </small>
+                                        {% endif %}
                                     </td>
                                     <td>
+                                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ leave.id }}">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
                                         {% if leave.status == 'pending' %}
                                         <button class="btn btn-sm btn-outline-danger" onclick="cancelLeave({{ leave.id }})">
                                             <i class="fas fa-times"></i>
-                                        </button>
-                                        {% else %}
-                                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ leave.id }}">
-                                            <i class="fas fa-eye"></i>
                                         </button>
                                         {% endif %}
                                     </td>
@@ -237,20 +248,83 @@
                                                 <p><strong>Total Days:</strong> {{ leave.total_days }}</p>
                                                 <p><strong>Reason:</strong> {{ leave.reason }}</p>
                                                 <p><strong>Status:</strong> 
-                                                    <span class="badge bg-{{ leave.status }}">{{ leave.get_status_display }}</span>
+                                                    {% if leave.status == 'pending' %}
+                                                        <span class="badge bg-warning">Pending Approval</span>
+                                                    {% elif leave.status == 'approved' %}
+                                                        <span class="badge bg-success">Approved</span>
+                                                    {% else %}
+                                                        <span class="badge bg-danger">Rejected</span>
+                                                    {% endif %}
                                                 </p>
                                                 
-                                                <!-- Approval Chain -->
-                                                {% if leave.tl_comment or leave.manager_comment or leave.hr_comment %}
+                                                <!-- Approval Status Chain (Always show for all requests) -->
                                                 <hr>
-                                                <h6 class="mb-3"><i class="fas fa-sitemap me-2"></i>Approval Chain</h6>
+                                                <h6 class="mb-3"><i class="fas fa-sitemap me-2"></i>Approval Status</h6>
                                                 
-                                                <!-- TL Review -->
+                                                <!-- Manager Approval Status -->
+                                                {% if leave.leave_type != 'sick' %}
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        {% if leave.manager_approved %}
+                                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                                            <strong>Manager: Approved ✓</strong>
+                                                        {% elif leave.manager_comment and not leave.manager_approved %}
+                                                            <i class="fas fa-times-circle text-danger me-2"></i>
+                                                            <strong>Manager: Rejected ✗</strong>
+                                                        {% else %}
+                                                            <i class="fas fa-clock text-warning me-2"></i>
+                                                            <strong>Manager: Pending Review</strong>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if leave.manager_comment %}
+                                                    <div class="alert {% if leave.manager_approved %}alert-success{% else %}alert-danger{% endif %} mb-0">
+                                                        <small>{{ leave.manager_comment }}</small>
+                                                        <br><small class="text-muted">
+                                                            - {{ leave.manager_approver.get_full_name|default:leave.manager_approver.username }}
+                                                            ({{ leave.manager_approved_at|date:"M d, Y H:i" }})
+                                                        </small>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                {% else %}
+                                                <div class="mb-3">
+                                                    <div class="alert alert-info mb-0">
+                                                        <i class="fas fa-info-circle me-2"></i>
+                                                        <small><strong>Sick Leave:</strong> Manager approval not required - HR can approve directly</small>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
+                                                
+                                                <!-- HR Final Decision Status -->
+                                                <div class="mb-3">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        {% if leave.status == 'approved' %}
+                                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                                            <strong>HR: Approved ✓</strong>
+                                                        {% elif leave.status == 'rejected' %}
+                                                            <i class="fas fa-times-circle text-danger me-2"></i>
+                                                            <strong>HR: Rejected ✗</strong>
+                                                        {% else %}
+                                                            <i class="fas fa-clock text-warning me-2"></i>
+                                                            <strong>HR: Pending Final Approval</strong>
+                                                            {% if leave.leave_type != 'sick' and not leave.manager_approved %}
+                                                                <br><small class="text-muted">(Waiting for Manager approval first)</small>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if leave.hr_comment %}
+                                                    <div class="alert {% if leave.status == 'approved' %}alert-success{% else %}alert-danger{% endif %} mb-0">
+                                                        <small>{{ leave.hr_comment }}</small>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                
+                                                <!-- TL Comment (if any) -->
                                                 {% if leave.tl_comment %}
                                                 <div class="mb-3">
                                                     <div class="d-flex align-items-center mb-2">
-                                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                                        <strong>Team Leader Review</strong>
+                                                        <i class="fas fa-comment text-info me-2"></i>
+                                                        <strong>Team Leader Comment</strong>
                                                     </div>
                                                     <div class="alert alert-info mb-0">
                                                         <small>{{ leave.tl_comment }}</small>
@@ -260,69 +334,6 @@
                                                         </small>
                                                     </div>
                                                 </div>
-                                                {% else %}
-                                                <div class="mb-3">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <i class="fas fa-clock text-warning me-2"></i>
-                                                        <strong>Team Leader Review</strong>
-                                                    </div>
-                                                    <small class="text-muted">Pending review</small>
-                                                </div>
-                                                {% endif %}
-                                                
-                                                <!-- Manager Review -->
-                                                {% if leave.manager_comment %}
-                                                <div class="mb-3">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        {% if leave.manager_approved %}
-                                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                                        {% else %}
-                                                        <i class="fas fa-times-circle text-danger me-2"></i>
-                                                        {% endif %}
-                                                        <strong>Manager Review</strong>
-                                                    </div>
-                                                    <div class="alert {% if leave.manager_approved %}alert-success{% else %}alert-danger{% endif %} mb-0">
-                                                        <small>{{ leave.manager_comment }}</small>
-                                                        <br><small class="text-muted">
-                                                            - {{ leave.manager_approver.get_full_name|default:leave.manager_approver.username }}
-                                                            ({{ leave.manager_approved_at|date:"M d, Y H:i" }})
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                                {% elif leave.tl_comment %}
-                                                <div class="mb-3">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <i class="fas fa-clock text-warning me-2"></i>
-                                                        <strong>Manager Review</strong>
-                                                    </div>
-                                                    <small class="text-muted">Pending review</small>
-                                                </div>
-                                                {% endif %}
-                                                
-                                                <!-- HR Final Decision -->
-                                                {% if leave.hr_comment %}
-                                                <div class="mb-3">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        {% if leave.status == 'approved' %}
-                                                        <i class="fas fa-check-circle text-success me-2"></i>
-                                                        {% else %}
-                                                        <i class="fas fa-times-circle text-danger me-2"></i>
-                                                        {% endif %}
-                                                        <strong>HR Final Decision</strong>
-                                                    </div>
-                                                    <div class="alert {% if leave.status == 'approved' %}alert-success{% else %}alert-danger{% endif %} mb-0">
-                                                        <small>{{ leave.hr_comment }}</small>
-                                                    </div>
-                                                </div>
-                                                {% elif leave.manager_approved %}
-                                                <div class="mb-3">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <i class="fas fa-clock text-warning me-2"></i>
-                                                        <strong>HR Final Decision</strong>
-                                                    </div>
-                                                    <small class="text-muted">Pending final approval</small>
-                                                </div>
-                                                {% endif %}
                                                 {% endif %}
                                             </div>
                                         </div>

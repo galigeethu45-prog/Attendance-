@@ -14,14 +14,47 @@
         </div>
     </div>
 
-    <!-- Pending Approvals -->
+    <!-- Overtime Requests -->
     <div class="card glass-card mb-4 fade-in-delay-1">
         <div class="card-header">
             <h5 class="mb-0">
-                <i class="fas fa-clock me-2"></i>Pending Approvals
-                <span class="badge bg-warning ms-2">{{ pending_ot.count }}</span>
+                <i class="fas fa-clock me-2"></i>Overtime Requests
             </h5>
         </div>
+        
+        <!-- Status Filter Tabs -->
+        <div class="card-body pb-0">
+            <ul class="nav nav-tabs mb-3" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}" 
+                       href="?status=pending">
+                        <i class="fas fa-clock me-1"></i>Pending
+                        <span class="badge bg-warning ms-1">{{ pending_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link {% if status_filter == 'approved' %}active{% endif %}" 
+                       href="?status=approved">
+                        <i class="fas fa-check-circle me-1"></i>Approved
+                        <span class="badge bg-success ms-1">{{ approved_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link {% if status_filter == 'rejected' %}active{% endif %}" 
+                       href="?status=rejected">
+                        <i class="fas fa-times-circle me-1"></i>Rejected
+                        <span class="badge bg-danger ms-1">{{ rejected_count }}</span>
+                    </a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
+                       href="?status=all">
+                        <i class="fas fa-list me-1"></i>All
+                    </a>
+                </li>
+            </ul>
+        </div>
+        
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover">
@@ -31,11 +64,12 @@
                             <th>Date</th>
                             <th>Reason</th>
                             <th>Requested At</th>
+                            <th>Status</th>
                             <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for ot in pending_ot %}
+                        {% for ot in ot_requests %}
                         <tr>
                             <td>
                                 <div class="d-flex align-items-center">
@@ -52,16 +86,32 @@
                             <td>{{ ot.reason|truncatewords:10 }}</td>
                             <td>{{ ot.requested_at|date:"M d, Y h:i A" }}</td>
                             <td>
+                                {% if ot.status == 'pending' %}
+                                    <span class="badge bg-warning">Pending</span>
+                                {% elif ot.status == 'approved' %}
+                                    <span class="badge bg-success">Approved</span>
+                                {% elif ot.status == 'rejected' %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if status_filter == 'pending' %}
                                 <button class="btn btn-success btn-sm me-1" data-bs-toggle="modal" data-bs-target="#approveModal{{ ot.id }}">
                                     <i class="fas fa-check"></i> Approve
                                 </button>
                                 <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal{{ ot.id }}">
                                     <i class="fas fa-times"></i> Reject
                                 </button>
+                                {% else %}
+                                <button class="btn btn-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewModal{{ ot.id }}">
+                                    <i class="fas fa-eye"></i> View
+                                </button>
+                                {% endif %}
                             </td>
                         </tr>
                         
-                        <!-- Approve Modal -->
+                        <!-- Approve Modal (only for pending) -->
+                        {% if status_filter == 'pending' %}
                         <div class="modal fade" id="approveModal{{ ot.id }}" tabindex="-1">
                             <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
                                 <div class="modal-content">
@@ -126,11 +176,54 @@
                                 </div>
                             </div>
                         </div>
+                        {% else %}
+                        <!-- View Modal (for approved/rejected) -->
+                        <div class="modal fade" id="viewModal{{ ot.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Overtime Request Details</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p><strong>Employee:</strong> {{ ot.employee.get_full_name|default:ot.employee.username }}</p>
+                                        <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
+                                        <p><strong>Reason:</strong> {{ ot.reason }}</p>
+                                        <p><strong>Requested At:</strong> {{ ot.requested_at|date:"M d, Y h:i A" }}</p>
+                                        <p><strong>Status:</strong> 
+                                            {% if ot.status == 'approved' %}
+                                                <span class="badge bg-success">Approved</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                            {% endif %}
+                                        </p>
+                                        {% if ot.hr_comment %}
+                                        <p><strong>HR Comment:</strong> {{ ot.hr_comment }}</p>
+                                        {% endif %}
+                                        {% if ot.hr_approver %}
+                                        <p><strong>Approved/Rejected By:</strong> {{ ot.hr_approver.get_full_name|default:ot.hr_approver.username }}</p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
                         {% empty %}
                         <tr>
                             <td colspan="6" class="text-center text-white py-4">
-                                <i class="fas fa-check-circle fa-3x mb-3 d-block"></i>
-                                No pending approvals
+                                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                {% if status_filter == 'pending' %}
+                                    No pending overtime requests
+                                {% elif status_filter == 'approved' %}
+                                    No approved overtime requests found
+                                {% elif status_filter == 'rejected' %}
+                                    No rejected overtime requests found
+                                {% else %}
+                                    No overtime requests found
+                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}

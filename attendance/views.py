@@ -1264,31 +1264,61 @@ def leave_approval(request):
         messages.error(request, 'Access denied. This page is for Team Leaders, Managers, and HR only.')
         return redirect('dashboard')
     
-    # PARALLEL WORKFLOW: Show requests based on what the current role hasn't done yet
-    if user_role == 'team_leader':
-        # TL sees all pending requests where they haven't commented yet
-        pending_requests = LeaveRequest.objects.filter(
-            status='pending',
-            tl_comment__isnull=True
-        ).select_related('employee', 'employee__employeeprofile').order_by('-created_at')
-        
-    elif user_role == 'manager':
-        # Manager sees all pending requests where they haven't approved/rejected yet
-        pending_requests = LeaveRequest.objects.filter(
-            status='pending',
-            manager_comment__isnull=True
-        ).select_related('employee', 'employee__employeeprofile', 'tl_approver').order_by('-created_at')
-        
-    else:  # HR or superuser
-        # HR sees all pending requests where they haven't made final decision yet
-        pending_requests = LeaveRequest.objects.filter(
-            status='pending',
-            hr_comment__isnull=True
+    # Get filter parameter (default: pending)
+    status_filter = request.GET.get('status', 'pending')
+    
+    # PARALLEL WORKFLOW: Show requests based on status filter
+    if status_filter == 'pending':
+        if user_role == 'team_leader':
+            # TL sees all pending requests where they haven't commented yet
+            requests = LeaveRequest.objects.filter(
+                status='pending',
+                tl_comment__isnull=True
+            ).select_related('employee', 'employee__employeeprofile').order_by('-created_at')
+            
+        elif user_role == 'manager':
+            # Manager sees all pending requests where they haven't approved/rejected yet
+            requests = LeaveRequest.objects.filter(
+                status='pending',
+                manager_comment__isnull=True
+            ).select_related('employee', 'employee__employeeprofile', 'tl_approver').order_by('-created_at')
+            
+        else:  # HR or superuser
+            # HR sees all pending requests where they haven't made final decision yet
+            requests = LeaveRequest.objects.filter(
+                status='pending'
+            ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+    
+    elif status_filter == 'approved':
+        # Show approved requests
+        requests = LeaveRequest.objects.filter(
+            status='approved'
         ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
     
+    elif status_filter == 'rejected':
+        # Show rejected requests
+        requests = LeaveRequest.objects.filter(
+            status='rejected'
+        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+    
+    else:  # 'all'
+        # Show all requests
+        requests = LeaveRequest.objects.all().select_related(
+            'employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver'
+        ).order_by('-created_at')
+    
+    # Count for badges
+    pending_count = LeaveRequest.objects.filter(status='pending').count()
+    approved_count = LeaveRequest.objects.filter(status='approved').count()
+    rejected_count = LeaveRequest.objects.filter(status='rejected').count()
+    
     context = {
-        'pending_requests': pending_requests,
+        'requests': requests,
         'user_role': user_role,
+        'status_filter': status_filter,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'rejected_count': rejected_count,
     }
     
     return render(request, 'leave_approval.html', context)
@@ -1329,10 +1359,8 @@ def leave_action(request, leave_id, action):
     
     # Team Leader action - Add comment (PARALLEL - doesn't block others)
     if (user_role == 'team_leader' or user_role == 'tl') and action == 'comment':
-        if not comment:
-            return JsonResponse({'success': False, 'error': 'Comment is required'})
-        
-        leave.tl_comment = comment
+        # Comment is optional
+        leave.tl_comment = comment if comment else 'Reviewed by TL'
         leave.tl_approver = request.user
         leave.tl_approved_at = timezone.now()
         leave.tl_approved = True
@@ -1352,10 +1380,8 @@ def leave_action(request, leave_id, action):
     
     # Manager action - Approve or Reject (PARALLEL - doesn't require TL comment)
     elif user_role == 'manager' and action in ['approve', 'reject']:
-        if not comment:
-            return JsonResponse({'success': False, 'error': 'Comment is required'})
-        
-        leave.manager_comment = comment
+        # Comment is optional
+        leave.manager_comment = comment if comment else ''
         leave.manager_approver = request.user
         leave.manager_approved_at = timezone.now()
         
@@ -1398,23 +1424,39 @@ def leave_action(request, leave_id, action):
             
             return JsonResponse({'success': True, 'message': 'Leave rejected by Manager'})
     
-    # HR action - Final Approve or Reject (PARALLEL - can see all comments)
+    # HR action - Final Approve or Reject
     elif user_role == 'hr' and action in ['approve', 'reject']:
         # Comment is optional for HR
         leave.hr_comment = comment if comment else ''
         
         if action == 'approve':
-            # HR has final authority - no manager approval required
-            # TL and Manager comments are advisory only
-            leave.status = 'approved'
-            leave.save()
-            
-            # Notify employee
-            comment_text = f': {comment}' if comment else ''
-            Notification.objects.create(
-                employee=leave.employee,
-                message=f'Your leave request has been APPROVED by HR{comment_text}'
-            )
+            # Check leave type for approval requirements
+            if leave.leave_type == 'sick':
+                # Sick leave: HR can approve directly (no manager approval needed)
+                leave.status = 'approved'
+                leave.save()
+                
+                comment_text = f': {comment}' if comment else ''
+                Notification.objects.create(
+                    employee=leave.employee,
+                    message=f'Your sick leave request has been APPROVED by HR{comment_text}'
+                )
+            else:
+                # Other leave types: Manager approval required first
+                if not leave.manager_approved:
+                    return JsonResponse({
+                        'success': False, 
+                        'error': 'Manager approval required before HR can approve this leave request'
+                    })
+                
+                leave.status = 'approved'
+                leave.save()
+                
+                comment_text = f': {comment}' if comment else ''
+                Notification.objects.create(
+                    employee=leave.employee,
+                    message=f'Your leave request has been APPROVED by HR{comment_text}'
+                )
             
             # Notify manager and TL
             if leave.manager_approver:
@@ -2817,17 +2859,41 @@ def overtime_approval(request):
         
         return redirect('overtime_approval')
     
-    # Get pending OT requests (not started yet)
-    pending_ot = Overtime.objects.filter(
-        status='pending'
-    ).select_related('employee').order_by('-requested_at')
+    # Get filter parameter (default: pending)
+    status_filter = request.GET.get('status', 'pending')
     
-    # Get all OT records
-    all_ot = Overtime.objects.all().select_related('employee', 'hr_approver').order_by('-requested_at')[:50]
+    # Filter OT requests based on status
+    if status_filter == 'pending':
+        ot_requests = Overtime.objects.filter(
+            status='pending'
+        ).select_related('employee').order_by('-requested_at')
+    
+    elif status_filter == 'approved':
+        ot_requests = Overtime.objects.filter(
+            status='approved'
+        ).select_related('employee', 'hr_approver').order_by('-requested_at')
+    
+    elif status_filter == 'rejected':
+        ot_requests = Overtime.objects.filter(
+            status='rejected'
+        ).select_related('employee', 'hr_approver').order_by('-requested_at')
+    
+    else:  # 'all'
+        ot_requests = Overtime.objects.all().select_related(
+            'employee', 'hr_approver'
+        ).order_by('-requested_at')
+    
+    # Count for badges
+    pending_count = Overtime.objects.filter(status='pending').count()
+    approved_count = Overtime.objects.filter(status='approved').count()
+    rejected_count = Overtime.objects.filter(status='rejected').count()
     
     context = {
-        'pending_ot': pending_ot,
-        'all_ot': all_ot,
+        'ot_requests': ot_requests,
+        'status_filter': status_filter,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'rejected_count': rejected_count,
     }
     
     return render(request, 'overtime_approval.html', context)
@@ -3184,15 +3250,42 @@ def wfh_approval(request):
         messages.error(request, 'Access denied. This page is for Team Leaders, Managers, and HR only.')
         return redirect('dashboard')
     
-    # PARALLEL WORKFLOW: All roles see all pending requests
-    # The action handler will enforce the approval hierarchy
-    pending_requests = WFHRequest.objects.filter(
-        status='pending'
-    ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+    # Get filter parameter (default: pending)
+    status_filter = request.GET.get('status', 'pending')
+    
+    # Filter requests based on status
+    if status_filter == 'pending':
+        requests = WFHRequest.objects.filter(
+            status='pending'
+        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+    
+    elif status_filter == 'approved':
+        requests = WFHRequest.objects.filter(
+            status='approved'
+        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver', 'hr_approver').order_by('-created_at')
+    
+    elif status_filter == 'rejected':
+        requests = WFHRequest.objects.filter(
+            status='rejected'
+        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+    
+    else:  # 'all'
+        requests = WFHRequest.objects.all().select_related(
+            'employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver', 'hr_approver'
+        ).order_by('-created_at')
+    
+    # Count for badges
+    pending_count = WFHRequest.objects.filter(status='pending').count()
+    approved_count = WFHRequest.objects.filter(status='approved').count()
+    rejected_count = WFHRequest.objects.filter(status='rejected').count()
     
     context = {
-        'pending_requests': pending_requests,
+        'requests': requests,
         'user_role': user_role,
+        'status_filter': status_filter,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'rejected_count': rejected_count,
     }
     
     return render(request, 'wfh_approval.html', context)
@@ -3229,10 +3322,8 @@ def wfh_action(request, wfh_id, action):
     
     # Team Leader action - Add comment (can act anytime)
     if user_role == 'team_leader' and action == 'comment':
-        if not comment:
-            return JsonResponse({'success': False, 'error': 'Comment is required'})
-        
-        wfh.tl_comment = comment
+        # Comment is optional
+        wfh.tl_comment = comment if comment else 'Reviewed by TL'
         wfh.tl_approver = request.user
         wfh.tl_approved_at = timezone.now()
         wfh.tl_approved = True
@@ -3254,10 +3345,8 @@ def wfh_action(request, wfh_id, action):
     
     # Manager action - Approve or Reject (can act anytime)
     elif user_role == 'manager' and action in ['approve', 'reject']:
-        if not comment:
-            return JsonResponse({'success': False, 'error': 'Comment is required'})
-        
-        wfh.manager_comment = comment
+        # Comment is optional
+        wfh.manager_comment = comment if comment else ''
         wfh.manager_approver = request.user
         wfh.manager_approved_at = timezone.now()
         
@@ -3294,12 +3383,19 @@ def wfh_action(request, wfh_id, action):
             
             return JsonResponse({'success': True, 'message': 'WFH rejected'})
     
-    # HR action - Final Approve or Reject (HR has final authority)
+    # HR action - Final Approve or Reject (Manager approval required first)
     elif user_role == 'hr' and action in ['approve', 'reject']:
         # Comment is optional for HR
         wfh.hr_comment = comment if comment else ''
         
         if action == 'approve':
+            # WFH requires manager approval before HR can approve
+            if not wfh.manager_approved:
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'Manager approval required before HR can approve WFH request'
+                })
+            
             wfh.status = 'approved'
             wfh.hr_approver = request.user
             wfh.save()
@@ -3677,15 +3773,42 @@ def onsite_approval(request):
         messages.error(request, 'Access denied. This page is for Managers and HR only.')
         return redirect('dashboard')
     
-    # PARALLEL WORKFLOW: Both roles see all pending requests
-    # The action handler will enforce the approval hierarchy
-    pending_requests = OnsiteRequest.objects.filter(
-        status='pending'
-    ).select_related('employee', 'employee__employeeprofile', 'manager_approver').order_by('-visit_date')
+    # Get filter parameter (default: pending)
+    status_filter = request.GET.get('status', 'pending')
+    
+    # Filter requests based on status
+    if status_filter == 'pending':
+        requests = OnsiteRequest.objects.filter(
+            status='pending'
+        ).select_related('employee', 'employee__employeeprofile', 'manager_approver').order_by('-visit_date')
+    
+    elif status_filter == 'approved':
+        requests = OnsiteRequest.objects.filter(
+            status='approved'
+        ).select_related('employee', 'employee__employeeprofile', 'manager_approver', 'hr_approver').order_by('-visit_date')
+    
+    elif status_filter == 'rejected':
+        requests = OnsiteRequest.objects.filter(
+            status='rejected'
+        ).select_related('employee', 'employee__employeeprofile', 'manager_approver').order_by('-visit_date')
+    
+    else:  # 'all'
+        requests = OnsiteRequest.objects.all().select_related(
+            'employee', 'employee__employeeprofile', 'manager_approver', 'hr_approver'
+        ).order_by('-visit_date')
+    
+    # Count for badges
+    pending_count = OnsiteRequest.objects.filter(status='pending').count()
+    approved_count = OnsiteRequest.objects.filter(status='approved').count()
+    rejected_count = OnsiteRequest.objects.filter(status='rejected').count()
     
     context = {
-        'pending_requests': pending_requests,
+        'requests': requests,
         'user_role': user_role,
+        'status_filter': status_filter,
+        'pending_count': pending_count,
+        'approved_count': approved_count,
+        'rejected_count': rejected_count,
     }
     
     return render(request, 'onsite_approval.html', context)

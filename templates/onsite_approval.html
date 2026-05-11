@@ -30,12 +30,45 @@
             <div class="card glass-card fade-in-delay-1">
                 <div class="card-header">
                     <h5 class="mb-0">
-                        <i class="fas fa-list me-2"></i>Pending Onsite Requests
-                        <span class="badge bg-warning ms-2">{{ pending_requests.count }}</span>
+                        <i class="fas fa-list me-2"></i>Onsite Requests
                     </h5>
                 </div>
+                
+                <!-- Status Filter Tabs -->
+                <div class="card-body pb-0">
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}" 
+                               href="?status=pending">
+                                <i class="fas fa-clock me-1"></i>Pending
+                                <span class="badge bg-warning ms-1">{{ pending_count }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if status_filter == 'approved' %}active{% endif %}" 
+                               href="?status=approved">
+                                <i class="fas fa-check-circle me-1"></i>Approved
+                                <span class="badge bg-success ms-1">{{ approved_count }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if status_filter == 'rejected' %}active{% endif %}" 
+                               href="?status=rejected">
+                                <i class="fas fa-times-circle me-1"></i>Rejected
+                                <span class="badge bg-danger ms-1">{{ rejected_count }}</span>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
+                               href="?status=all">
+                                <i class="fas fa-list me-1"></i>All
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
                 <div class="card-body">
-                    {% for onsite in pending_requests %}
+                    {% for onsite in requests %}
                     <!-- Request Card -->
                     <div class="request-card fade-in">
                         <!-- Card Header - Employee Info -->
@@ -140,7 +173,8 @@
                         </div>
                         {% endif %}
 
-                        <!-- Card Footer - Action Button -->
+                        <!-- Card Footer - Action Button (only for pending requests) -->
+                        {% if status_filter == 'pending' %}
                         <div class="request-card-footer">
                             <button class="btn btn-primary request-card-action-btn" 
                                     data-bs-toggle="modal" 
@@ -148,9 +182,24 @@
                                 <i class="fas fa-tasks"></i> Review Request
                             </button>
                         </div>
+                        {% else %}
+                        <!-- Show status badge for non-pending requests -->
+                        <div class="request-card-footer">
+                            {% if onsite.status == 'approved' %}
+                                <span class="badge bg-success" style="font-size: 1rem; padding: 0.5rem 1rem;">
+                                    <i class="fas fa-check-circle me-1"></i>Approved
+                                </span>
+                            {% elif onsite.status == 'rejected' %}
+                                <span class="badge bg-danger" style="font-size: 1rem; padding: 0.5rem 1rem;">
+                                    <i class="fas fa-times-circle me-1"></i>Rejected
+                                </span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
 
-                    <!-- Action Modal -->
+                    <!-- Action Modal (only for pending requests) -->
+                    {% if status_filter == 'pending' %}
                     <div class="modal fade" id="actionModal{{ onsite.id }}" tabindex="-1">
                         <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
                             <div class="modal-content">
@@ -226,11 +275,22 @@
                             </div>
                         </div>
                     </div>
+                    {% endif %}
                     {% empty %}
                     <div class="request-cards-empty">
                         <i class="fas fa-inbox"></i>
-                        <h5>No Pending Requests</h5>
-                        <p>No pending onsite requests at this stage</p>
+                        <h5>No Requests</h5>
+                        <p>
+                            {% if status_filter == 'pending' %}
+                                No pending onsite requests at this time
+                            {% elif status_filter == 'approved' %}
+                                No approved onsite requests found
+                            {% elif status_filter == 'rejected' %}
+                                No rejected onsite requests found
+                            {% else %}
+                                No onsite requests found
+                            {% endif %}
+                        </p>
                     </div>
                     {% endfor %}
                 </div>

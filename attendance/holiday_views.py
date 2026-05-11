@@ -27,6 +27,11 @@ def holiday_calendar(request):
     # Get holidays for the selected month
     holidays = CompanyHoliday.get_holidays_for_month(year, month)
     
+    # Create a dictionary for quick holiday lookup by day number
+    holidays_dict = {}
+    for holiday in holidays:
+        holidays_dict[holiday.date.day] = holiday
+    
     # Get all holidays for the year (for sidebar)
     year_holidays = CompanyHoliday.get_holidays_for_year(year)
     
@@ -43,9 +48,28 @@ def holiday_calendar(request):
     for holiday in year_holidays:
         holidays_by_type[holiday.holiday_type].append(holiday)
     
-    # Calendar data
+    # Calendar data - create enhanced structure with holiday info
+    # Set first day of week to Sunday (6) to match our headers
+    calendar.setfirstweekday(calendar.SUNDAY)
     cal = calendar.monthcalendar(year, month)
     month_name = calendar.month_name[month]
+    
+    # Create enhanced calendar with holiday data embedded
+    enhanced_calendar = []
+    for week in cal:
+        enhanced_week = []
+        for day in week:
+            if day == 0:
+                enhanced_week.append({'day': 0, 'is_holiday': False})
+            else:
+                holiday = holidays_dict.get(day)
+                enhanced_week.append({
+                    'day': day,
+                    'is_holiday': holiday is not None,
+                    'holiday': holiday,
+                    'is_today': (day == current_date.day and month == current_date.month and year == current_date.year)
+                })
+        enhanced_calendar.append(enhanced_week)
     
     # Get upcoming holidays (next 5)
     upcoming_holidays = CompanyHoliday.objects.filter(
@@ -57,8 +81,9 @@ def holiday_calendar(request):
         'year': year,
         'month': month,
         'month_name': month_name,
-        'calendar': cal,
+        'calendar': enhanced_calendar,  # Use enhanced calendar
         'holidays': holidays,
+        'holidays_dict': holidays_dict,
         'year_holidays': year_holidays,
         'holidays_by_type': holidays_by_type,
         'upcoming_holidays': upcoming_holidays,

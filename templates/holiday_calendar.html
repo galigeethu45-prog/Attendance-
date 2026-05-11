@@ -67,40 +67,34 @@
                         <!-- Calendar Days -->
                         <div class="calendar-body">
                             {% for week in calendar %}
-                                {% for day in week %}
-                                    {% if day == 0 %}
+                                {% for day_data in week %}
+                                    {% if day_data.day == 0 %}
                                         <div class="calendar-day empty"></div>
-                                    {% else %}
-                                        {% comment %} Check if this day is a holiday {% endcomment %}
-                                        {% with day_is_holiday=False %}
-                                            {% for holiday in holidays %}
-                                                {% if holiday.date.day == day and not day_is_holiday %}
-                                                    <div class="calendar-day holiday holiday-{{ holiday.holiday_type }}" 
-                                                         title="{{ holiday.name }} - {{ holiday.get_holiday_type_display }}">
-                                                        <div class="day-number">{{ day }}</div>
-                                                        <div class="day-label">
-                                                            {% if holiday.holiday_type == 'weekly_off' %}
-                                                                <i class="fas fa-sun text-warning"></i>
-                                                            {% elif holiday.holiday_type == 'second_saturday' or holiday.holiday_type == 'fourth_saturday' %}
-                                                                <i class="fas fa-calendar-week text-info"></i>
-                                                            {% elif holiday.holiday_type == 'national' %}
-                                                                <i class="fas fa-flag text-danger"></i>
-                                                            {% elif holiday.holiday_type == 'company' %}
-                                                                <i class="fas fa-building text-success"></i>
-                                                            {% else %}
-                                                                <i class="fas fa-star text-primary"></i>
-                                                            {% endif %}
-                                                            <small>{{ holiday.name|truncatewords:2 }}</small>
-                                                        </div>
-                                                    </div>
+                                    {% elif day_data.is_holiday %}
+                                        {% with holiday=day_data.holiday %}
+                                        <div class="calendar-day holiday holiday-{{ holiday.holiday_type }}" 
+                                             title="{{ holiday.name }} - {{ holiday.get_holiday_type_display }}">
+                                            <div class="day-number">{{ day_data.day }}</div>
+                                            <div class="day-label">
+                                                {% if holiday.holiday_type == 'weekly_off' %}
+                                                    <i class="fas fa-sun text-warning"></i>
+                                                {% elif holiday.holiday_type == 'second_saturday' or holiday.holiday_type == 'fourth_saturday' %}
+                                                    <i class="fas fa-calendar-week text-info"></i>
+                                                {% elif holiday.holiday_type == 'national' %}
+                                                    <i class="fas fa-flag text-danger"></i>
+                                                {% elif holiday.holiday_type == 'company' %}
+                                                    <i class="fas fa-building text-success"></i>
+                                                {% else %}
+                                                    <i class="fas fa-star text-primary"></i>
                                                 {% endif %}
-                                            {% empty %}
-                                                {% comment %} No holidays, render regular day {% endcomment %}
-                                                <div class="calendar-day {% if day == current_date.day and month == current_date.month and year == current_date.year %}today{% endif %}">
-                                                    <div class="day-number">{{ day }}</div>
-                                                </div>
-                                            {% endfor %}
+                                                <small>{{ holiday.name|truncatewords:2 }}</small>
+                                            </div>
+                                        </div>
                                         {% endwith %}
+                                    {% else %}
+                                        <div class="calendar-day {% if day_data.is_today %}today{% endif %}">
+                                            <div class="day-number">{{ day_data.day }}</div>
+                                        </div>
                                     {% endif %}
                                 {% endfor %}
                             {% endfor %}
