@@ -1424,39 +1424,21 @@ def leave_action(request, leave_id, action):
             
             return JsonResponse({'success': True, 'message': 'Leave rejected by Manager'})
     
-    # HR action - Final Approve or Reject
+    # HR action - Final Approve or Reject (HR has full authority)
     elif user_role == 'hr' and action in ['approve', 'reject']:
         # Comment is optional for HR
         leave.hr_comment = comment if comment else ''
         
         if action == 'approve':
-            # Check leave type for approval requirements
-            if leave.leave_type == 'sick':
-                # Sick leave: HR can approve directly (no manager approval needed)
-                leave.status = 'approved'
-                leave.save()
-                
-                comment_text = f': {comment}' if comment else ''
-                Notification.objects.create(
-                    employee=leave.employee,
-                    message=f'Your sick leave request has been APPROVED by HR{comment_text}'
-                )
-            else:
-                # Other leave types: Manager approval required first
-                if not leave.manager_approved:
-                    return JsonResponse({
-                        'success': False, 
-                        'error': 'Manager approval required before HR can approve this leave request'
-                    })
-                
-                leave.status = 'approved'
-                leave.save()
-                
-                comment_text = f': {comment}' if comment else ''
-                Notification.objects.create(
-                    employee=leave.employee,
-                    message=f'Your leave request has been APPROVED by HR{comment_text}'
-                )
+            # HR can approve any leave type directly (no manager approval needed)
+            leave.status = 'approved'
+            leave.save()
+            
+            comment_text = f': {comment}' if comment else ''
+            Notification.objects.create(
+                employee=leave.employee,
+                message=f'Your leave request has been APPROVED by HR{comment_text}'
+            )
             
             # Notify manager and TL
             if leave.manager_approver:
@@ -3383,19 +3365,13 @@ def wfh_action(request, wfh_id, action):
             
             return JsonResponse({'success': True, 'message': 'WFH rejected'})
     
-    # HR action - Final Approve or Reject (Manager approval required first)
+    # HR action - Final Approve or Reject (HR has full authority)
     elif user_role == 'hr' and action in ['approve', 'reject']:
         # Comment is optional for HR
         wfh.hr_comment = comment if comment else ''
         
         if action == 'approve':
-            # WFH requires manager approval before HR can approve
-            if not wfh.manager_approved:
-                return JsonResponse({
-                    'success': False, 
-                    'error': 'Manager approval required before HR can approve WFH request'
-                })
-            
+            # HR can approve directly (no manager approval needed)
             wfh.status = 'approved'
             wfh.hr_approver = request.user
             wfh.save()

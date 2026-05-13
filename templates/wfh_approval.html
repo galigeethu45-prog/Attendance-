@@ -104,9 +104,21 @@
                                 </div>
                                 <div class="request-card-value">
                                     {% if wfh.selected_dates %}
-                                        Multiple dates
+                                        {% if wfh.start_date and wfh.end_date %}
+                                            {% if wfh.start_date == wfh.end_date %}
+                                                {{ wfh.start_date|date:"M d, Y" }}
+                                            {% else %}
+                                                {{ wfh.start_date|date:"M d" }} - {{ wfh.end_date|date:"M d, Y" }}
+                                            {% endif %}
+                                        {% else %}
+                                            Multiple specific dates ({{ wfh.total_days }} days)
+                                        {% endif %}
                                     {% else %}
-                                        {{ wfh.start_date|date:"M d" }} - {{ wfh.end_date|date:"M d, Y" }}
+                                        {% if wfh.start_date == wfh.end_date %}
+                                            {{ wfh.start_date|date:"M d, Y" }}
+                                        {% else %}
+                                            {{ wfh.start_date|date:"M d" }} - {{ wfh.end_date|date:"M d, Y" }}
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -132,45 +144,35 @@
 
                         <!-- Approval Status Section -->
                         <div class="request-card-approvals">
-                            {% if user_role != 'team_leader' %}
+                            <!-- TL Comment (only show if comment exists) -->
+                            {% if wfh.tl_comment %}
                             <div class="request-card-approval-item">
                                 <div class="request-card-approval-header">
-                                    <i class="fas fa-user-tie"></i> Team Leader
+                                    <i class="fas fa-user-tie"></i> Team Leader Comment
                                 </div>
                                 <div class="request-card-approval-name">
-                                    {% if wfh.tl_comment %}
-                                        <i class="fas fa-check-circle text-success"></i>
-                                        {{ wfh.tl_approver.get_full_name|default:wfh.tl_approver.username }}
-                                    {% else %}
-                                        <span class="badge bg-secondary">Pending</span>
-                                    {% endif %}
+                                    <i class="fas fa-comment text-info"></i>
+                                    {{ wfh.tl_approver.get_full_name|default:wfh.tl_approver.username }}
                                 </div>
-                                {% if wfh.tl_comment %}
                                 <div class="request-card-approval-comment">
                                     {{ wfh.tl_comment }}
                                 </div>
-                                {% endif %}
                             </div>
                             {% endif %}
 
-                            {% if user_role == 'manager' or user_role == 'hr' %}
+                            <!-- Manager Comment (only show if comment exists) -->
+                            {% if wfh.manager_comment %}
                             <div class="request-card-approval-item">
                                 <div class="request-card-approval-header">
-                                    <i class="fas fa-user-shield"></i> Manager
+                                    <i class="fas fa-user-shield"></i> Manager Comment
                                 </div>
                                 <div class="request-card-approval-name">
-                                    {% if wfh.manager_comment %}
-                                        <i class="fas fa-check-circle text-success"></i>
-                                        {{ wfh.manager_approver.get_full_name|default:wfh.manager_approver.username }}
-                                    {% else %}
-                                        <span class="badge bg-secondary">Pending</span>
-                                    {% endif %}
+                                    <i class="fas fa-comment text-primary"></i>
+                                    {{ wfh.manager_approver.get_full_name|default:wfh.manager_approver.username }}
                                 </div>
-                                {% if wfh.manager_comment %}
                                 <div class="request-card-approval-comment">
                                     {{ wfh.manager_comment }}
                                 </div>
-                                {% endif %}
                             </div>
                             {% endif %}
                         </div>

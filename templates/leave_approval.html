@@ -113,9 +113,21 @@
                                 </div>
                                 <div class="request-card-value">
                                     {% if leave.selected_dates %}
-                                        Multiple dates
+                                        {% if leave.start_date and leave.end_date %}
+                                            {% if leave.start_date == leave.end_date %}
+                                                {{ leave.start_date|date:"M d, Y" }}
+                                            {% else %}
+                                                {{ leave.start_date|date:"M d" }} - {{ leave.end_date|date:"M d, Y" }}
+                                            {% endif %}
+                                        {% else %}
+                                            Multiple specific dates ({{ leave.total_days }} days)
+                                        {% endif %}
                                     {% else %}
-                                        {{ leave.start_date|date:"M d" }} - {{ leave.end_date|date:"M d, Y" }}
+                                        {% if leave.start_date == leave.end_date %}
+                                            {{ leave.start_date|date:"M d, Y" }}
+                                        {% else %}
+                                            {{ leave.start_date|date:"M d" }} - {{ leave.end_date|date:"M d, Y" }}
+                                        {% endif %}
                                     {% endif %}
                                 </div>
                             </div>
@@ -141,45 +153,35 @@
 
                         <!-- Approval Status Section -->
                         <div class="request-card-approvals">
-                            {% if user_role != 'team_leader' %}
+                            <!-- TL Comment (only show if comment exists) -->
+                            {% if leave.tl_comment %}
                             <div class="request-card-approval-item">
                                 <div class="request-card-approval-header">
-                                    <i class="fas fa-user-tie"></i> Team Leader
+                                    <i class="fas fa-user-tie"></i> Team Leader Comment
                                 </div>
                                 <div class="request-card-approval-name">
-                                    {% if leave.tl_comment %}
-                                        <i class="fas fa-check-circle text-success"></i>
-                                        {{ leave.tl_approver.get_full_name|default:leave.tl_approver.username }}
-                                    {% else %}
-                                        <span class="badge bg-secondary">Pending</span>
-                                    {% endif %}
+                                    <i class="fas fa-comment text-info"></i>
+                                    {{ leave.tl_approver.get_full_name|default:leave.tl_approver.username }}
                                 </div>
-                                {% if leave.tl_comment %}
                                 <div class="request-card-approval-comment">
                                     {{ leave.tl_comment }}
                                 </div>
-                                {% endif %}
                             </div>
                             {% endif %}
 
-                            {% if user_role == 'manager' or user_role == 'hr' %}
+                            <!-- Manager Comment (only show if comment exists) -->
+                            {% if leave.manager_comment %}
                             <div class="request-card-approval-item">
                                 <div class="request-card-approval-header">
-                                    <i class="fas fa-user-shield"></i> Manager
+                                    <i class="fas fa-user-shield"></i> Manager Comment
                                 </div>
                                 <div class="request-card-approval-name">
-                                    {% if leave.manager_comment %}
-                                        <i class="fas fa-check-circle text-success"></i>
-                                        {{ leave.manager_approver.get_full_name|default:leave.manager_approver.username }}
-                                    {% else %}
-                                        <span class="badge bg-secondary">Pending</span>
-                                    {% endif %}
+                                    <i class="fas fa-comment text-primary"></i>
+                                    {{ leave.manager_approver.get_full_name|default:leave.manager_approver.username }}
                                 </div>
-                                {% if leave.manager_comment %}
                                 <div class="request-card-approval-comment">
                                     {{ leave.manager_comment }}
                                 </div>
-                                {% endif %}
                             </div>
                             {% endif %}
                         </div>
