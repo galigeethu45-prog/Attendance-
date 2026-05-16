@@ -1,0 +1,40 @@
+========================================
+BULK CHECKOUT SCRIPT - QUICK START
+========================================
+
+WHAT IT DOES:
+- Finds ALL missing checkouts for an employee
+- Assigns 7:00 PM checkout automatically
+- Skips dates with leave/WFH
+- Creates audit logs
+
+HOW TO RUN:
+1. Double-click: MANUAL_CHECKOUT.bat
+   OR
+2. Command line:
+   venv\Scripts\activate
+   python scripts/maintenance/manual_checkout.py
+
+EXAMPLE:
+Enter Employee ID (or 'done' to finish):
+> AI0001
+
+[Shows all missing checkouts]
+
+Assign 7:00 PM checkout to X record(s)? (yes/no):
+> yes
+
+[Assigns all checkouts]
+
+Enter Employee ID (or 'done' to finish):
+> done
+
+THAT'S IT!
+
+NOTES:
+- Only processes employees with check-in
+- Skips existing checkouts
+- Skips leave/WFH days automatically
+- All actions logged for audit
+
+========================================

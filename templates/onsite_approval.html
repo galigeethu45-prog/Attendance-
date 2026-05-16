@@ -150,28 +150,23 @@
                         </div>
 
                         <!-- Approval Status Section -->
-                        {% if user_role == 'manager' or user_role == 'hr' %}
                         <div class="request-card-approvals">
+                            <!-- Manager Comment (only show if comment exists) -->
+                            {% if onsite.manager_comment %}
                             <div class="request-card-approval-item">
                                 <div class="request-card-approval-header">
-                                    <i class="fas fa-user-shield"></i> Manager
+                                    <i class="fas fa-user-shield"></i> Manager Comment
                                 </div>
                                 <div class="request-card-approval-name">
-                                    {% if onsite.manager_comment %}
-                                        <i class="fas fa-check-circle text-success"></i>
-                                        {{ onsite.manager_approver.get_full_name|default:onsite.manager_approver.username }}
-                                    {% else %}
-                                        <span class="badge bg-secondary">Pending</span>
-                                    {% endif %}
+                                    <i class="fas fa-comment text-primary"></i>
+                                    {{ onsite.manager_approver.get_full_name|default:onsite.manager_approver.username }}
                                 </div>
-                                {% if onsite.manager_comment %}
                                 <div class="request-card-approval-comment">
                                     {{ onsite.manager_comment }}
                                 </div>
-                                {% endif %}
                             </div>
+                            {% endif %}
                         </div>
-                        {% endif %}
 
                         <!-- Card Footer - Action Button (only for pending requests) -->
                         {% if status_filter == 'pending' %}
@@ -206,7 +201,7 @@
                                 <div class="modal-header">
                                     <h5 class="modal-title">
                                         {% if user_role == 'manager' %}
-                                        Manager Review
+                                        Add Manager Comment
                                         {% else %}
                                         HR Final Decision
                                         {% endif %}
@@ -265,12 +260,18 @@
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                    {% if user_role == 'manager' %}
+                                    <button type="button" class="btn btn-primary" onclick="submitOnsiteAction({{ onsite.id }}, 'comment')">
+                                        <i class="fas fa-comment me-1"></i>Submit Comment
+                                    </button>
+                                    {% else %}
                                     <button type="button" class="btn btn-danger" onclick="submitOnsiteAction({{ onsite.id }}, 'reject')">
                                         <i class="fas fa-times me-1"></i>Reject
                                     </button>
                                     <button type="button" class="btn btn-success" onclick="submitOnsiteAction({{ onsite.id }}, 'approve')">
                                         <i class="fas fa-check me-1"></i>Approve
                                     </button>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
