@@ -86,8 +86,8 @@ def main():
         print(f"Current Status:")
         print(f"  Check-in:  {attendance.check_in.strftime('%I:%M %p')}")
         print(f"  Check-out: {attendance.check_out.strftime('%I:%M %p')}")
-        if attendance.hours_worked:
-            print(f"  Hours:     {attendance.hours_worked}h")
+        if hasattr(attendance, 'total_work_hours') and attendance.total_work_hours:
+            print(f"  Hours:     {attendance.total_work_hours}h")
         else:
             print(f"  Hours:     Not calculated")
         print()
@@ -99,8 +99,7 @@ def main():
         if confirm in ['yes', 'y']:
             # Remove checkout but keep check-in
             attendance.check_out = None
-            attendance.hours_worked = None
-            attendance.work_hours = None
+            attendance.total_work_hours = 0
             attendance.save()
             
             print()
