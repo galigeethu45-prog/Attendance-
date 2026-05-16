@@ -44,11 +44,12 @@ class Command(BaseCommand):
         """Find all attendance records without checkout for the user"""
         today = timezone.now().date()
         
+        # Exclude today's date
         missing = Attendance.objects.filter(
             employee=user,
             check_in__isnull=False,
             check_out__isnull=True,
-            date__lte=today
+            date__lt=today  # Changed from __lte to __lt to exclude today
         ).order_by('date')
         
         return missing
@@ -65,6 +66,28 @@ class Command(BaseCommand):
             time_diff = checkout_datetime - attendance.check_in
             hours = time_diff.total_seconds() / 3600
             attendance.hours_worked = round(hours, 2)
+        
+        # Calculate total break time
+        from attendance.models import BreakLog
+        breaks = BreakLog.objects.filter(
+            attendance=attendance,
+            break_start__isnull=False,
+            break_end__isnull=False
+        )
+        
+        total_break_minutes = 0
+        for break_log in breaks:
+            break_duration = break_log.break_end - break_log.break_start
+            total_break_minutes += break_duration.total_seconds() / 60
+        
+        attendance.total_break_time = int(total_break_minutes)
+        
+        # Calculate work hours (total hours - break hours)
+        if attendance.hours_worked and attendance.total_break_time:
+            break_hours = attendance.total_break_time / 60
+            attendance.work_hours = round(attendance.hours_worked - break_hours, 2)
+        else:
+            attendance.work_hours = attendance.hours_worked
         
         attendance.save()
         
