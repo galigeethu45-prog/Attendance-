@@ -91,8 +91,8 @@ def assign_checkout(attendance, checkout_time, admin_user):
     # Create audit log
     AuditLog.objects.create(
         user=admin_user,
-        action='manual_checkout',
-        details=f'Bulk checkout: Assigned {checkout_time.strftime("%I:%M %p")} for {attendance.employee.username} on {attendance.date}',
+        action='check_out',
+        description=f'Manual bulk checkout: Assigned {checkout_time.strftime("%I:%M %p")} for {attendance.employee.username} on {attendance.date}',
         ip_address='127.0.0.1',
         target_user=attendance.employee
     )

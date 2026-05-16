@@ -70,8 +70,8 @@ class Command(BaseCommand):
         
         AuditLog.objects.create(
             user=admin_user,
-            action='bulk_checkout_command',
-            details=f'Bulk checkout: Assigned {checkout_time.strftime("%I:%M %p")} for {attendance.employee.username} on {attendance.date}',
+            action='check_out',
+            description=f'Manual bulk checkout: Assigned {checkout_time.strftime("%I:%M %p")} for {attendance.employee.username} on {attendance.date}',
             ip_address='127.0.0.1',
             target_user=attendance.employee
         )
