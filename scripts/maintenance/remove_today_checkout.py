@@ -86,7 +86,10 @@ def main():
         print(f"Current Status:")
         print(f"  Check-in:  {attendance.check_in.strftime('%I:%M %p')}")
         print(f"  Check-out: {attendance.check_out.strftime('%I:%M %p')}")
-        print(f"  Hours:     {attendance.hours_worked}h")
+        if attendance.hours_worked:
+            print(f"  Hours:     {attendance.hours_worked}h")
+        else:
+            print(f"  Hours:     Not calculated")
         print()
         
         # Confirm removal
