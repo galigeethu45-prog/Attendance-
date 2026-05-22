@@ -250,7 +250,7 @@ function deleteHoliday(holidayId, holidayName, holidayDate) {
         return;
     }
     
-    fetch(`/holidays/delete/${holidayId}/`, {
+    fetch(`/attendance/holidays/delete/${holidayId}/`, {
         method: 'POST',
         headers: {
             'X-CSRFToken': '{{ csrf_token }}'
