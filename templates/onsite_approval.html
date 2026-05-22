@@ -321,14 +321,13 @@ function submitOnsiteAction(onsiteId, action) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            systemAlert(data.message, 'success').then(() => location.reload());
         } else {
-            alert('Error: ' + (data.error || 'Unknown error'));
+            systemAlert('Error: ' + (data.error || 'Unknown error'), 'error');
         }
     })
     .catch(error => {
-        alert('Error: ' + error);
+        systemAlert('Error: ' + error, 'error');
     });
 }
 </script>

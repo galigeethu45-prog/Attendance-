@@ -324,3 +324,176 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+
+// ===================================
+// SYSTEM MODAL - Custom Alert & Confirm
+// Replaces browser alert() and confirm()
+// ===================================
+
+/**
+ * Show a custom system alert modal (replaces browser alert)
+ * @param {string} message - The message to display
+ * @param {string} type - 'success', 'error', 'warning', 'info' (default: auto-detect)
+ * @param {string} title - Optional custom title
+ * @returns {Promise} - Resolves when user clicks OK
+ */
+function systemAlert(message, type, title) {
+    return new Promise((resolve) => {
+        // Auto-detect type from message content
+        if (!type) {
+            if (message.toLowerCase().includes('error') || message.toLowerCase().includes('failed')) {
+                type = 'error';
+            } else if (message.toLowerCase().includes('success') || message.toLowerCase().includes('successfully')) {
+                type = 'success';
+            } else if (message.toLowerCase().includes('warning')) {
+                type = 'warning';
+            } else {
+                type = 'info';
+            }
+        }
+
+        const modal = document.getElementById('systemAlertModal');
+        const iconEl = document.getElementById('systemAlertIcon');
+        const titleEl = document.getElementById('systemAlertTitle');
+        const messageEl = document.getElementById('systemAlertMessage');
+        const okBtn = document.getElementById('systemAlertOkBtn');
+
+        // Set icon and colors based on type
+        const config = {
+            success: { icon: 'fa-check-circle', class: '', title: 'Success', btnClass: 'btn-success' },
+            error: { icon: 'fa-times-circle', class: 'error-icon', title: 'Error', btnClass: 'btn-danger' },
+            warning: { icon: 'fa-exclamation-triangle', class: 'warning-icon', title: 'Warning', btnClass: 'btn-warning' },
+            info: { icon: 'fa-info-circle', class: 'info-icon', title: 'Information', btnClass: 'btn-primary' }
+        };
+
+        const cfg = config[type] || config.info;
+
+        iconEl.className = 'system-modal-icon ' + cfg.class;
+        iconEl.innerHTML = `<i class="fas ${cfg.icon}"></i>`;
+        titleEl.textContent = title || cfg.title;
+        messageEl.textContent = message;
+
+        // Reset button classes
+        okBtn.className = 'btn ' + cfg.btnClass;
+
+        // Show modal
+        const bsModal = new bootstrap.Modal(modal, { backdrop: 'static' });
+        bsModal.show();
+
+        // Handle OK click
+        function handleOk() {
+            bsModal.hide();
+            okBtn.removeEventListener('click', handleOk);
+            modal.removeEventListener('hidden.bs.modal', handleHidden);
+            resolve(true);
+        }
+
+        function handleHidden() {
+            okBtn.removeEventListener('click', handleOk);
+            modal.removeEventListener('hidden.bs.modal', handleHidden);
+            resolve(true);
+        }
+
+        okBtn.addEventListener('click', handleOk);
+        modal.addEventListener('hidden.bs.modal', handleHidden);
+    });
+}
+
+/**
+ * Show a custom system confirm modal (replaces browser confirm)
+ * @param {string} message - The message to display
+ * @param {object} options - Optional settings { title, confirmText, cancelText, type }
+ * @returns {Promise<boolean>} - Resolves true if confirmed, false if cancelled
+ */
+function systemConfirm(message, options = {}) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('systemConfirmModal');
+        const titleEl = document.getElementById('systemConfirmTitle');
+        const messageEl = document.getElementById('systemConfirmMessage');
+        const okBtn = document.getElementById('systemConfirmOkBtn');
+        const cancelBtn = document.getElementById('systemConfirmCancelBtn');
+
+        titleEl.textContent = options.title || 'Confirm Action';
+        messageEl.textContent = message;
+
+        // Customize buttons
+        if (options.confirmText) {
+            okBtn.innerHTML = `<i class="fas fa-check me-1"></i>${options.confirmText}`;
+        } else {
+            okBtn.innerHTML = '<i class="fas fa-check me-1"></i>Confirm';
+        }
+
+        if (options.cancelText) {
+            cancelBtn.innerHTML = `<i class="fas fa-times me-1"></i>${options.cancelText}`;
+        } else {
+            cancelBtn.innerHTML = '<i class="fas fa-times me-1"></i>Cancel';
+        }
+
+        // Set button type/color
+        if (options.type === 'danger') {
+            okBtn.className = 'btn btn-danger';
+        } else if (options.type === 'warning') {
+            okBtn.className = 'btn btn-warning';
+        } else {
+            okBtn.className = 'btn btn-primary';
+        }
+
+        // Show modal
+        const bsModal = new bootstrap.Modal(modal, { backdrop: 'static' });
+        bsModal.show();
+
+        let resolved = false;
+
+        function handleConfirm() {
+            if (resolved) return;
+            resolved = true;
+            bsModal.hide();
+            cleanup();
+            resolve(true);
+        }
+
+        function handleCancel() {
+            if (resolved) return;
+            resolved = true;
+            bsModal.hide();
+            cleanup();
+            resolve(false);
+        }
+
+        function handleHidden() {
+            if (resolved) return;
+            resolved = true;
+            cleanup();
+            resolve(false);
+        }
+
+        function cleanup() {
+            okBtn.removeEventListener('click', handleConfirm);
+            cancelBtn.removeEventListener('click', handleCancel);
+            modal.removeEventListener('hidden.bs.modal', handleHidden);
+        }
+
+        okBtn.addEventListener('click', handleConfirm);
+        cancelBtn.addEventListener('click', handleCancel);
+        modal.addEventListener('hidden.bs.modal', handleHidden);
+    });
+}
+
+// Override native alert and confirm globally
+window._originalAlert = window.alert;
+window._originalConfirm = window.confirm;
+
+window.alert = function(message) {
+    systemAlert(message);
+};
+
+window.confirm = function(message) {
+    // Since confirm needs to be synchronous but our modal is async,
+    // we can't directly override it for synchronous code.
+    // Instead, we provide systemConfirm for async usage.
+    // For backward compatibility with existing code that uses confirm() in if statements,
+    // we'll use a workaround with a blocking approach.
+    // NOTE: This won't work for synchronous confirm() calls.
+    // Those need to be refactored to use systemConfirm() with async/await.
+    return window._originalConfirm(message);
+};

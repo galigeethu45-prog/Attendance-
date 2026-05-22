@@ -311,14 +311,14 @@ function previewPhoto(event) {
     if (file) {
         // Check file size (2MB max)
         if (file.size > 2 * 1024 * 1024) {
-            alert('File size must be less than 2MB');
+            systemAlert('File size must be less than 2MB', 'warning');
             event.target.value = '';
             return;
         }
         
         // Check file type
         if (!file.type.match('image.*')) {
-            alert('Please select an image file');
+            systemAlert('Please select an image file', 'warning');
             event.target.value = '';
             return;
         }
@@ -333,8 +333,13 @@ function previewPhoto(event) {
 }
 
 // Remove photo (set a flag to delete)
-function removePhoto() {
-    if (confirm('Are you sure you want to remove your profile photo?')) {
+async function removePhoto() {
+    const confirmed = await systemConfirm('Are you sure you want to remove your profile photo?', {
+        title: 'Remove Profile Photo',
+        confirmText: 'Remove',
+        type: 'danger'
+    });
+    if (confirmed) {
         // Create a hidden input to signal photo removal
         const form = document.getElementById('updateProfileForm');
         const input = document.createElement('input');

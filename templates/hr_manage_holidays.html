@@ -203,7 +203,7 @@
 
 <script>
 // Add Holiday
-function addHoliday(event) {
+async function addHoliday(event) {
     event.preventDefault();
     
     const date = document.getElementById('holidayDate').value;
@@ -212,7 +212,7 @@ function addHoliday(event) {
     const description = document.getElementById('holidayDescription').value;
     
     if (!date || !name || !type) {
-        alert('Please fill all required fields');
+        systemAlert('Please fill all required fields', 'warning');
         return;
     }
     
@@ -232,23 +232,25 @@ function addHoliday(event) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            systemAlert(data.message, 'success').then(() => location.reload());
         } else {
-            alert('Error: ' + data.error);
+            systemAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Failed to add holiday');
+        systemAlert('Failed to add holiday', 'error');
     });
 }
 
 // Delete Holiday
-function deleteHoliday(holidayId, holidayName, holidayDate) {
-    if (!confirm(`Are you sure you want to delete "${holidayName}" on ${holidayDate}?`)) {
-        return;
-    }
+async function deleteHoliday(holidayId, holidayName, holidayDate) {
+    const confirmed = await systemConfirm(`Are you sure you want to delete "${holidayName}" on ${holidayDate}?`, {
+        title: 'Delete Holiday',
+        confirmText: 'Delete',
+        type: 'danger'
+    });
+    if (!confirmed) return;
     
     fetch(`/attendance/holidays/delete/${holidayId}/`, {
         method: 'POST',
@@ -259,31 +261,31 @@ function deleteHoliday(holidayId, holidayName, holidayDate) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            // Remove row from table
-            const row = document.getElementById(`holiday-row-${holidayId}`);
-            if (row) {
-                row.remove();
-            }
-            // Reload to update counts
-            setTimeout(() => location.reload(), 500);
+            systemAlert(data.message, 'success').then(() => {
+                const row = document.getElementById(`holiday-row-${holidayId}`);
+                if (row) row.remove();
+                setTimeout(() => location.reload(), 500);
+            });
         } else {
-            alert('Error: ' + data.error);
+            systemAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Failed to delete holiday');
+        systemAlert('Failed to delete holiday', 'error');
     });
 }
 
 // Auto-Generate Holidays
-function autoGenerateHolidays() {
+async function autoGenerateHolidays() {
     const year = {{ year }};
     
-    if (!confirm(`This will auto-generate all Sundays, 2nd Saturdays, and 4th Saturdays for ${year}. Continue?`)) {
-        return;
-    }
+    const confirmed = await systemConfirm(`This will auto-generate all Sundays, 2nd Saturdays, and 4th Saturdays for ${year}. Continue?`, {
+        title: 'Auto-Generate Holidays',
+        confirmText: 'Generate',
+        type: 'warning'
+    });
+    if (!confirmed) return;
     
     fetch('{% url "auto_generate_holidays" %}', {
         method: 'POST',
@@ -298,15 +300,14 @@ function autoGenerateHolidays() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            systemAlert(data.message, 'success').then(() => location.reload());
         } else {
-            alert('Error: ' + data.error);
+            systemAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Failed to auto-generate holidays');
+        systemAlert('Failed to auto-generate holidays', 'error');
     });
 }
 </script>

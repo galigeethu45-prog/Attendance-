@@ -254,8 +254,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function cancelWFH(wfhId) {
-    if (confirm('Are you sure you want to cancel this WFH request?')) {
+async function cancelWFH(wfhId) {
+    const confirmed = await systemConfirm('Are you sure you want to cancel this WFH request?', {
+        title: 'Cancel WFH Request',
+        confirmText: 'Yes, Cancel',
+        type: 'danger'
+    });
+    if (confirmed) {
         fetch(`/attendance/wfh/cancel/${wfhId}/`, {
             method: 'POST',
             headers: {
@@ -263,7 +268,7 @@ function cancelWFH(wfhId) {
             }
         }).then(response => {
             if (response.ok) {
-                location.reload();
+                systemAlert('WFH request cancelled successfully', 'success').then(() => location.reload());
             }
         });
     }

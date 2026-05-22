@@ -23,9 +23,9 @@
                     </div>
                     <h5 class="card-title text-white">Check In</h5>
                     <p class="text-muted small">Start your day</p>
-                    <form method="post" action="{% url 'check_in' %}" id="checkInForm" onsubmit="return confirmCheckIn()">
+                    <form method="post" action="{% url 'check_in' %}" id="checkinForm">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-success btn-sm">
+                        <button type="button" class="btn btn-success btn-sm" onclick="confirmCheckIn()">
                             <i class="fas fa-play me-1"></i>Check In
                         </button>
                     </form>
@@ -49,9 +49,9 @@
                     </div>
                     <h5 class="card-title text-white">Check Out</h5>
                     <p class="text-muted small">End your day</p>
-                    <form method="post" action="{% url 'check_out' %}" id="checkOutForm" onsubmit="return confirmCheckOut()">
+                    <form method="post" action="{% url 'check_out' %}" id="checkoutForm">
                         {% csrf_token %}
-                        <button type="submit" class="btn btn-danger btn-sm">
+                        <button type="button" class="btn btn-danger btn-sm" onclick="confirmCheckOut()">
                             <i class="fas fa-stop me-1"></i>Check Out
                         </button>
                     </form>
@@ -428,17 +428,31 @@
 {% block extra_js %}
 <script>
 // Confirmation for Check-In
-function confirmCheckIn() {
+async function confirmCheckIn() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return confirm(`Are you sure you want to CHECK IN now?\n\nCurrent time: ${timeString}\n\nClick OK to confirm.`);
+    const result = await systemConfirm(`Are you sure you want to CHECK IN now?\n\nCurrent time: ${timeString}`, {
+        title: 'Confirm Check-In',
+        confirmText: 'Check In',
+        type: 'success'
+    });
+    if (result) {
+        document.getElementById('checkinForm').submit();
+    }
 }
 
 // Confirmation for Check-Out
-function confirmCheckOut() {
+async function confirmCheckOut() {
     const now = new Date();
     const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    return confirm(`Are you sure you want to CHECK OUT now?\n\nCurrent time: ${timeString}\n\nThis will end your work day.\n\nClick OK to confirm.`);
+    const result = await systemConfirm(`Are you sure you want to CHECK OUT now?\n\nCurrent time: ${timeString}\n\nThis will end your work day.`, {
+        title: 'Confirm Check-Out',
+        confirmText: 'Check Out',
+        type: 'warning'
+    });
+    if (result) {
+        document.getElementById('checkoutForm').submit();
+    }
 }
 
 // Real-time work hours calculation
@@ -515,10 +529,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // Onsite Check-In
-function onsiteCheckIn() {
-    if (!confirm('Are you sure you want to check in for your onsite visit?')) {
-        return;
-    }
+async function onsiteCheckIn() {
+    const confirmed = await systemConfirm('Are you sure you want to check in for your onsite visit?', {
+        title: 'Onsite Check-In',
+        confirmText: 'Check In',
+        type: 'success'
+    });
+    if (!confirmed) return;
     
     fetch('{% url "onsite_check_in" %}', {
         method: 'POST',
@@ -530,23 +547,25 @@ function onsiteCheckIn() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            systemAlert(data.message, 'success').then(() => location.reload());
         } else {
-            alert('Error: ' + data.error);
+            systemAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred. Please try again.');
+        systemAlert('An error occurred. Please try again.', 'error');
     });
 }
 
 // Onsite Check-Out
-function onsiteCheckOut() {
-    if (!confirm('Are you sure you want to check out from your onsite visit?')) {
-        return;
-    }
+async function onsiteCheckOut() {
+    const confirmed = await systemConfirm('Are you sure you want to check out from your onsite visit?', {
+        title: 'Onsite Check-Out',
+        confirmText: 'Check Out',
+        type: 'warning'
+    });
+    if (!confirmed) return;
     
     fetch('{% url "onsite_check_out" %}', {
         method: 'POST',
@@ -558,15 +577,14 @@ function onsiteCheckOut() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            location.reload();
+            systemAlert(data.message, 'success').then(() => location.reload());
         } else {
-            alert('Error: ' + data.error);
+            systemAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('An error occurred. Please try again.');
+        systemAlert('An error occurred. Please try again.', 'error');
     });
 }
 </script>

@@ -342,8 +342,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
-function cancelLeave(leaveId) {
-    if (confirm('Are you sure you want to cancel this leave request?')) {
+async function cancelLeave(leaveId) {
+    const confirmed = await systemConfirm('Are you sure you want to cancel this leave request?', {
+        title: 'Cancel Leave Request',
+        confirmText: 'Yes, Cancel',
+        type: 'danger'
+    });
+    if (confirmed) {
         fetch(`/attendance/leave/cancel/${leaveId}/`, {
             method: 'POST',
             headers: {
@@ -351,7 +356,7 @@ function cancelLeave(leaveId) {
             }
         }).then(response => {
             if (response.ok) {
-                location.reload();
+                systemAlert('Leave request cancelled successfully', 'success').then(() => location.reload());
             }
         });
     }

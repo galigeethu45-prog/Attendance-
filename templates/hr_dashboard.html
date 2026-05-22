@@ -1208,8 +1208,13 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-function approveLeave(leaveId) {
-    if (confirm('Approve this leave request?')) {
+async function approveLeave(leaveId) {
+    const confirmed = await systemConfirm('Approve this leave request?', {
+        title: 'Approve Leave',
+        confirmText: 'Approve',
+        type: 'success'
+    });
+    if (confirmed) {
         fetch(`/attendance/leave/approve/${leaveId}/`, {
             method: 'POST',
             headers: {
@@ -1217,7 +1222,7 @@ function approveLeave(leaveId) {
             }
         }).then(response => {
             if (response.ok) {
-                location.reload();
+                systemAlert('Leave request approved', 'success').then(() => location.reload());
             }
         });
     }
@@ -1334,8 +1339,13 @@ function viewEmployeeDetails(userId) {
     window.location.href = `/attendance/employee/${userId}/details/`;
 }
 
-function deleteUser(userId, userName) {
-    if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+async function deleteUser(userId, userName) {
+    const confirmed = await systemConfirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`, {
+        title: 'Delete User',
+        confirmText: 'Delete',
+        type: 'danger'
+    });
+    if (confirmed) {
         fetch(`/attendance/user/delete/${userId}/`, {
             method: 'POST',
             headers: {
@@ -1345,13 +1355,12 @@ function deleteUser(userId, userName) {
         }).then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('User deleted successfully');
-                location.reload();
+                systemAlert('User deleted successfully', 'success').then(() => location.reload());
             } else {
-                alert('Error: ' + (data.message || 'Failed to delete user'));
+                systemAlert('Error: ' + (data.message || 'Failed to delete user'), 'error');
             }
         }).catch(error => {
-            alert('Error deleting user');
+            systemAlert('Error deleting user', 'error');
             console.error(error);
         });
     }
@@ -1499,7 +1508,7 @@ function confirmEditAttendance() {
     const reason = document.getElementById('statusReason').value.trim();
     
     if (!reason) {
-        alert('Please provide a reason for the status change');
+        systemAlert('Please provide a reason for the status change', 'warning');
         return;
     }
     
@@ -1514,15 +1523,16 @@ function confirmEditAttendance() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Attendance status updated successfully!');
-            bootstrap.Modal.getInstance(document.getElementById('editAttendanceModal')).hide();
-            location.reload();
+            systemAlert('Attendance status updated successfully!', 'success').then(() => {
+                bootstrap.Modal.getInstance(document.getElementById('editAttendanceModal')).hide();
+                location.reload();
+            });
         } else {
-            alert('Error: ' + data.message);
+            systemAlert('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
-        alert('Error updating attendance status');
+        systemAlert('Error updating attendance status', 'error');
         console.error(error);
     });
 }
@@ -1715,11 +1725,11 @@ function loadEmergencyOverrideStatus() {
         });
 }
 
-function toggleEmergencyOverride(action) {
+async function toggleEmergencyOverride(action) {
     const reason = document.getElementById('overrideReason').value;
     
     if (action === 'enable' && !reason.trim()) {
-        alert('Please provide a reason for enabling emergency override');
+        systemAlert('Please provide a reason for enabling emergency override', 'warning');
         return;
     }
     
@@ -1727,9 +1737,12 @@ function toggleEmergencyOverride(action) {
         ? `Enable Emergency Override?\n\nThis will allow ALL employees to check-in from ANY location, bypassing IP restrictions.\n\nReason: ${reason}`
         : 'Disable Emergency Override?\n\nNormal IP restrictions will be restored.';
     
-    if (!confirm(confirmMsg)) {
-        return;
-    }
+    const confirmed = await systemConfirm(confirmMsg, {
+        title: action === 'enable' ? 'Enable Emergency Override' : 'Disable Emergency Override',
+        confirmText: action === 'enable' ? 'Enable' : 'Disable',
+        type: action === 'enable' ? 'warning' : 'danger'
+    });
+    if (!confirmed) return;
     
     const formData = new FormData();
     formData.append('action', action);
@@ -1742,14 +1755,14 @@ function toggleEmergencyOverride(action) {
     })
     .then(response => {
         if (response.ok) {
-            location.reload();
+            systemAlert(action === 'enable' ? 'Emergency override enabled' : 'Emergency override disabled', 'success').then(() => location.reload());
         } else {
-            alert('Error toggling emergency override');
+            systemAlert('Error toggling emergency override', 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error toggling emergency override');
+        systemAlert('Error toggling emergency override', 'error');
     });
 }
 
@@ -1822,7 +1835,7 @@ function confirmChangeRole() {
     const newRole = document.getElementById('newRole').value;
     
     if (!newRole) {
-        alert('Please select a role');
+        systemAlert('Please select a role', 'warning');
         return;
     }
     
@@ -1837,15 +1850,16 @@ function confirmChangeRole() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Role changed successfully!');
-            bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
-            location.reload();
+            systemAlert('Role changed successfully!', 'success').then(() => {
+                bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
+                location.reload();
+            });
         } else {
-            alert('Error: ' + data.message);
+            systemAlert('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
-        alert('Error changing role');
+        systemAlert('Error changing role', 'error');
         console.error(error);
     });
 }
@@ -1915,7 +1929,7 @@ function copyCurrentIP() {
     const ip = ipElement.textContent;
     
     navigator.clipboard.writeText(ip).then(() => {
-        alert('IP address copied to clipboard: ' + ip);
+        systemAlert('IP address copied to clipboard: ' + ip, 'success');
     }).catch(err => {
         console.error('Failed to copy:', err);
     });
@@ -1928,7 +1942,7 @@ function addOfficeIP(event) {
     const description = document.getElementById('newIPDescription').value.trim();
     
     if (!ipAddress || !description) {
-        alert('Please fill in all fields');
+        systemAlert('Please fill in all fields', 'warning');
         return;
     }
     
@@ -1950,14 +1964,13 @@ function addOfficeIP(event) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
-            location.reload(); // Reload to show new IP
+            systemAlert(data.message, 'success').then(() => location.reload());
         } else {
-            alert('Error: ' + data.error);
+            systemAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
-        alert('Error: ' + error);
+        systemAlert('Error: ' + error, 'error');
     })
     .finally(() => {
         submitBtn.disabled = false;
@@ -1965,10 +1978,13 @@ function addOfficeIP(event) {
     });
 }
 
-function removeOfficeIP(ipAddress, rowNumber) {
-    if (!confirm(`Are you sure you want to remove IP: ${ipAddress}?\n\nThis action cannot be undone.`)) {
-        return;
-    }
+async function removeOfficeIP(ipAddress, rowNumber) {
+    const confirmed = await systemConfirm(`Are you sure you want to remove IP: ${ipAddress}?\n\nThis action cannot be undone.`, {
+        title: 'Remove Office IP',
+        confirmText: 'Remove',
+        type: 'danger'
+    });
+    if (!confirmed) return;
     
     // Send AJAX request
     fetch('{% url "remove_office_ip" %}', {
@@ -1982,7 +1998,7 @@ function removeOfficeIP(ipAddress, rowNumber) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert(data.message);
+            systemAlert(data.message, 'success');
             // Remove row from table
             const row = document.getElementById(`ip-row-${rowNumber}`);
             if (row) {
@@ -1996,11 +2012,11 @@ function removeOfficeIP(ipAddress, rowNumber) {
                 countBadge.textContent = count;
             }
         } else {
-            alert('Error: ' + data.error);
+            systemAlert('Error: ' + data.error, 'error');
         }
     })
     .catch(error => {
-        alert('Error: ' + error);
+        systemAlert('Error: ' + error, 'error');
     });
 }
 </script>

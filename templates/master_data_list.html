@@ -319,8 +319,13 @@
 let currentUserId = null;
 let currentRoleUserId = null;
 
-function deleteMasterData(masterId, empId) {
-    if (confirm(`Are you sure you want to delete master data for ${empId}?\n\nThis action cannot be undone.`)) {
+async function deleteMasterData(masterId, empId) {
+    const confirmed = await systemConfirm(`Are you sure you want to delete master data for ${empId}?\n\nThis action cannot be undone.`, {
+        title: 'Delete Master Data',
+        confirmText: 'Delete',
+        type: 'danger'
+    });
+    if (confirmed) {
         fetch(`/attendance/master-data/delete/${masterId}/`, {
             method: 'POST',
             headers: {
@@ -331,14 +336,13 @@ function deleteMasterData(masterId, empId) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Master data deleted successfully!');
-                location.reload();
+                systemAlert('Master data deleted successfully!', 'success').then(() => location.reload());
             } else {
-                alert('Error: ' + data.message);
+                systemAlert('Error: ' + data.message, 'error');
             }
         })
         .catch(error => {
-            alert('Error deleting master data');
+            systemAlert('Error deleting master data', 'error');
             console.error(error);
         });
     }
@@ -355,7 +359,7 @@ function confirmResetPassword() {
     const newPassword = document.getElementById('newPassword').value;
     
     if (!newPassword || newPassword.length < 6) {
-        alert('Password must be at least 6 characters');
+        systemAlert('Password must be at least 6 characters', 'warning');
         return;
     }
     
@@ -370,14 +374,15 @@ function confirmResetPassword() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Password reset successfully!');
-            bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+            systemAlert('Password reset successfully!', 'success').then(() => {
+                bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+            });
         } else {
-            alert('Error: ' + data.message);
+            systemAlert('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
-        alert('Error resetting password');
+        systemAlert('Error resetting password', 'error');
         console.error(error);
     });
 }
@@ -393,7 +398,7 @@ function confirmChangeRole() {
     const newRole = document.getElementById('newRole').value;
     
     if (!newRole) {
-        alert('Please select a role');
+        systemAlert('Please select a role', 'warning');
         return;
     }
     
@@ -408,15 +413,16 @@ function confirmChangeRole() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Role changed successfully!');
-            bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
-            location.reload();
+            systemAlert('Role changed successfully!', 'success').then(() => {
+                bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
+                location.reload();
+            });
         } else {
-            alert('Error: ' + data.message);
+            systemAlert('Error: ' + data.message, 'error');
         }
     })
     .catch(error => {
-        alert('Error changing role');
+        systemAlert('Error changing role', 'error');
         console.error(error);
     });
 }
