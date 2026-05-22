@@ -11,6 +11,15 @@ from .models import Attendance, BreakLog, Notification, BREAK_RULES, LeaveReques
 from django.contrib.auth.models import User
 
 
+def get_local_today():
+    """Get today's date in the local timezone (Asia/Kolkata).
+    When USE_TZ=True, timezone.now() returns UTC time.
+    We need to convert to local time before extracting the date,
+    otherwise after midnight IST (but before midnight UTC) we get yesterday's date.
+    """
+    return timezone.localtime(timezone.now()).date()
+
+
 # =========================
 # NETWORK DETECTION & WFH VALIDATION
 # =========================
@@ -80,7 +89,7 @@ def has_approved_wfh_today(user):
     Check if user has approved WFH for today
     Returns: Boolean
     """
-    today = timezone.now().date()
+    today = get_local_today()
     
     approved_wfh = WFHRequest.objects.filter(
         employee=user,
@@ -405,9 +414,9 @@ def logout_view(request):
 # =========================
 @login_required
 def dashboard(request):
-    today = timezone.now().date()
-    current_month = timezone.now().month
-    current_year = timezone.now().year
+    today = get_local_today()
+    current_month = timezone.localtime(timezone.now()).month
+    current_year = timezone.localtime(timezone.now()).year
     
     # Check if user is manager
     is_manager = False
@@ -573,7 +582,7 @@ def dashboard(request):
 @login_required
 def check_in(request):
     if request.method == 'POST':
-        today = timezone.now().date()
+        today = get_local_today()
         
         # HOLIDAY CHECK: Check if today is a holiday
         from attendance.models import CompanyHoliday
@@ -671,7 +680,7 @@ def check_out(request):
                         messages.warning(request, line)
             return redirect('dashboard')
         
-        today = timezone.now().date()
+        today = get_local_today()
         
         try:
             attendance = Attendance.objects.get(
@@ -728,7 +737,7 @@ def start_break(request, break_type):
                         messages.warning(request, line)
             return redirect('dashboard')
         
-        today = timezone.now().date()
+        today = get_local_today()
         
         attendance = Attendance.objects.filter(
             employee=request.user,
@@ -871,7 +880,7 @@ def end_break(request):
             messages.info(request, reason)
             return redirect('dashboard')
         
-        today = timezone.now().date()
+        today = get_local_today()
         
         attendance = Attendance.objects.filter(
             employee=request.user,
@@ -1095,8 +1104,8 @@ def leave_request(request):
     
     # Calculate leave balance
     try:
-        current_year = timezone.now().year
-        current_month = timezone.now().month
+        current_year = timezone.localtime(timezone.now()).year
+        current_month = timezone.localtime(timezone.now()).month
         
         # Get approved leaves for current year
         approved_leaves = LeaveRequest.objects.filter(
@@ -1379,13 +1388,30 @@ def leave_action(request, leave_id, action):
         return JsonResponse({'success': True, 'message': 'Comment added successfully'})
     
     # Manager action - Approve or Reject (PARALLEL - doesn't require TL comment)
-    elif user_role == 'manager' and action in ['approve', 'reject']:
+    elif user_role == 'manager' and action in ['approve', 'reject', 'comment']:
         # Comment is optional
-        leave.manager_comment = comment if comment else ''
+        leave.manager_comment = comment if comment else 'Reviewed by Manager'
         leave.manager_approver = request.user
         leave.manager_approved_at = timezone.now()
         
-        if action == 'approve':
+        if action == 'comment':
+            # Manager only adds comment - no approval/rejection
+            leave.save()
+            
+            # Notify employee
+            if comment:
+                Notification.objects.create(
+                    employee=leave.employee,
+                    message=f'Manager added a comment on your leave request: {comment[:50]}...'
+                )
+            
+            # Log action
+            log_action(request.user, 'leave_approve', 
+                      f'Added Manager comment for {leave.employee.username}\'s leave request', request, leave.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Comment added successfully'})
+        
+        elif action == 'approve':
             leave.manager_approved = True
             leave.save()
             
@@ -1591,7 +1617,7 @@ def hr_dashboard(request):
             messages.error(request, 'Access denied.')
             return redirect('dashboard')
     
-    today = timezone.now().date()
+    today = get_local_today()
     
     # Check if today is a holiday
     from attendance.models import CompanyHoliday
@@ -1846,7 +1872,7 @@ def export_attendance_csv(request):
     filter_year = request.GET.get('filter_year', '')
     
     # Build query based on filter
-    today = timezone.now().date()
+    today = get_local_today()
     
     if filter_type == 'date_range' and start_date and end_date:
         try:
@@ -2159,7 +2185,7 @@ def employee_attendance_dashboard(request):
     export_csv = request.GET.get('export', '') == 'csv'
     
     # Default date range: current month
-    today = timezone.now().date()
+    today = get_local_today()
     if not start_date_str:
         start_date = today.replace(day=1)
     else:
@@ -2317,7 +2343,7 @@ def employee_list_view(request, list_type):
         except EmployeeProfile.DoesNotExist:
             return JsonResponse({'success': False, 'message': 'Access denied'})
     
-    today = timezone.now().date()
+    today = get_local_today()
     employees = []
     
     if list_type == 'all':
@@ -2764,8 +2790,8 @@ def overtime_view(request):
     ).order_by('-date')
     
     # Calculate total OT hours this month (only completed)
-    current_month = timezone.now().month
-    current_year = timezone.now().year
+    current_month = timezone.localtime(timezone.now()).month
+    current_year = timezone.localtime(timezone.now()).year
     monthly_ot = Overtime.objects.filter(
         employee=request.user,
         date__month=current_month,
@@ -3326,13 +3352,30 @@ def wfh_action(request, wfh_id, action):
         return JsonResponse({'success': True, 'message': 'Comment added successfully'})
     
     # Manager action - Approve or Reject (can act anytime)
-    elif user_role == 'manager' and action in ['approve', 'reject']:
+    elif user_role == 'manager' and action in ['approve', 'reject', 'comment']:
         # Comment is optional
-        wfh.manager_comment = comment if comment else ''
+        wfh.manager_comment = comment if comment else 'Reviewed by Manager'
         wfh.manager_approver = request.user
         wfh.manager_approved_at = timezone.now()
         
-        if action == 'approve':
+        if action == 'comment':
+            # Manager only adds comment - no approval/rejection
+            wfh.save()
+            
+            # Notify employee
+            if comment:
+                Notification.objects.create(
+                    employee=wfh.employee,
+                    message=f'Manager added a comment on your WFH request: {comment[:50]}...'
+                )
+            
+            # Log action
+            log_action(request.user, 'wfh_approve', 
+                      f'Added Manager comment for {wfh.employee.username}\'s WFH request', request, wfh.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Comment added successfully'})
+        
+        elif action == 'approve':
             wfh.manager_approved = True
             wfh.save()
             
@@ -3819,16 +3862,30 @@ def onsite_action(request, onsite_id, action):
     # Get comment from request
     comment = request.POST.get('comment', '').strip()
     
-    # Manager action - Approve or Reject (can act anytime)
-    if user_role == 'manager' and action in ['approve', 'reject']:
-        if not comment:
-            return JsonResponse({'success': False, 'error': 'Comment is required'})
-        
-        onsite.manager_comment = comment
+    # Manager action - Add comment (can act anytime)
+    if user_role == 'manager' and action in ['approve', 'reject', 'comment']:
+        onsite.manager_comment = comment if comment else 'Reviewed by Manager'
         onsite.manager_approver = request.user
         onsite.manager_approved_at = timezone.now()
         
-        if action == 'approve':
+        if action == 'comment':
+            # Manager only adds comment - no approval/rejection
+            onsite.save()
+            
+            # Notify employee
+            if comment:
+                Notification.objects.create(
+                    employee=onsite.employee,
+                    message=f'Manager added a comment on your onsite request: {comment[:50]}...'
+                )
+            
+            # Log action
+            log_action(request.user, 'onsite_manager_approve', 
+                      f'Added Manager comment for {onsite.employee.username}\'s onsite request', request, onsite.employee)
+            
+            return JsonResponse({'success': True, 'message': 'Comment added successfully'})
+        
+        elif action == 'approve':
             onsite.manager_approved = True
             onsite.save()
             
@@ -3930,7 +3987,7 @@ def onsite_check_in(request):
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
     
     from .models import OnsiteRequest
-    today = timezone.now().date()
+    today = get_local_today()
     
     # Check if there's an approved onsite request for today
     onsite = OnsiteRequest.objects.filter(
@@ -3969,7 +4026,7 @@ def onsite_check_out(request):
         return JsonResponse({'success': False, 'error': 'Invalid request method'})
     
     from .models import OnsiteRequest
-    today = timezone.now().date()
+    today = get_local_today()
     
     # Check if there's an approved onsite request for today
     onsite = OnsiteRequest.objects.filter(

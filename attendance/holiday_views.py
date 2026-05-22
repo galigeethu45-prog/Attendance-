@@ -20,7 +20,7 @@ def holiday_calendar(request):
     Shows all holidays for the selected year/month
     """
     # Get year and month from request (default to current)
-    current_date = timezone.now().date()
+    current_date = timezone.localtime(timezone.now()).date()
     year = int(request.GET.get('year', current_date.year))
     month = int(request.GET.get('month', current_date.month))
     
@@ -110,7 +110,7 @@ def hr_manage_holidays(request):
             messages.error(request, 'Access denied.')
             return redirect('holiday_calendar')
     
-    year = int(request.GET.get('year', timezone.now().year))
+    year = int(request.GET.get('year', timezone.localtime(timezone.now()).year))
     
     # Get all holidays for the year
     holidays = CompanyHoliday.get_holidays_for_year(year)
