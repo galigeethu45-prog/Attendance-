@@ -2242,9 +2242,31 @@ def employee_attendance_dashboard(request):
         late_days = attendance_records.filter(status='late').count()
         half_days = attendance_records.filter(status='half-day').count()
         
-        # Total working days in range
-        total_days = (end_date - start_date).days + 1
-        absent_days = total_days - attendance_records.count()
+        # Total working days in range (excluding holidays, Sundays, 2nd/4th Saturdays)
+        from attendance.models import CompanyHoliday
+        working_days = CompanyHoliday.count_working_days(start_date, end_date)
+        
+        # WFH days (approved)
+        wfh_requests = WFHRequest.objects.filter(
+            employee=employee,
+            status='approved',
+            start_date__lte=end_date,
+            end_date__gte=start_date
+        )
+        wfh_days = sum([wfh.total_days for wfh in wfh_requests])
+        
+        # Leaves taken (approved)
+        leave_requests = LeaveRequest.objects.filter(
+            employee=employee,
+            status='approved',
+            start_date__lte=end_date,
+            end_date__gte=start_date
+        )
+        leaves_taken = sum([leave.total_days for leave in leave_requests])
+        
+        # Absent = Working Days - Attended Days - Approved Leaves - Approved WFH
+        attended_days = attendance_records.count()
+        absent_days = max(0, working_days - attended_days - leaves_taken - wfh_days)
         
         # Total hours worked
         hours_sum = attendance_records.aggregate(Sum('total_work_hours'))['total_work_hours__sum'] or 0
@@ -2267,6 +2289,9 @@ def employee_attendance_dashboard(request):
             'late_days': late_days,
             'half_days': half_days,
             'total_hours': round(hours_sum, 2),
+            'wfh_days': wfh_days,
+            'leaves_taken': leaves_taken,
+            'working_days': working_days,
         })
     
     # Sort by name
@@ -2281,17 +2306,20 @@ def employee_attendance_dashboard(request):
         response['Content-Disposition'] = f'attachment; filename="employee_attendance_{start_date}_to_{end_date}.csv"'
         
         writer = csv.writer(response)
-        writer.writerow(['Employee ID', 'Name', 'Department', 'Present Days', 'Absent Days', 'Late Arrivals', 'Half Days', 'Total Hours'])
+        writer.writerow(['Employee ID', 'Name', 'Department', 'Working Days', 'Present Days', 'Absent Days', 'Late Arrivals', 'Half Days', 'WFH Days', 'Leaves Taken', 'Total Hours'])
         
         for stat in employee_stats:
             writer.writerow([
                 stat['employee_id'],
                 stat['name'],
                 stat['department'],
+                stat['working_days'],
                 stat['present_days'],
                 stat['absent_days'],
                 stat['late_days'],
                 stat['half_days'],
+                stat['wfh_days'],
+                stat['leaves_taken'],
                 f"{stat['total_hours']:.2f}h",
             ])
         
