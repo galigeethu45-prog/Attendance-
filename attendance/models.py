@@ -521,6 +521,65 @@ class Overtime(models.Model):
 
 
 # =========================
+# REQUEST ATTACHMENTS (for Leave, WFH, Onsite, Overtime)
+# =========================
+def attachment_upload_path(instance, filename):
+    """Dynamic upload path based on request type"""
+    import os
+    ext = os.path.splitext(filename)[1].lower()
+    safe_name = os.path.basename(filename)
+    return f"attachments/{instance.request_type}/{instance.uploaded_by.id}/{safe_name}"
+
+
+class RequestAttachment(models.Model):
+    REQUEST_TYPES = [
+        ('leave', 'Leave Request'),
+        ('wfh', 'WFH Request'),
+        ('onsite', 'Onsite Request'),
+        ('overtime', 'Overtime Request'),
+    ]
+
+    # Which type of request this belongs to
+    request_type = models.CharField(max_length=20, choices=REQUEST_TYPES)
+    request_id = models.IntegerField(help_text="ID of the related request")
+
+    # File
+    file = models.FileField(upload_to=attachment_upload_path)
+    original_filename = models.CharField(max_length=255)
+    file_size = models.PositiveIntegerField(default=0, help_text="File size in bytes")
+
+    # Who uploaded
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='request_attachments')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['uploaded_at']
+
+    def __str__(self):
+        return f"{self.request_type} #{self.request_id} - {self.original_filename}"
+
+    @property
+    def file_size_display(self):
+        """Human readable file size"""
+        size = self.file_size
+        if size < 1024:
+            return f"{size} B"
+        elif size < 1024 * 1024:
+            return f"{size / 1024:.1f} KB"
+        else:
+            return f"{size / (1024 * 1024):.1f} MB"
+
+    @property
+    def is_image(self):
+        ext = self.original_filename.rsplit('.', 1)[-1].lower()
+        return ext in ['jpg', 'jpeg', 'png', 'gif', 'webp']
+
+    @property
+    def is_pdf(self):
+        return self.original_filename.rsplit('.', 1)[-1].lower() == 'pdf'
+
+
+# =========================
 # WORK FROM HOME (WFH) REQUEST
 # =========================
 class WFHRequest(models.Model):

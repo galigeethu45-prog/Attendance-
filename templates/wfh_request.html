@@ -20,7 +20,7 @@
                     <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Request WFH</h5>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{% url 'wfh_request' %}">
+                    <form method="post" action="{% url 'wfh_request' %}" enctype="multipart/form-data">
                         {% csrf_token %}
                         
                         <!-- Date Selection Mode Toggle -->
@@ -64,6 +64,22 @@
                             <label for="reason" class="form-label text-white">Reason</label>
                             <textarea class="form-control" id="reason" name="reason" rows="3" required placeholder="Why do you need to work from home?"></textarea>
                         </div>
+
+                        <!-- Attachments -->
+                        <div class="mb-3">
+                            <label class="form-label text-white">
+                                <i class="fas fa-paperclip me-1"></i>Attachments <small class="text-muted">(Optional)</small>
+                            </label>
+                            <div class="attachment-drop-zone" id="wfhDropZone" onclick="document.getElementById('wfhFileInput').click()">
+                                <i class="fas fa-cloud-upload-alt fa-2x mb-2 text-muted d-block"></i>
+                                <p class="mb-1 text-muted small">Click to upload or drag & drop</p>
+                                <small class="text-muted">PDF, JPG, PNG, DOC, DOCX — Max 5MB each — Multiple allowed</small>
+                            </div>
+                            <input type="file" name="attachments" id="wfhFileInput" multiple
+                                   accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx" class="d-none">
+                            <div id="wfhFilePreview" class="mt-2"></div>
+                        </div>
+
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-paper-plane me-2"></i>Submit Request
                         </button>
@@ -213,6 +229,29 @@
                                                 </div>
                                                 {% endif %}
                                                 {% endif %}
+
+                                                <!-- Attachments -->
+                                                {% for req_id, atts in attachments_map.items %}
+                                                {% if req_id == wfh.id %}
+                                                <hr>
+                                                <h6 class="mb-2"><i class="fas fa-paperclip me-2"></i>Attachments ({{ atts|length }})</h6>
+                                                {% for att in atts %}
+                                                <div class="d-flex align-items-center gap-2 p-2 mb-1 rounded"
+                                                     style="background:rgba(255,255,255,0.05);font-size:0.85rem;">
+                                                    {% if att.is_image %}<i class="fas fa-image text-info"></i>
+                                                    {% elif att.is_pdf %}<i class="fas fa-file-pdf text-danger"></i>
+                                                    {% else %}<i class="fas fa-file-alt text-secondary"></i>{% endif %}
+                                                    <span class="text-white text-truncate" style="max-width:170px;" title="{{ att.original_filename }}">{{ att.original_filename }}</span>
+                                                    <small class="text-muted">{{ att.file_size_display }}</small>
+                                                    <a href="{{ att.file.url }}" target="_blank"
+                                                       class="btn btn-sm btn-outline-info ms-auto py-0 px-2">
+                                                        {% if att.is_image %}<i class="fas fa-eye me-1"></i>View
+                                                        {% else %}<i class="fas fa-download me-1"></i>Download{% endif %}
+                                                    </a>
+                                                </div>
+                                                {% endfor %}
+                                                {% endif %}
+                                                {% endfor %}
                                             </div>
                                         </div>
                                     </div>
@@ -236,7 +275,6 @@
 <script src="{% static 'js/form-validation.js' %}"></script>
 <script src="{% static 'js/multi-date-picker.js' %}"></script>
 <script>
-// Initialize multi-date picker for WFH
 document.addEventListener('DOMContentLoaded', function() {
     initMultiDatePicker(
         'calendar_picker_wfh',
@@ -247,40 +285,111 @@ document.addEventListener('DOMContentLoaded', function() {
         'specificDatesFieldsWFH'
     );
     
-    // Attach validation to form
     const form = document.querySelector('form[action="{% url "wfh_request" %}"]');
     if (form) {
         form.addEventListener('submit', validateWFHRequestForm);
     }
+
+    // ---- File attachment logic ----
+    const input = document.getElementById('wfhFileInput');
+    const dropZone = document.getElementById('wfhDropZone');
+    const preview = document.getElementById('wfhFilePreview');
+    let selectedFiles = [];
+
+    function renderPreview() {
+        preview.innerHTML = '';
+        selectedFiles.forEach((file, idx) => {
+            const isImg = /\.(jpg|jpeg|png|gif|webp)$/i.test(file.name);
+            const isPdf = /\.pdf$/i.test(file.name);
+            const icon = isImg ? 'fa-image text-info' : isPdf ? 'fa-file-pdf text-danger' : 'fa-file-alt text-secondary';
+            const size = file.size < 1048576 ? (file.size/1024).toFixed(1)+' KB' : (file.size/1048576).toFixed(1)+' MB';
+            const div = document.createElement('div');
+            div.className = 'attachment-preview-item';
+            div.innerHTML = `<i class="fas ${icon}"></i>
+                             <span>${file.name}</span>
+                             <small class="text-muted">(${size})</small>
+                             <button type="button" class="remove-btn" onclick="wfhRemove(${idx})"><i class="fas fa-times"></i></button>`;
+            preview.appendChild(div);
+        });
+        const dt = new DataTransfer();
+        selectedFiles.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+    }
+
+    window.wfhRemove = function(idx) { selectedFiles.splice(idx, 1); renderPreview(); };
+
+    input.addEventListener('change', function() {
+        Array.from(this.files).forEach(f => {
+            if (f.size > 5*1024*1024) { alert(`"${f.name}" exceeds 5MB and was skipped.`); return; }
+            selectedFiles.push(f);
+        });
+        this.value = '';
+        renderPreview();
+    });
+
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        Array.from(e.dataTransfer.files).forEach(f => {
+            if (f.size > 5*1024*1024) { alert(`"${f.name}" exceeds 5MB and was skipped.`); return; }
+            selectedFiles.push(f);
+        });
+        renderPreview();
+    });
 });
 
 async function cancelWFH(wfhId) {
     const confirmed = await systemConfirm('Are you sure you want to cancel this WFH request?', {
-        title: 'Cancel WFH Request',
-        confirmText: 'Yes, Cancel',
-        type: 'danger'
+        title: 'Cancel WFH Request', confirmText: 'Yes, Cancel', type: 'danger'
     });
     if (confirmed) {
         fetch(`/attendance/wfh/cancel/${wfhId}/`, {
             method: 'POST',
-            headers: {
-                'X-CSRFToken': '{{ csrf_token }}'
-            }
-        }).then(response => {
-            if (response.ok) {
-                systemAlert('WFH request cancelled successfully', 'success').then(() => location.reload());
-            }
-        });
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        }).then(r => { if (r.ok) systemAlert('WFH request cancelled', 'success').then(() => location.reload()); });
     }
 }
 
-// Set minimum date to today
 document.getElementById('start_date').min = new Date().toISOString().split('T')[0];
 document.getElementById('end_date').min = new Date().toISOString().split('T')[0];
-
-// Update end date minimum when start date changes
 document.getElementById('start_date').addEventListener('change', function() {
     document.getElementById('end_date').min = this.value;
 });
 </script>
+
+<style>
+.attachment-drop-zone {
+    border: 2px dashed rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 18px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.attachment-drop-zone:hover, .attachment-drop-zone.drag-over {
+    border-color: #0d6efd;
+    background: rgba(13,110,253,0.08);
+}
+.attachment-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 6px;
+    margin-top: 5px;
+    font-size: 0.83rem;
+    color: #fff;
+}
+.attachment-preview-item .remove-btn {
+    margin-left: auto;
+    cursor: pointer;
+    color: #dc3545;
+    background: none;
+    border: none;
+    padding: 0 4px;
+}
+</style>
 {% endblock %}

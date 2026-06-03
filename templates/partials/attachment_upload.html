@@ -1,0 +1,137 @@
+{% comment %}
+Reusable attachment upload field.
+Include in any form that needs file uploads.
+Requires the form to have enctype="multipart/form-data"
+{% endcomment %}
+<div class="mb-3">
+    <label class="form-label text-white">
+        <i class="fas fa-paperclip me-1"></i>Attachments <small class="text-muted">(Optional)</small>
+    </label>
+    <div class="attachment-upload-area" id="attachmentUploadArea">
+        <input type="file" 
+               name="attachments" 
+               id="attachmentInput" 
+               multiple 
+               accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx"
+               class="d-none">
+        <div class="attachment-drop-zone" onclick="document.getElementById('attachmentInput').click()" 
+             id="attachmentDropZone">
+            <i class="fas fa-cloud-upload-alt fa-2x mb-2 text-muted"></i>
+            <p class="mb-1 text-muted">Click to upload or drag & drop files here</p>
+            <small class="text-muted">PDF, JPG, PNG, DOC, DOCX — Max 5MB per file — Multiple files allowed</small>
+        </div>
+        <div id="attachmentPreview" class="mt-2"></div>
+    </div>
+</div>
+
+<style>
+.attachment-drop-zone {
+    border: 2px dashed rgba(255,255,255,0.2);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.attachment-drop-zone:hover,
+.attachment-drop-zone.drag-over {
+    border-color: #0d6efd;
+    background: rgba(13, 110, 253, 0.1);
+}
+.attachment-preview-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 6px;
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: #fff;
+}
+.attachment-preview-item .remove-btn {
+    margin-left: auto;
+    cursor: pointer;
+    color: #dc3545;
+    background: none;
+    border: none;
+    padding: 0 4px;
+}
+</style>
+
+<script>
+(function() {
+    const input = document.getElementById('attachmentInput');
+    const dropZone = document.getElementById('attachmentDropZone');
+    const preview = document.getElementById('attachmentPreview');
+    let selectedFiles = [];
+
+    function updatePreview() {
+        preview.innerHTML = '';
+        selectedFiles.forEach((file, idx) => {
+            const icon = file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) 
+                ? 'fa-image text-info' 
+                : file.name.match(/\.pdf$/i) 
+                ? 'fa-file-pdf text-danger' 
+                : 'fa-file-alt text-secondary';
+            
+            const size = file.size < 1024 * 1024 
+                ? (file.size / 1024).toFixed(1) + ' KB' 
+                : (file.size / (1024*1024)).toFixed(1) + ' MB';
+
+            const item = document.createElement('div');
+            item.className = 'attachment-preview-item';
+            item.innerHTML = `
+                <i class="fas ${icon}"></i>
+                <span>${file.name}</span>
+                <small class="text-muted">(${size})</small>
+                <button type="button" class="remove-btn" onclick="removeAttachment(${idx})">
+                    <i class="fas fa-times"></i>
+                </button>`;
+            preview.appendChild(item);
+        });
+
+        // Rebuild the file input with selected files
+        rebuildFileInput();
+    }
+
+    window.removeAttachment = function(idx) {
+        selectedFiles.splice(idx, 1);
+        updatePreview();
+    };
+
+    function rebuildFileInput() {
+        const dt = new DataTransfer();
+        selectedFiles.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+    }
+
+    input.addEventListener('change', function() {
+        Array.from(this.files).forEach(f => {
+            if (f.size > 5 * 1024 * 1024) {
+                alert(`File "${f.name}" exceeds 5MB limit and was skipped.`);
+            } else {
+                selectedFiles.push(f);
+            }
+        });
+        this.value = '';
+        updatePreview();
+    });
+
+    // Drag and drop
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        Array.from(e.dataTransfer.files).forEach(f => {
+            if (f.size > 5 * 1024 * 1024) {
+                alert(`File "${f.name}" exceeds 5MB limit and was skipped.`);
+            } else {
+                selectedFiles.push(f);
+            }
+        });
+        updatePreview();
+    });
+})();
+</script>

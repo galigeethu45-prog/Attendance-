@@ -128,7 +128,31 @@
                                             <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
                                             <p><strong>Reason:</strong> {{ ot.reason }}</p>
                                             <p><strong>Requested At:</strong> {{ ot.requested_at|date:"M d, Y h:i A" }}</p>
-                                            <div class="mb-3">
+                                            
+                                            <!-- Attachments -->
+                                            {% for req_id, atts in attachments_map.items %}
+                                            {% if req_id == ot.id %}
+                                            <hr>
+                                            <h6 class="mb-2"><i class="fas fa-paperclip me-2"></i>Attachments ({{ atts|length }})</h6>
+                                            {% for att in atts %}
+                                            <div class="d-flex align-items-center gap-2 p-2 mb-1 rounded"
+                                                 style="background:rgba(255,255,255,0.05);font-size:0.85rem;">
+                                                {% if att.is_image %}<i class="fas fa-image text-info"></i>
+                                                {% elif att.is_pdf %}<i class="fas fa-file-pdf text-danger"></i>
+                                                {% else %}<i class="fas fa-file-alt text-secondary"></i>{% endif %}
+                                                <span class="text-white text-truncate" style="max-width:170px;" title="{{ att.original_filename }}">{{ att.original_filename }}</span>
+                                                <small class="text-muted">{{ att.file_size_display }}</small>
+                                                <a href="{{ att.file.url }}" target="_blank"
+                                                   class="btn btn-sm btn-outline-info ms-auto py-0 px-2">
+                                                    {% if att.is_image %}<i class="fas fa-eye me-1"></i>View
+                                                    {% else %}<i class="fas fa-download me-1"></i>Download{% endif %}
+                                                </a>
+                                            </div>
+                                            {% endfor %}
+                                            {% endif %}
+                                            {% endfor %}
+
+                                            <div class="mb-3 mt-3">
                                                 <label for="hr_comment_approve_{{ ot.id }}" class="form-label">Comment (Optional)</label>
                                                 <textarea class="form-control" id="hr_comment_approve_{{ ot.id }}" name="hr_comment" rows="3" placeholder="Add any comments..."></textarea>
                                             </div>
@@ -161,7 +185,31 @@
                                             <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
                                             <p><strong>Reason:</strong> {{ ot.reason }}</p>
                                             <p><strong>Requested At:</strong> {{ ot.requested_at|date:"M d, Y h:i A" }}</p>
-                                            <div class="mb-3">
+                                            
+                                            <!-- Attachments -->
+                                            {% for req_id, atts in attachments_map.items %}
+                                            {% if req_id == ot.id %}
+                                            <hr>
+                                            <h6 class="mb-2"><i class="fas fa-paperclip me-2"></i>Attachments ({{ atts|length }})</h6>
+                                            {% for att in atts %}
+                                            <div class="d-flex align-items-center gap-2 p-2 mb-1 rounded"
+                                                 style="background:rgba(255,255,255,0.05);font-size:0.85rem;">
+                                                {% if att.is_image %}<i class="fas fa-image text-info"></i>
+                                                {% elif att.is_pdf %}<i class="fas fa-file-pdf text-danger"></i>
+                                                {% else %}<i class="fas fa-file-alt text-secondary"></i>{% endif %}
+                                                <span class="text-white text-truncate" style="max-width:170px;" title="{{ att.original_filename }}">{{ att.original_filename }}</span>
+                                                <small class="text-muted">{{ att.file_size_display }}</small>
+                                                <a href="{{ att.file.url }}" target="_blank"
+                                                   class="btn btn-sm btn-outline-info ms-auto py-0 px-2">
+                                                    {% if att.is_image %}<i class="fas fa-eye me-1"></i>View
+                                                    {% else %}<i class="fas fa-download me-1"></i>Download{% endif %}
+                                                </a>
+                                            </div>
+                                            {% endfor %}
+                                            {% endif %}
+                                            {% endfor %}
+
+                                            <div class="mb-3 mt-3">
                                                 <label for="hr_comment_reject_{{ ot.id }}" class="form-label">Reason for Rejection <span class="text-danger">*</span></label>
                                                 <textarea class="form-control" id="hr_comment_reject_{{ ot.id }}" name="hr_comment" rows="3" placeholder="Please provide a reason..." required></textarea>
                                             </div>
@@ -203,6 +251,29 @@
                                         {% if ot.hr_approver %}
                                         <p><strong>Approved/Rejected By:</strong> {{ ot.hr_approver.get_full_name|default:ot.hr_approver.username }}</p>
                                         {% endif %}
+
+                                        <!-- Attachments -->
+                                        {% for req_id, atts in attachments_map.items %}
+                                        {% if req_id == ot.id %}
+                                        <hr>
+                                        <h6 class="mb-2"><i class="fas fa-paperclip me-2"></i>Attachments ({{ atts|length }})</h6>
+                                        {% for att in atts %}
+                                        <div class="d-flex align-items-center gap-2 p-2 mb-1 rounded"
+                                             style="background:rgba(255,255,255,0.05);font-size:0.85rem;">
+                                            {% if att.is_image %}<i class="fas fa-image text-info"></i>
+                                            {% elif att.is_pdf %}<i class="fas fa-file-pdf text-danger"></i>
+                                            {% else %}<i class="fas fa-file-alt text-secondary"></i>{% endif %}
+                                            <span class="text-white text-truncate" style="max-width:170px;" title="{{ att.original_filename }}">{{ att.original_filename }}</span>
+                                            <small class="text-muted">{{ att.file_size_display }}</small>
+                                            <a href="{{ att.file.url }}" target="_blank"
+                                               class="btn btn-sm btn-outline-info ms-auto py-0 px-2">
+                                                {% if att.is_image %}<i class="fas fa-eye me-1"></i>View
+                                                {% else %}<i class="fas fa-download me-1"></i>Download{% endif %}
+                                            </a>
+                                        </div>
+                                        {% endfor %}
+                                        {% endif %}
+                                        {% endfor %}
                                     </div>
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

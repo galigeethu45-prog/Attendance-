@@ -1,0 +1,37 @@
+{% comment %}
+Display attachments in approval modals.
+Usage: {% include 'partials/attachment_list.html' with attachments=attachments_map|get_item:request_obj.id %}
+Since Django doesn't have get_item filter, we pass attachments directly.
+{% endcomment %}
+{% if attachments %}
+<div class="mb-3">
+    <strong><i class="fas fa-paperclip me-1"></i>Attachments ({{ attachments|length }})</strong>
+    <div class="mt-2">
+        {% for att in attachments %}
+        <div class="d-flex align-items-center gap-2 p-2 mb-1 rounded" 
+             style="background: rgba(255,255,255,0.05); font-size: 0.85rem;">
+            {% if att.is_image %}
+                <i class="fas fa-image text-info"></i>
+            {% elif att.is_pdf %}
+                <i class="fas fa-file-pdf text-danger"></i>
+            {% else %}
+                <i class="fas fa-file-alt text-secondary"></i>
+            {% endif %}
+            <span class="text-white text-truncate" style="max-width:200px;" title="{{ att.original_filename }}">
+                {{ att.original_filename }}
+            </span>
+            <small class="text-muted">{{ att.file_size_display }}</small>
+            <a href="{{ att.file.url }}" 
+               target="_blank" 
+               class="btn btn-sm btn-outline-info ms-auto py-0 px-2">
+                {% if att.is_image %}
+                    <i class="fas fa-eye me-1"></i>View
+                {% else %}
+                    <i class="fas fa-download me-1"></i>Download
+                {% endif %}
+            </a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

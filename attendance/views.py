@@ -7,8 +7,38 @@ from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from datetime import datetime, timedelta, time as dt_time
-from .models import Attendance, BreakLog, Notification, BREAK_RULES, LeaveRequest, EmployeeProfile, Overtime, AuditLog, WFHRequest, EmployeeMasterData, SystemSettings
+from .models import Attendance, BreakLog, Notification, BREAK_RULES, LeaveRequest, EmployeeProfile, Overtime, AuditLog, WFHRequest, EmployeeMasterData, SystemSettings, RequestAttachment
 from django.contrib.auth.models import User
+
+
+ALLOWED_ATTACHMENT_TYPES = ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'doc', 'docx']
+MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024  # 5 MB
+
+
+def save_attachments(request, request_type, request_id):
+    """Save uploaded files as RequestAttachment records. Returns (success, error_message)"""
+    files = request.FILES.getlist('attachments')
+    if not files:
+        return True, None
+
+    for f in files:
+        # Check extension
+        ext = f.name.rsplit('.', 1)[-1].lower() if '.' in f.name else ''
+        if ext not in ALLOWED_ATTACHMENT_TYPES:
+            return False, f"File '{f.name}' has unsupported type. Allowed: PDF, JPG, PNG, DOC, DOCX"
+        # Check size
+        if f.size > MAX_ATTACHMENT_SIZE:
+            return False, f"File '{f.name}' is too large. Max size is 5 MB."
+
+        RequestAttachment.objects.create(
+            request_type=request_type,
+            request_id=request_id,
+            file=f,
+            original_filename=f.name,
+            file_size=f.size,
+            uploaded_by=request.user,
+        )
+    return True, None
 
 
 def get_local_today():
@@ -618,6 +648,10 @@ def check_in(request):
                         messages.warning(request, line)
             return redirect('dashboard')
         
+        # Get GPS coordinates from POST data
+        lat = request.POST.get('latitude')
+        lon = request.POST.get('longitude')
+        
         attendance, created = Attendance.objects.get_or_create(
             employee=request.user,
             date=today
@@ -625,6 +659,26 @@ def check_in(request):
         
         if attendance.check_in is None:
             attendance.check_in = timezone.now()
+            
+            # Store GPS coordinates
+            if lat and lon:
+                try:
+                    attendance.check_in_latitude = float(lat)
+                    attendance.check_in_longitude = float(lon)
+                    
+                    # Calculate distance from office
+                    distance_km = calculate_distance(
+                        attendance.check_in_latitude,
+                        attendance.check_in_longitude,
+                        OFFICE_LATITUDE,
+                        OFFICE_LONGITUDE
+                    )
+                    
+                    # Alert if beyond threshold
+                    if distance_km > LOCATION_THRESHOLD_KM:
+                        messages.warning(request, f'⚠️ Location Alert: You are {distance_km:.2f} km from office')
+                except (ValueError, TypeError):
+                    pass
             
             # Convert to local timezone for comparison
             import pytz
@@ -699,7 +753,32 @@ def check_out(request):
                     messages.warning(request, 'Please end your break before checking out.')
                     return redirect('dashboard')
                 
+                # Get GPS coordinates from POST data
+                lat = request.POST.get('latitude')
+                lon = request.POST.get('longitude')
+                
                 attendance.check_out = timezone.now()
+                
+                # Store GPS coordinates for check-out
+                if lat and lon:
+                    try:
+                        attendance.check_out_latitude = float(lat)
+                        attendance.check_out_longitude = float(lon)
+                        
+                        # Calculate distance from office
+                        distance_km = calculate_distance(
+                            attendance.check_out_latitude,
+                            attendance.check_out_longitude,
+                            OFFICE_LATITUDE,
+                            OFFICE_LONGITUDE
+                        )
+                        
+                        # Alert if beyond threshold
+                        if distance_km > LOCATION_THRESHOLD_KM:
+                            messages.warning(request, f'⚠️ Location Alert: You checked out from {distance_km:.2f} km away from office')
+                    except (ValueError, TypeError):
+                        pass
+                
                 attendance.save()
                 attendance.calculate_work_hours()
                 
@@ -1082,6 +1161,11 @@ def leave_request(request):
             reason=reason
         )
         
+        # Save attachments if any
+        ok, err = save_attachments(request, 'leave', leave_req.id)
+        if not ok:
+            messages.warning(request, f'Request submitted but attachment error: {err}')
+        
         # Notify Team Leaders about new leave request
         team_leaders = User.objects.filter(employeeprofile__role='tl')
         for tl in team_leaders:
@@ -1218,9 +1302,16 @@ def leave_request(request):
             'menstrual_percent': 0,
         }
     
+    # Attachments for employee view
+    leave_ids = list(leave_requests.values_list('id', flat=True))
+    leave_att_map = {}
+    for att in RequestAttachment.objects.filter(request_type='leave', request_id__in=leave_ids):
+        leave_att_map.setdefault(att.request_id, []).append(att)
+    
     context = {
         'leave_requests': leave_requests,
         'leave_balance': leave_balance,
+        'attachments_map': leave_att_map,
     }
     
     return render(request, 'leave_request.html', context)
@@ -1321,6 +1412,13 @@ def leave_approval(request):
     approved_count = LeaveRequest.objects.filter(status='approved').count()
     rejected_count = LeaveRequest.objects.filter(status='rejected').count()
     
+    # Load attachments for all requests
+    request_ids = list(requests.values_list('id', flat=True))
+    attachments_qs = RequestAttachment.objects.filter(request_type='leave', request_id__in=request_ids)
+    attachments_map = {}
+    for att in attachments_qs:
+        attachments_map.setdefault(att.request_id, []).append(att)
+    
     context = {
         'requests': requests,
         'user_role': user_role,
@@ -1328,6 +1426,7 @@ def leave_approval(request):
         'pending_count': pending_count,
         'approved_count': approved_count,
         'rejected_count': rejected_count,
+        'attachments_map': attachments_map,
     }
     
     return render(request, 'leave_approval.html', context)
@@ -2721,6 +2820,11 @@ def overtime_view(request):
                     approved_by_hr=approved
                 )
                 
+                # Save attachments if any
+                ok, err = save_attachments(request, 'overtime', ot.id)
+                if not ok:
+                    messages.warning(request, f'Request submitted but attachment error: {err}')
+                
                 # Send notification to HR if employee
                 if not (profile.is_hr or request.user.is_superuser):
                     hr_users = User.objects.filter(
@@ -2924,12 +3028,18 @@ def overtime_approval(request):
     approved_count = Overtime.objects.filter(status='approved').count()
     rejected_count = Overtime.objects.filter(status='rejected').count()
     
+    ot_ids = list(ot_requests.values_list('id', flat=True))
+    ot_attachments_map = {}
+    for att in RequestAttachment.objects.filter(request_type='overtime', request_id__in=ot_ids):
+        ot_attachments_map.setdefault(att.request_id, []).append(att)
+    
     context = {
         'ot_requests': ot_requests,
         'status_filter': status_filter,
         'pending_count': pending_count,
         'approved_count': approved_count,
         'rejected_count': rejected_count,
+        'attachments_map': ot_attachments_map,
     }
     
     return render(request, 'overtime_approval.html', context)
@@ -3208,6 +3318,11 @@ def wfh_request(request):
             reason=reason
         )
         
+        # Save attachments if any
+        ok, err = save_attachments(request, 'wfh', wfh_req.id)
+        if not ok:
+            messages.warning(request, f'Request submitted but attachment error: {err}')
+        
         # Calculate total days for notification
         if selected_dates:
             total_days = len(selected_dates)
@@ -3234,11 +3349,14 @@ def wfh_request(request):
         employee=request.user
     ).order_by('-created_at')
     
-    # NO WFH LIMIT - Balance calculation removed
-    # Employees can request unlimited WFH days
+    wfh_ids = list(wfh_requests.values_list('id', flat=True))
+    wfh_att_map = {}
+    for att in RequestAttachment.objects.filter(request_type='wfh', request_id__in=wfh_ids):
+        wfh_att_map.setdefault(att.request_id, []).append(att)
     
     context = {
         'wfh_requests': wfh_requests,
+        'attachments_map': wfh_att_map,
     }
     
     return render(request, 'wfh_request.html', context)
@@ -3315,6 +3433,11 @@ def wfh_approval(request):
     approved_count = WFHRequest.objects.filter(status='approved').count()
     rejected_count = WFHRequest.objects.filter(status='rejected').count()
     
+    wfh_ids = list(requests.values_list('id', flat=True))
+    wfh_attachments_map = {}
+    for att in RequestAttachment.objects.filter(request_type='wfh', request_id__in=wfh_ids):
+        wfh_attachments_map.setdefault(att.request_id, []).append(att)
+    
     context = {
         'requests': requests,
         'user_role': user_role,
@@ -3322,6 +3445,7 @@ def wfh_approval(request):
         'pending_count': pending_count,
         'approved_count': approved_count,
         'rejected_count': rejected_count,
+        'attachments_map': wfh_attachments_map,
     }
     
     return render(request, 'wfh_approval.html', context)
@@ -3764,6 +3888,11 @@ def onsite_request(request):
             expected_duration=expected_duration
         )
         
+        # Save attachments if any
+        ok, err = save_attachments(request, 'onsite', onsite.id)
+        if not ok:
+            messages.warning(request, f'Request submitted but attachment error: {err}')
+        
         # Notify Manager
         managers = User.objects.filter(employeeprofile__role='manager')
         for manager in managers:
@@ -3785,8 +3914,14 @@ def onsite_request(request):
         employee=request.user
     ).order_by('-visit_date')
     
+    onsite_ids = list(onsite_requests.values_list('id', flat=True))
+    onsite_att_map = {}
+    for att in RequestAttachment.objects.filter(request_type='onsite', request_id__in=onsite_ids):
+        onsite_att_map.setdefault(att.request_id, []).append(att)
+    
     context = {
         'onsite_requests': onsite_requests,
+        'attachments_map': onsite_att_map,
     }
     
     return render(request, 'onsite_request.html', context)
@@ -3849,6 +3984,11 @@ def onsite_approval(request):
     approved_count = OnsiteRequest.objects.filter(status='approved').count()
     rejected_count = OnsiteRequest.objects.filter(status='rejected').count()
     
+    onsite_ids = list(requests.values_list('id', flat=True))
+    onsite_attachments_map = {}
+    for att in RequestAttachment.objects.filter(request_type='onsite', request_id__in=onsite_ids):
+        onsite_attachments_map.setdefault(att.request_id, []).append(att)
+    
     context = {
         'requests': requests,
         'user_role': user_role,
@@ -3856,6 +3996,7 @@ def onsite_approval(request):
         'pending_count': pending_count,
         'approved_count': approved_count,
         'rejected_count': rejected_count,
+        'attachments_map': onsite_attachments_map,
     }
     
     return render(request, 'onsite_approval.html', context)
