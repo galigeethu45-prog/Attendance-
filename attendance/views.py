@@ -648,10 +648,6 @@ def check_in(request):
                         messages.warning(request, line)
             return redirect('dashboard')
         
-        # Get GPS coordinates from POST data
-        lat = request.POST.get('latitude')
-        lon = request.POST.get('longitude')
-        
         attendance, created = Attendance.objects.get_or_create(
             employee=request.user,
             date=today
@@ -659,26 +655,6 @@ def check_in(request):
         
         if attendance.check_in is None:
             attendance.check_in = timezone.now()
-            
-            # Store GPS coordinates
-            if lat and lon:
-                try:
-                    attendance.check_in_latitude = float(lat)
-                    attendance.check_in_longitude = float(lon)
-                    
-                    # Calculate distance from office
-                    distance_km = calculate_distance(
-                        attendance.check_in_latitude,
-                        attendance.check_in_longitude,
-                        OFFICE_LATITUDE,
-                        OFFICE_LONGITUDE
-                    )
-                    
-                    # Alert if beyond threshold
-                    if distance_km > LOCATION_THRESHOLD_KM:
-                        messages.warning(request, f'⚠️ Location Alert: You are {distance_km:.2f} km from office')
-                except (ValueError, TypeError):
-                    pass
             
             # Convert to local timezone for comparison
             import pytz
@@ -689,7 +665,7 @@ def check_in(request):
             # Determine status based on check-in time (9:30 AM IST cutoff)
             if check_in_time.hour > 9 or (check_in_time.hour == 9 and check_in_time.minute > 30):
                 attendance.status = 'half-day'  # Mark as half-day immediately
-                log_action(request.user, 'check_in', f'Checked in late at {check_in_time.strftime("%I:%M %p")} from {reason} - Marked as half-day', request)
+                log_action(request.user, 'check_in', f'Checked in late at {check_in_time.strftime("%I:%M %p")} - Marked as half-day', request)
                 messages.warning(request, f'Late Checked-In at {check_in_time.strftime("%I:%M %p")}, Considered as Half Day Leave')
                 
                 # Notify HR about late arrival
@@ -705,7 +681,7 @@ def check_in(request):
                     )
             else:
                 attendance.status = 'present'
-                log_action(request.user, 'check_in', f'Checked in on time at {check_in_time.strftime("%I:%M %p")} from {reason}', request)
+                log_action(request.user, 'check_in', f'Checked in on time at {check_in_time.strftime("%I:%M %p")}', request)
                 messages.success(request, f'Checked in successfully at {check_in_time.strftime("%I:%M %p")}!')
             
             attendance.save()
@@ -753,37 +729,13 @@ def check_out(request):
                     messages.warning(request, 'Please end your break before checking out.')
                     return redirect('dashboard')
                 
-                # Get GPS coordinates from POST data
-                lat = request.POST.get('latitude')
-                lon = request.POST.get('longitude')
-                
                 attendance.check_out = timezone.now()
-                
-                # Store GPS coordinates for check-out
-                if lat and lon:
-                    try:
-                        attendance.check_out_latitude = float(lat)
-                        attendance.check_out_longitude = float(lon)
-                        
-                        # Calculate distance from office
-                        distance_km = calculate_distance(
-                            attendance.check_out_latitude,
-                            attendance.check_out_longitude,
-                            OFFICE_LATITUDE,
-                            OFFICE_LONGITUDE
-                        )
-                        
-                        # Alert if beyond threshold
-                        if distance_km > LOCATION_THRESHOLD_KM:
-                            messages.warning(request, f'⚠️ Location Alert: You checked out from {distance_km:.2f} km away from office')
-                    except (ValueError, TypeError):
-                        pass
                 
                 attendance.save()
                 attendance.calculate_work_hours()
                 
                 # Log check-out
-                log_action(request.user, 'check_out', f'Checked out from {reason} - Total hours: {attendance.get_work_hours_display()}', request)
+                log_action(request.user, 'check_out', f'Checked out - Total hours: {attendance.get_work_hours_display()}', request)
                 
                 # Note: calculate_work_hours() already handles status, no need to override
                 

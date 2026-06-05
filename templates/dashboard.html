@@ -437,40 +437,7 @@ async function confirmCheckIn() {
         type: 'success'
     });
     if (result) {
-        // Get GPS coordinates before submitting
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    
-                    // Add GPS data to form
-                    const form = document.getElementById('checkinForm');
-                    const latInput = document.createElement('input');
-                    latInput.type = 'hidden';
-                    latInput.name = 'latitude';
-                    latInput.value = lat;
-                    form.appendChild(latInput);
-                    
-                    const lonInput = document.createElement('input');
-                    lonInput.type = 'hidden';
-                    lonInput.name = 'longitude';
-                    lonInput.value = lon;
-                    form.appendChild(lonInput);
-                    
-                    form.submit();
-                },
-                function(error) {
-                    console.log('Geolocation error:', error.message);
-                    // Submit without GPS if geolocation fails
-                    document.getElementById('checkinForm').submit();
-                },
-                { enableHighAccuracy: true, timeout: 5000 }
-            );
-        } else {
-            // Submit without GPS if geolocation not supported
-            document.getElementById('checkinForm').submit();
-        }
+        document.getElementById('checkinForm').submit();
     }
 }
 
@@ -484,40 +451,7 @@ async function confirmCheckOut() {
         type: 'warning'
     });
     if (result) {
-        // Get GPS coordinates before submitting
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                function(position) {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    
-                    // Add GPS data to form
-                    const form = document.getElementById('checkoutForm');
-                    const latInput = document.createElement('input');
-                    latInput.type = 'hidden';
-                    latInput.name = 'latitude';
-                    latInput.value = lat;
-                    form.appendChild(latInput);
-                    
-                    const lonInput = document.createElement('input');
-                    lonInput.type = 'hidden';
-                    lonInput.name = 'longitude';
-                    lonInput.value = lon;
-                    form.appendChild(lonInput);
-                    
-                    form.submit();
-                },
-                function(error) {
-                    console.log('Geolocation error:', error.message);
-                    // Submit without GPS if geolocation fails
-                    document.getElementById('checkoutForm').submit();
-                },
-                { enableHighAccuracy: true, timeout: 5000 }
-            );
-        } else {
-            // Submit without GPS if geolocation not supported
-            document.getElementById('checkoutForm').submit();
-        }
+        document.getElementById('checkoutForm').submit();
     }
 }
 
