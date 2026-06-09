@@ -1,36 +1,31 @@
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework import status
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+import json
 
 from attendance.models import EmployeeProfile
-from .serializers import RegisterSerializer
 
 
-@api_view(['POST'])
+@csrf_exempt
+@require_http_methods(["POST"])
 def register_api(request):
-    serializer = RegisterSerializer(data=request.data)
-
-    if serializer.is_valid():
-        serializer.save()
-        return Response(
-            {"message": "Registration successful"},
-            status=status.HTTP_201_CREATED
-        )
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # This can be implemented later if needed
+    return JsonResponse({"error": "Not implemented"}, status=400)
 
 
-@api_view(['POST'])
+@csrf_exempt
+@require_http_methods(["POST"])
 def login_api(request):
-    identifier = request.data.get('identifier')  # employee_id OR email
-    password = request.data.get('password')
+    data = json.loads(request.body)
+    identifier = data.get('identifier')  # employee_id OR email
+    password = data.get('password')
 
     if not identifier or not password:
-        return Response(
-            {"error": "Identifier and password required"},
-            status=status.HTTP_400_BAD_REQUEST
+        return JsonResponse(
+            {"error": "Identifier and password required"}, 
+            status=400
         )
 
     # Determine login type
@@ -39,9 +34,9 @@ def login_api(request):
             user = User.objects.get(email=identifier)
             username = user.username
         except User.DoesNotExist:
-            return Response(
-                {"error": "Invalid credentials"},
-                status=status.HTTP_401_UNAUTHORIZED
+            return JsonResponse(
+                {"error": "Invalid credentials"}, 
+                status=401
             )
     else:
         username = identifier  # employee_id stored as username
@@ -49,16 +44,16 @@ def login_api(request):
     user = authenticate(username=username, password=password)
 
     if user is None:
-        return Response(
-            {"error": "Invalid credentials"},
-            status=status.HTTP_401_UNAUTHORIZED
+        return JsonResponse(
+            {"error": "Invalid credentials"}, 
+            status=401
         )
 
     login(request, user)
 
     profile = EmployeeProfile.objects.get(user=user)
 
-    return Response({
+    return JsonResponse({
         "message": "Login successful",
         "employee_id": profile.employee_id,
         "is_hr": profile.is_hr,
@@ -67,10 +62,38 @@ def login_api(request):
 
 
 
-# =============================
-# MISSING CHECKOUTS API
-# =============================
-@api_view(['GET'])
+
+@require_http_methods(["GET"])
+def test_auth_api(request):
+    """Test endpoint to check authentication status"""
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            "authenticated": False,
+            "user": "Anonymous"
+        })
+    
+    try:
+        profile = request.user.employeeprofile
+        return JsonResponse({
+            "authenticated": True,
+            "user": request.user.username,
+            "is_superuser": request.user.is_superuser,
+            "employee_id": profile.employee_id,
+            "is_hr": profile.is_hr,
+            "role": profile.role
+        })
+    except EmployeeProfile.DoesNotExist:
+        return JsonResponse({
+            "authenticated": True,
+            "user": request.user.username,
+            "is_superuser": request.user.is_superuser,
+            "employee_id": "NO_PROFILE",
+            "is_hr": False,
+            "role": "NO_PROFILE"
+        })
+
+
+@require_http_methods(["GET"])
 def missing_checkouts_api(request):
     """Get missing checkouts for employee(s) - only for dates before today"""
     from django.utils import timezone
@@ -79,14 +102,24 @@ def missing_checkouts_api(request):
     
     # Authentication and authorization check
     if not request.user.is_authenticated:
-        return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+        return JsonResponse({"error": "Authentication required"}, status=401)
     
-    try:
-        profile = request.user.employeeprofile
-        if not profile.is_hr:
-            return Response({"error": "HR access only"}, status=status.HTTP_403_FORBIDDEN)
-    except EmployeeProfile.DoesNotExist:
-        return Response({"error": "Employee profile not found"}, status=status.HTTP_404_NOT_FOUND)
+    # Allow superusers OR HR users
+    is_authorized = False
+    if request.user.is_superuser:
+        is_authorized = True
+        print(f"DEBUG: Superuser {request.user.username} granted access")
+    else:
+        try:
+            profile = request.user.employeeprofile
+            print(f"DEBUG: User {request.user.username}, is_hr: {profile.is_hr}, role: {profile.role}")
+            if profile.is_hr:
+                is_authorized = True
+        except EmployeeProfile.DoesNotExist:
+            pass
+    
+    if not is_authorized:
+        return JsonResponse({"error": "HR access only"}, status=403)
     
     
     today = timezone.localtime(timezone.now()).date()
@@ -138,7 +171,7 @@ def missing_checkouts_api(request):
                 'skip_reason': skip_reason
             })
         
-        return Response({
+        return JsonResponse({
             'missing_checkouts': results,
             'total_records': len(results),
             'total_employees': len(set(a['employee_id'] for a in results)),
@@ -148,14 +181,14 @@ def missing_checkouts_api(request):
         # Specific employee
         employee_id = request.GET.get('employee_id')
         if not employee_id:
-            return Response({"error": "Employee ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({"error": "Employee ID is required"}, status=400)
         
         try:
             emp = User.objects.get(id=employee_id)
         except User.DoesNotExist:
-            return Response({"error": f"Employee with ID {employee_id} not found"}, status=status.HTTP_404_NOT_FOUND)
+            return JsonResponse({"error": f"Employee with ID {employee_id} not found"}, status=404)
         except Exception as e:
-            return Response({"error": f"Error fetching employee: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return JsonResponse({"error": f"Error fetching employee: {str(e)}"}, status=500)
         
         missing_for_emp = Attendance.objects.filter(
             employee=emp,
@@ -194,13 +227,14 @@ def missing_checkouts_api(request):
                 'skip_reason': skip_reason
             })
         
-        return Response({
+        return JsonResponse({
             'missing_checkouts': results,
             'total_records': len(results)
         })
 
 
-@api_view(['POST'])
+@csrf_exempt
+@require_http_methods(["POST"])
 def assign_missing_checkouts_api(request):
     """Assign missing checkouts for employee(s)"""
     from django.utils import timezone
@@ -209,28 +243,38 @@ def assign_missing_checkouts_api(request):
     
     # Authentication and authorization check
     if not request.user.is_authenticated:
-        return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+        return JsonResponse({"error": "Authentication required"}, status=401)
     
-    try:
-        profile = request.user.employeeprofile
-        if not profile.is_hr:
-            return Response({"error": "HR access only"}, status=status.HTTP_403_FORBIDDEN)
-    except EmployeeProfile.DoesNotExist:
-        return Response({"error": "Employee profile not found"}, status=status.HTTP_404_NOT_FOUND)
+    # Allow superusers OR HR users
+    is_authorized = False
+    if request.user.is_superuser:
+        is_authorized = True
+        print(f"DEBUG: Superuser {request.user.username} granted access to assign")
+    else:
+        try:
+            profile = request.user.employeeprofile
+            if profile.is_hr:
+                is_authorized = True
+        except EmployeeProfile.DoesNotExist:
+            pass
     
+    if not is_authorized:
+        return JsonResponse({"error": "HR access only"}, status=403)
+    
+    data = json.loads(request.body)
     today = timezone.localtime(timezone.now()).date()
     yesterday = today - timedelta(days=1)
     checkout_time = time(19, 0)  # 7 PM
     
-    mode = request.data.get('mode')
-    employee_id = request.data.get('employee_id')
+    mode = data.get('mode')
+    employee_id = data.get('employee_id')
     
     # Validation
     if not mode or mode not in ['all', 'specific']:
-        return Response({"error": "Valid mode ('all' or 'specific') is required"}, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({"error": "Valid mode ('all' or 'specific') is required"}, status=400)
     
     if mode == 'specific' and not employee_id:
-        return Response({"error": "Employee ID is required for specific mode"}, status=status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({"error": "Employee ID is required for specific mode"}, status=400)
     
     assigned_count = 0
     skipped_count = 0
@@ -315,17 +359,16 @@ def assign_missing_checkouts_api(request):
                     })
     
     else:
-        # Specific employee
-        employee_id = request.data.get('employee_id')
+        employee_id = data.get('employee_id')
         if not employee_id or employee_id == 'undefined':
-            return Response({"error": "Valid employee ID is required"}, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({"error": "Valid employee ID is required"}, status=400)
         
         try:
             emp = User.objects.get(id=employee_id)
         except User.DoesNotExist:
-            return Response({"error": f"Employee with ID {employee_id} not found"}, status=status.HTTP_404_NOT_FOUND)
+            return JsonResponse({"error": f"Employee with ID {employee_id} not found"}, status=404)
         except Exception as e:
-            return Response({"error": f"Error fetching employee: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return JsonResponse({"error": f"Error fetching employee: {str(e)}"}, status=500)
         
         missing_for_emp = Attendance.objects.filter(
             employee=emp,
@@ -401,7 +444,7 @@ def assign_missing_checkouts_api(request):
                         'reason': str(e)
                     })
     
-    return Response({
+    return JsonResponse({
         'assigned_count': assigned_count,
         'skipped_count': skipped_count,
         'results': results

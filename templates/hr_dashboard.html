@@ -978,6 +978,9 @@
                             <button type="button" class="btn btn-warning" onclick="showBulkCheckoutModal()">
                                 <i class="fas fa-clock me-2"></i>Assign Missing Checkouts
                             </button>
+                            <button type="button" class="btn btn-info ms-2" onclick="testAuthentication()">
+                                <i class="fas fa-user me-2"></i>Test Auth
+                            </button>
                         </div>
                     </div>
 
@@ -2476,6 +2479,27 @@ function resetBulkCheckoutModal() {
     document.getElementById('proceedToPreviewBtn').disabled = true;
     document.getElementById('confirmCheckoutBtn').disabled = false;
     document.getElementById('confirmCheckoutBtn').innerHTML = '<i class="fas fa-check me-1"></i>Assign 7 PM Checkout';
+}
+
+function testAuthentication() {
+    console.log('Testing authentication...');
+    fetch('/attendance/api/test-auth/')
+        .then(response => {
+            console.log('Auth test response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Auth test data:', data);
+            const msg = `User: ${data.user}\nAuthenticated: ${data.authenticated}\nSuperuser: ${data.is_superuser}\nEmployee ID: ${data.employee_id}\nIs HR: ${data.is_hr}\nRole: ${data.role}`;
+            alert(msg);
+        })
+        .catch(error => {
+            console.error('Auth test error:', error);
+            alert('Auth test failed: ' + error.message);
+        });
 }
 </script>
 
