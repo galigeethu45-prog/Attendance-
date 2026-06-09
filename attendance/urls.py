@@ -1,10 +1,13 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 from . import master_data_views
 from . import office_ip_views
 from . import holiday_views
 
 urlpatterns = [
+    # API endpoints
+    path('api/', include('attendance.api.urls')),
+    
     # Dashboard
     path('', views.dashboard, name='dashboard'),
     
