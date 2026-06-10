@@ -76,6 +76,7 @@ urlpatterns = [
     path('master-data/', master_data_views.master_data_list, name='master_data_list'),
     path('master-data/add/', master_data_views.add_master_data, name='add_master_data'),
     path('master-data/bulk-upload/', master_data_views.bulk_upload_master_data, name='bulk_upload_master_data'),
+    path('master-data/export-csv/', master_data_views.export_master_data_csv, name='export_master_data_csv'),
     path('master-data/edit/<int:master_id>/', master_data_views.edit_master_data, name='edit_master_data'),
     path('master-data/delete/<int:master_id>/', master_data_views.delete_master_data, name='delete_master_data'),
     path('user/reset-password/<int:user_id>/', master_data_views.reset_employee_password, name='reset_employee_password'),

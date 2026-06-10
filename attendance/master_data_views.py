@@ -417,3 +417,81 @@ def edit_attendance_status(request, attendance_id):
             })
     
     return JsonResponse({'success': False, 'message': 'Invalid request'})
+
+
+
+# =========================
+# EXPORT MASTER DATA TO CSV
+# =========================
+@login_required
+@user_passes_test(is_hr_or_admin)
+def export_master_data_csv(request):
+    """Export all employee master data to CSV"""
+    # Create the HttpResponse object with CSV header
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="employee_master_data_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Write header row
+    writer.writerow([
+        'Employee ID',
+        'First Name',
+        'Middle Name',
+        'Last Name',
+        'Full Name',
+        'Gender',
+        'Date of Birth',
+        'Blood Group',
+        'Department',
+        'Designation',
+        'Date of Joining',
+        'Phone Number',
+        'Alternate Phone',
+        'Email',
+        'Local Address',
+        'Permanent Address',
+        'Aadhar Number',
+        'PAN Number',
+        'Account Status',
+        'Created At',
+        'Created By'
+    ])
+    
+    # Get all master data
+    all_employees = EmployeeMasterData.objects.all().order_by('employee_id')
+    
+    # Write data rows
+    for emp in all_employees:
+        writer.writerow([
+            emp.employee_id,
+            emp.first_name,
+            emp.middle_name or '',
+            emp.last_name,
+            emp.get_full_name(),
+            emp.gender.capitalize() if emp.gender else '',
+            emp.date_of_birth.strftime('%d-%b-%Y') if emp.date_of_birth else '',
+            emp.blood_group,
+            emp.department,
+            emp.designation,
+            emp.date_of_joining.strftime('%d-%b-%Y') if emp.date_of_joining else '',
+            emp.phone_number,
+            emp.alternate_phone or '',
+            emp.email,
+            emp.local_address,
+            emp.permanent_address,
+            emp.aadhar_number,
+            emp.pan_number,
+            'Registered' if emp.account_created else 'Pending',
+            emp.created_at.strftime('%Y-%m-%d %H:%M:%S') if emp.created_at else '',
+            emp.created_by.username if emp.created_by else 'System'
+        ])
+    
+    # Log action
+    AuditLog.objects.create(
+        user=request.user,
+        action='master_data_export',
+        description=f'Exported {all_employees.count()} employee master data records to CSV'
+    )
+    
+    return response
