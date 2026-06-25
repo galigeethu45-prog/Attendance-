@@ -1,4 +1,4 @@
-# AttendanceHub - Employee Attendance Management System
+# SmartPunch - Smart Attendance Management System
 
 A comprehensive Django-based attendance management system with automatic checkout, break tracking, leave management, and HR dashboard.
 
