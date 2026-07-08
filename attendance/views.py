@@ -2039,10 +2039,10 @@ def hr_dashboard(request):
     if audit_date:
         audit_logs_query = audit_logs_query.filter(timestamp__date=audit_date)
     
-    # Paginate audit logs
-    paginator = Paginator(audit_logs_query, 50)
-    page_number = request.GET.get('page')
-    audit_logs_page = paginator.get_page(page_number)
+    # Paginate audit logs (use page_number_audit to avoid conflict with attendance pagination)
+    paginator_audit = Paginator(audit_logs_query, 50)
+    page_number_audit = request.GET.get('page_audit')
+    audit_logs_page = paginator_audit.get_page(page_number_audit)
     
     # Office IP Management
     from attendance.models import SystemSettings
@@ -2053,6 +2053,11 @@ def hr_dashboard(request):
     # Detect if running on localhost
     is_localhost = current_ip in ['127.0.0.1', '::1', 'localhost']
     
+    # PAGINATION: Paginate the attendance records (50 per page)
+    paginator_attendance = Paginator(today_attendance_list, 50)  # 50 attendance records per page
+    page_number_attendance = request.GET.get('page', 1)
+    page_obj = paginator_attendance.get_page(page_number_attendance)
+    
     context = {
         'total_employees': total_employees,
         'present_today': present_today,
@@ -2061,7 +2066,8 @@ def hr_dashboard(request):
         'leave_today': leave_today,  # NEW
         'wfh_today': wfh_today,  # NEW
         'pending_leaves': pending_leaves,
-        'today_attendance': today_attendance_list,
+        'today_attendance': page_obj.object_list,  # Use paginated list
+        'page_obj': page_obj,  # Add page object
         'pending_leave_requests': pending_leave_requests,
         'break_logs': break_logs,
         'break_period': break_period,  # Add this for template
@@ -2417,6 +2423,8 @@ def employee_attendance_dashboard(request):
     Comprehensive employee attendance dashboard for HR and Managers
     Shows attendance statistics per employee with filtering options
     """
+    from django.core.paginator import Paginator
+    
     # Check if user is HR, Manager, or superuser
     is_authorized = False
     if request.user.is_superuser:
@@ -2596,6 +2604,11 @@ def employee_attendance_dashboard(request):
     # Get list of departments for filter dropdown
     departments = EmployeeProfile.objects.values_list('department', flat=True).distinct().exclude(department='')
     
+    # PAGINATION: Show 50 employees per page
+    paginator = Paginator(employee_stats, 50)  # 50 employees per page
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
+    
     # Summary statistics
     summary_stats = {
         'total_employees': len(employee_stats),
@@ -2607,7 +2620,8 @@ def employee_attendance_dashboard(request):
     }
     
     context = {
-        'employee_stats': employee_stats,
+        'employee_stats': page_obj.object_list,  # Use paginated list
+        'page_obj': page_obj,  # Add page object for pagination controls
         'summary_stats': summary_stats,
         'departments': departments,
         'start_date': start_date,

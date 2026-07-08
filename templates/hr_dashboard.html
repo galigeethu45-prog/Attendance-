@@ -331,11 +331,48 @@
                     </div>
                     
                     {% if today_attendance %}
-                    <div class="mt-3">
+                    <div class="mt-3 d-flex justify-content-between align-items-center">
                         <p class="text-muted mb-0">
                             <i class="fas fa-info-circle me-1"></i>
-                            Showing {{ today_attendance|length }} record(s)
+                            Showing {{ today_attendance|length }} record(s) (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
                         </p>
+                        
+                        <!-- Pagination Controls -->
+                        {% if page_obj.has_other_pages %}
+                        <nav aria-label="Attendance pagination">
+                            <ul class="pagination mb-0" style="gap: 0.3rem;">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1&attendance_filter={{ attendance_filter_type }}&start_date={{ start_date }}&end_date={{ end_date }}&filter_month={{ filter_month }}&filter_year={{ filter_year }}">First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}&attendance_filter={{ attendance_filter_type }}&start_date={{ start_date }}&end_date={{ end_date }}&filter_month={{ filter_month }}&filter_year={{ filter_year }}">← Prev</a>
+                                </li>
+                                {% endif %}
+                                
+                                {% for num in page_obj.paginator.page_range %}
+                                    {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                    {% elif num > page_obj.number|add:'-2' and num < page_obj.number|add:'2' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}&attendance_filter={{ attendance_filter_type }}&start_date={{ start_date }}&end_date={{ end_date }}&filter_month={{ filter_month }}&filter_year={{ filter_year }}">{{ num }}</a>
+                                    </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}&attendance_filter={{ attendance_filter_type }}&start_date={{ start_date }}&end_date={{ end_date }}&filter_month={{ filter_month }}&filter_year={{ filter_year }}">Next →</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&attendance_filter={{ attendance_filter_type }}&start_date={{ start_date }}&end_date={{ end_date }}&filter_month={{ filter_month }}&filter_year={{ filter_year }}">Last</a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
                     </div>
                     {% endif %}
                 </div>
@@ -787,7 +824,7 @@
                         <ul class="pagination justify-content-center">
                             {% if audit_logs.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ audit_logs.previous_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}#auditlogs">Previous</a>
+                                <a class="page-link" href="?page_audit={{ audit_logs.previous_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}#auditlogs">Previous</a>
                             </li>
                             {% endif %}
                             
@@ -797,7 +834,7 @@
                             
                             {% if audit_logs.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ audit_logs.next_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}#auditlogs">Next</a>
+                                <a class="page-link" href="?page_audit={{ audit_logs.next_page_number }}{% if request.GET.audit_action %}&audit_action={{ request.GET.audit_action }}{% endif %}{% if request.GET.audit_user %}&audit_user={{ request.GET.audit_user }}{% endif %}{% if request.GET.audit_date %}&audit_date={{ request.GET.audit_date }}{% endif %}#auditlogs">Next</a>
                             </li>
                             {% endif %}
                         </ul>

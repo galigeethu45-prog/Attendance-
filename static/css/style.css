@@ -2603,8 +2603,43 @@ body.modal-open {
 
 
 /* ===================================
-   Z-INDEX FIX - Dropdowns & Modals
+   PAGINATION STYLES
    =================================== */
+.pagination {
+    gap: 0.5rem;
+}
+
+.page-link {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: var(--accent-blue);
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+}
+
+.page-link:hover {
+    background: rgba(59, 130, 246, 0.2);
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: translateY(-2px);
+}
+
+.page-item.active .page-link {
+    background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+    border-color: var(--accent-blue);
+    color: white;
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+
+.page-item.disabled .page-link {
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.2);
+    color: var(--text-secondary);
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 
 /* Dropdowns must appear above cards */
 .navbar .dropdown-menu {
