@@ -906,16 +906,18 @@ textarea::placeholder {
 }
 
 .modal {
-    z-index: 9998 !important;
+    z-index: 1050 !important;
+    pointer-events: auto !important;
 }
 
 .modal.show {
-    z-index: 9998 !important;
+    z-index: 1050 !important;
+    pointer-events: auto !important;
 }
 
 .modal-dialog {
-    z-index: 9999 !important;
-    pointer-events: none !important;
+    z-index: 1050 !important;
+    pointer-events: auto !important;
 }
 
 .modal-dialog .modal-content {
@@ -963,11 +965,15 @@ textarea::placeholder {
 }
 
 .modal.show .modal-dialog {
-    pointer-events: none;
+    pointer-events: auto !important;
 }
 
 .modal.show .modal-dialog .modal-content {
-    pointer-events: auto;
+    pointer-events: auto !important;
+}
+
+.modal.show .modal-dialog .modal-content * {
+    pointer-events: auto !important;
 }
 
 body.modal-open::before {
@@ -2594,3 +2600,42 @@ body.modal-open {
 #systemConfirmModal {
     z-index: 99998 !important;
 }
+
+
+/* ===================================
+   Z-INDEX FIX - Dropdowns & Modals
+   =================================== */
+
+/* Dropdowns must appear above cards */
+.navbar .dropdown-menu {
+    z-index: 10000 !important;
+}
+
+/* CRITICAL FIX: Modal backdrop should NOT block modal content clicks */
+.modal-backdrop {
+    pointer-events: none !important;  /* Let clicks pass through to modal */
+}
+
+/* But modal itself should catch clicks */
+.modal {
+    pointer-events: auto !important;
+}
+
+/* Ensure ALL modal elements are clickable */
+.modal *,
+.modal button,
+.modal .btn,
+.modal .btn-close,
+.modal-dialog,
+.modal-content,
+.modal-body,
+.modal-header,
+.modal-footer,
+.modal-footer button,
+.modal-header button {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+
+

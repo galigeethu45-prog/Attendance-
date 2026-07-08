@@ -618,17 +618,10 @@ class WFHRequest(models.Model):
     
     @property
     def total_days(self):
-        """Calculate total days - uses selected_dates if available, otherwise date range
-        EXCLUDES HOLIDAYS from the count"""
+        """Calculate total days - includes ALL days (holidays, weekends) in the WFH request
+        Because WFH is about not coming to office, even on holidays"""
         dates_list = self.get_dates_list()
-        
-        # Count only working days (exclude holidays)
-        working_days = 0
-        for date in dates_list:
-            if CompanyHoliday.is_working_day(date):
-                working_days += 1
-        
-        return working_days
+        return len(dates_list)
     
     def get_dates_list(self):
         """Get list of all dates covered by this WFH request"""

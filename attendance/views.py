@@ -7,7 +7,7 @@ from django.db.models import Sum, Count, Q
 from django.core.paginator import Paginator
 from django.http import JsonResponse
 from datetime import datetime, timedelta, time as dt_time
-from .models import Attendance, BreakLog, Notification, BREAK_RULES, LeaveRequest, EmployeeProfile, Overtime, AuditLog, WFHRequest, EmployeeMasterData, SystemSettings, RequestAttachment
+from .models import Attendance, BreakLog, Notification, BREAK_RULES, LeaveRequest, EmployeeProfile, Overtime, AuditLog, WFHRequest, EmployeeMasterData, SystemSettings, RequestAttachment, OnsiteRequest
 from django.contrib.auth.models import User
 
 
@@ -116,11 +116,23 @@ def is_on_office_network(request=None):
 
 def has_approved_wfh_today(user):
     """
-    Check if user has approved WFH for today
+    Check if user has approved WFH for today (but NOT on Leave)
     Returns: Boolean
     """
     today = get_local_today()
     
+    # Check if on Leave FIRST (takes priority over WFH)
+    on_leave = LeaveRequest.objects.filter(
+        employee=user,
+        status='approved',
+        start_date__lte=today,
+        end_date__gte=today
+    ).exists()
+    
+    if on_leave:
+        return False  # Not on WFH because on Leave instead
+    
+    # Check if on WFH
     approved_wfh = WFHRequest.objects.filter(
         employee=user,
         status='approved',
@@ -129,6 +141,174 @@ def has_approved_wfh_today(user):
     ).exists()
     
     return approved_wfh
+
+
+def get_employee_status_today(user):
+    """
+    Get the current work status for an employee today considering all approvals with priority.
+    
+    Priority: Leave > WFH > Onsite > Office
+    
+    Returns: {
+        'status': 'on_leave' | 'on_wfh' | 'on_onsite' | 'office',
+        'type': 'leave' | 'wfh' | 'onsite' | None,
+        'reason': 'Casual Leave' | 'Sick Leave' | 'WFH (Approved)' | 'Onsite Visit',
+        'details': {...}  # Request object details
+    }
+    """
+    today = get_local_today()
+    from datetime import datetime as dt
+    
+    # PRIORITY 1: Check for approved Leave (highest priority)
+    leave_request = LeaveRequest.objects.filter(
+        employee=user,
+        status='approved',
+        start_date__lte=today,
+        end_date__gte=today
+    ).first()
+    
+    if leave_request:
+        return {
+            'status': 'on_leave',
+            'type': 'leave',
+            'reason': f"{leave_request.get_leave_type_display()}",
+            'details': {
+                'id': leave_request.id,
+                'start_date': leave_request.start_date,
+                'end_date': leave_request.end_date,
+                'reason': leave_request.reason,
+            }
+        }
+    
+    # PRIORITY 2: Check for approved WFH
+    wfh_request = WFHRequest.objects.filter(
+        employee=user,
+        status='approved',
+        start_date__lte=today,
+        end_date__gte=today
+    ).first()
+    
+    if wfh_request:
+        return {
+            'status': 'on_wfh',
+            'type': 'wfh',
+            'reason': 'WFH (Approved)',
+            'details': {
+                'id': wfh_request.id,
+                'start_date': wfh_request.start_date,
+                'end_date': wfh_request.end_date,
+                'reason': wfh_request.reason,
+            }
+        }
+    
+    # PRIORITY 3: Check for approved Onsite visit
+    onsite_request = OnsiteRequest.objects.filter(
+        employee=user,
+        status='approved',
+        visit_date=today
+    ).first()
+    
+    if onsite_request:
+        return {
+            'status': 'on_onsite',
+            'type': 'onsite',
+            'reason': f"Onsite Visit - {onsite_request.client_name}",
+            'details': {
+                'id': onsite_request.id,
+                'visit_date': onsite_request.visit_date,
+                'client_name': onsite_request.client_name,
+                'location': onsite_request.location,
+            }
+        }
+    
+    # DEFAULT: Office
+    return {
+        'status': 'office',
+        'type': None,
+        'reason': 'Office',
+        'details': {}
+    }
+
+
+def get_employee_status_for_date(user, date):
+    """
+    Get the work status for an employee on a specific date considering all approvals with priority.
+    
+    Priority: Leave > WFH > Onsite > Office
+    
+    Returns: Same structure as get_employee_status_today()
+    """
+    from datetime import datetime as dt
+    
+    # PRIORITY 1: Check for approved Leave
+    leave_request = LeaveRequest.objects.filter(
+        employee=user,
+        status='approved',
+        start_date__lte=date,
+        end_date__gte=date
+    ).first()
+    
+    if leave_request:
+        return {
+            'status': 'on_leave',
+            'type': 'leave',
+            'reason': f"{leave_request.get_leave_type_display()}",
+            'details': {
+                'id': leave_request.id,
+                'start_date': leave_request.start_date,
+                'end_date': leave_request.end_date,
+                'reason': leave_request.reason,
+            }
+        }
+    
+    # PRIORITY 2: Check for approved WFH
+    wfh_request = WFHRequest.objects.filter(
+        employee=user,
+        status='approved',
+        start_date__lte=date,
+        end_date__gte=date
+    ).first()
+    
+    if wfh_request:
+        return {
+            'status': 'on_wfh',
+            'type': 'wfh',
+            'reason': 'WFH (Approved)',
+            'details': {
+                'id': wfh_request.id,
+                'start_date': wfh_request.start_date,
+                'end_date': wfh_request.end_date,
+                'reason': wfh_request.reason,
+            }
+        }
+    
+    # PRIORITY 3: Check for approved Onsite visit
+    onsite_request = OnsiteRequest.objects.filter(
+        employee=user,
+        status='approved',
+        visit_date=date
+    ).first()
+    
+    if onsite_request:
+        return {
+            'status': 'on_onsite',
+            'type': 'onsite',
+            'reason': f"Onsite Visit - {onsite_request.client_name}",
+            'details': {
+                'id': onsite_request.id,
+                'visit_date': onsite_request.visit_date,
+                'client_name': onsite_request.client_name,
+                'location': onsite_request.location,
+            }
+        }
+    
+    # DEFAULT: Office
+    return {
+        'status': 'office',
+        'type': None,
+        'reason': 'Office',
+        'details': {}
+    }
 
 
 def can_check_in_from_location(user, request=None):
@@ -141,7 +321,11 @@ def can_check_in_from_location(user, request=None):
     2. Hybrid/Permanent WFH employees can check-in from anywhere
     3. Regular office employees MUST be either:
        a) On office network (Regus IP), OR
-       b) Have approved WFH for today
+       b) Have approved WFH for today (but NOT on Leave)
+    
+    Special Cases:
+    - If on Leave: Cannot check-in from anywhere (should not check in on leave)
+    - If on Onsite: Can check-in from anywhere (onsite allows flexible check-in)
     
     Returns: (Boolean, String) - (can_check_in, reason)
     """
@@ -151,6 +335,13 @@ def can_check_in_from_location(user, request=None):
     # RULE 0: EMERGENCY OVERRIDE - Bypass all restrictions
     if SystemSettings.is_emergency_override_active():
         return (True, "🚨 Emergency Override Active - Network restrictions bypassed")
+    
+    # Get employee's actual status today (with priority: Leave > WFH > Onsite)
+    status = get_employee_status_today(user)
+    
+    # Check if on Leave - cannot check in
+    if status['status'] == 'on_leave':
+        return (False, f"❌ Employee is on {status['reason']} today - Cannot check-in")
     
     # RULE 1: HR/Admin bypass all network restrictions
     try:
@@ -175,9 +366,13 @@ def can_check_in_from_location(user, request=None):
     if is_on_office_network(request):
         return (True, "Office network (Regus)")
     
-    # RULE 3b: Check if has approved WFH for today
+    # RULE 3b: Check if has approved WFH for today (Note: this already checks for Leave priority)
     if has_approved_wfh_today(user):
         return (True, "Approved WFH - Can work from anywhere")
+    
+    # RULE 3c: Check if on Onsite (allows check-in from anywhere)
+    if status['status'] == 'on_onsite':
+        return (True, "Onsite visit - Can check-in from anywhere")
     
     # Not allowed - provide detailed error message
     client_ip = get_client_ip(request) if request else "Unknown"
@@ -601,6 +796,7 @@ def dashboard(request):
         'pending_leave_approvals': pending_leave_approvals,
         'pending_wfh_approvals': pending_wfh_approvals,
         'pending_onsite_approvals': pending_onsite_approvals,
+        'employee_status_today': get_employee_status_today(request.user),  # Employee's work status with priority
     }
     
     return render(request, 'dashboard.html', context)
@@ -662,8 +858,8 @@ def check_in(request):
             check_in_local = attendance.check_in.astimezone(local_tz)
             check_in_time = check_in_local.time()
             
-            # Determine status based on check-in time (9:30 AM IST cutoff)
-            if check_in_time.hour > 9 or (check_in_time.hour == 9 and check_in_time.minute > 30):
+            # Determine status based on check-in time (10:00 AM IST cutoff)
+            if check_in_time.hour > 10 or (check_in_time.hour == 10 and check_in_time.minute > 0):
                 attendance.status = 'half-day'  # Mark as half-day immediately
                 log_action(request.user, 'check_in', f'Checked in late at {check_in_time.strftime("%I:%M %p")} - Marked as half-day', request)
                 messages.warning(request, f'Late Checked-In at {check_in_time.strftime("%I:%M %p")}, Considered as Half Day Leave')
@@ -1502,7 +1698,7 @@ def leave_action(request, leave_id, action):
             return JsonResponse({'success': True, 'message': 'Leave rejected by Manager'})
     
     # HR action - Final Approve or Reject (HR has full authority)
-    elif user_role == 'hr' and action in ['approve', 'reject']:
+    elif (user_role == 'hr' or request.user.is_superuser) and action in ['approve', 'reject']:
         # Comment is optional for HR
         leave.hr_comment = comment if comment else ''
         
@@ -2028,14 +2224,23 @@ def export_attendance_csv(request):
         # Break count
         break_count = BreakLog.objects.filter(attendance=attendance).count()
         
+        # Convert times to local timezone (Asia/Kolkata)
+        from django.utils import timezone
+        check_in_local = None
+        check_out_local = None
+        if attendance.check_in:
+            check_in_local = timezone.localtime(attendance.check_in).strftime('%I:%M %p')
+        if attendance.check_out:
+            check_out_local = timezone.localtime(attendance.check_out).strftime('%I:%M %p')
+        
         writer.writerow([
             employee_id,
             attendance.employee.get_full_name() or attendance.employee.username,
             department,
             designation,
             attendance.date.strftime('%Y-%m-%d'),
-            attendance.check_in.strftime('%I:%M %p') if attendance.check_in else 'Not Checked In',
-            attendance.check_out.strftime('%I:%M %p') if attendance.check_out else 'Not Checked Out',
+            check_in_local if check_in_local else 'Not Checked In',
+            check_out_local if check_out_local else 'Not Checked Out',
             attendance.get_work_hours_display(),
             attendance.get_status_display(),
             break_count,
@@ -2315,9 +2520,15 @@ def employee_attendance_dashboard(request):
         )
         leaves_taken = sum([leave.total_days for leave in leave_requests])
         
-        # Absent = Working Days - Attended Days - Approved Leaves - Approved WFH
-        attended_days = attendance_records.count()
-        absent_days = max(0, working_days - attended_days - leaves_taken - wfh_days)
+        # Calculate total attended days (with check-in)
+        # Attended = Present + Late + Half-Day (all have check-in records)
+        # NOTE: This INCLUDES WFH days (they check in from home)
+        total_attended_days = present_days + late_days + half_days
+        
+        # Absent days = Working Days - Total Attended - Leaves Taken
+        # (Days with no check-in AND not on leave)
+        # WFH days are already counted in total_attended_days
+        absent_days = max(0, working_days - total_attended_days - leaves_taken)
         
         # Total hours worked
         hours_sum = attendance_records.aggregate(Sum('total_work_hours'))['total_work_hours__sum'] or 0
@@ -2335,14 +2546,15 @@ def employee_attendance_dashboard(request):
             'name': employee.get_full_name() or employee.username,
             'department': department,
             'profile_photo': profile_photo,
+            'working_days': working_days,
             'present_days': present_days,
-            'absent_days': absent_days,
             'late_days': late_days,
             'half_days': half_days,
-            'total_hours': round(hours_sum, 2),
+            'total_attended_days': total_attended_days,
+            'absent_days': absent_days,
             'wfh_days': wfh_days,
             'leaves_taken': leaves_taken,
-            'working_days': working_days,
+            'total_hours': round(hours_sum, 2),
         })
     
     # Sort by name
@@ -2357,7 +2569,8 @@ def employee_attendance_dashboard(request):
         response['Content-Disposition'] = f'attachment; filename="employee_attendance_{start_date}_to_{end_date}.csv"'
         
         writer = csv.writer(response)
-        writer.writerow(['Employee ID', 'Name', 'Department', 'Working Days', 'Present Days', 'Absent Days', 'Late Arrivals', 'Half Days', 'WFH Days', 'Leaves Taken', 'Total Hours'])
+        # New header structure with clear separation
+        writer.writerow(['Employee ID', 'Name', 'Department', 'Working Days', 'Present Days', 'Late Arrivals', 'Half Days', 'Total Attended (P+L+H)', 'Absent Days', 'WFH Days', 'Leaves Taken', 'Total Hours'])
         
         for stat in employee_stats:
             writer.writerow([
@@ -2366,9 +2579,10 @@ def employee_attendance_dashboard(request):
                 stat['department'],
                 stat['working_days'],
                 stat['present_days'],
-                stat['absent_days'],
                 stat['late_days'],
                 stat['half_days'],
+                stat['total_attended_days'],
+                stat['absent_days'],
                 stat['wfh_days'],
                 stat['leaves_taken'],
                 f"{stat['total_hours']:.2f}h",
@@ -3513,7 +3727,7 @@ def wfh_action(request, wfh_id, action):
             return JsonResponse({'success': True, 'message': 'WFH rejected'})
     
     # HR action - Final Approve or Reject (HR has full authority)
-    elif user_role == 'hr' and action in ['approve', 'reject']:
+    elif (user_role == 'hr' or request.user.is_superuser) and action in ['approve', 'reject']:
         # Comment is optional for HR
         wfh.hr_comment = comment if comment else ''
         
@@ -4040,7 +4254,7 @@ def onsite_action(request, onsite_id, action):
             return JsonResponse({'success': True, 'message': 'Onsite request rejected'})
     
     # HR action - Final Approve or Reject (HR has final authority)
-    elif user_role == 'hr' and action in ['approve', 'reject']:
+    elif (user_role == 'hr' or request.user.is_superuser) and action in ['approve', 'reject']:
         # Comment is optional for HR
         onsite.hr_comment = comment if comment else ''
         
@@ -4093,6 +4307,197 @@ def onsite_action(request, onsite_id, action):
             return JsonResponse({'success': True, 'message': 'Onsite request rejected'})
     
     return JsonResponse({'success': False, 'error': 'Invalid action or insufficient permissions'})
+
+
+# =========================
+# REVERT APPROVAL FUNCTIONS
+# =========================
+
+@login_required
+def revert_leave_approval(request, leave_id):
+    """
+    Revert an approved leave request back to pending status (HR only)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    leave = get_object_or_404(LeaveRequest, id=leave_id)
+    
+    # Check if user is HR
+    try:
+        profile = request.user.employeeprofile
+        if not profile.is_hr and not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Only HR can revert approvals'})
+    except EmployeeProfile.DoesNotExist:
+        if not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    # Check if status is approved
+    if leave.status != 'approved':
+        return JsonResponse({'success': False, 'error': 'Only approved requests can be reverted'})
+    
+    # Get reason from request
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({'success': False, 'error': 'Please provide a reason for reverting'})
+    
+    # Revert to pending
+    leave.status = 'pending'
+    leave.hr_comment = f'Reverted by HR: {reason}'
+    leave.save()
+    
+    # Notify employee
+    Notification.objects.create(
+        employee=leave.employee,
+        message=f'Your approved leave request has been reverted to pending by HR. Reason: {reason[:50]}...'
+    )
+    
+    # Log action
+    log_action(request.user, 'leave_hr_revert', 
+              f'Reverted {leave.employee.username}\'s approved leave request (Reason: {reason})', request, leave.employee)
+    
+    return JsonResponse({'success': True, 'message': 'Leave approval reverted successfully'})
+
+
+@login_required
+def revert_wfh_approval(request, wfh_id):
+    """
+    Revert an approved WFH request back to pending status (HR only)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    from .models import WFHRequest
+    wfh = get_object_or_404(WFHRequest, id=wfh_id)
+    
+    # Check if user is HR
+    try:
+        profile = request.user.employeeprofile
+        if not profile.is_hr and not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Only HR can revert approvals'})
+    except EmployeeProfile.DoesNotExist:
+        if not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    # Check if status is approved
+    if wfh.status != 'approved':
+        return JsonResponse({'success': False, 'error': 'Only approved requests can be reverted'})
+    
+    # Get reason from request
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({'success': False, 'error': 'Please provide a reason for reverting'})
+    
+    # Revert to pending
+    wfh.status = 'pending'
+    wfh.hr_comment = f'Reverted by HR: {reason}'
+    wfh.save()
+    
+    # Notify employee
+    Notification.objects.create(
+        employee=wfh.employee,
+        message=f'Your approved WFH request has been reverted to pending by HR. Reason: {reason[:50]}...'
+    )
+    
+    # Log action
+    log_action(request.user, 'wfh_hr_revert', 
+              f'Reverted {wfh.employee.username}\'s approved WFH request (Reason: {reason})', request, wfh.employee)
+    
+    return JsonResponse({'success': True, 'message': 'WFH approval reverted successfully'})
+
+
+@login_required
+def revert_onsite_approval(request, onsite_id):
+    """
+    Revert an approved onsite request back to pending status (HR only)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    from .models import OnsiteRequest
+    onsite = get_object_or_404(OnsiteRequest, id=onsite_id)
+    
+    # Check if user is HR
+    try:
+        profile = request.user.employeeprofile
+        if not profile.is_hr and not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Only HR can revert approvals'})
+    except EmployeeProfile.DoesNotExist:
+        if not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    # Check if status is approved
+    if onsite.status != 'approved':
+        return JsonResponse({'success': False, 'error': 'Only approved requests can be reverted'})
+    
+    # Get reason from request
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({'success': False, 'error': 'Please provide a reason for reverting'})
+    
+    # Revert to pending
+    onsite.status = 'pending'
+    onsite.hr_comment = f'Reverted by HR: {reason}'
+    onsite.save()
+    
+    # Notify employee
+    Notification.objects.create(
+        employee=onsite.employee,
+        message=f'Your approved onsite request for {onsite.visit_date.strftime("%b %d, %Y")} has been reverted to pending by HR. Reason: {reason[:50]}...'
+    )
+    
+    # Log action
+    log_action(request.user, 'onsite_hr_revert', 
+              f'Reverted {onsite.employee.username}\'s approved onsite request (Reason: {reason})', request, onsite.employee)
+    
+    return JsonResponse({'success': True, 'message': 'Onsite approval reverted successfully'})
+
+
+@login_required
+def revert_overtime_approval(request, ot_id):
+    """
+    Revert an approved overtime request back to pending status (HR only)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Invalid request method'})
+    
+    from .models import Overtime
+    ot = get_object_or_404(Overtime, id=ot_id)
+    
+    # Check if user is HR
+    try:
+        profile = request.user.employeeprofile
+        if not profile.is_hr and not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Only HR can revert approvals'})
+    except EmployeeProfile.DoesNotExist:
+        if not request.user.is_superuser:
+            return JsonResponse({'success': False, 'error': 'Access denied'})
+    
+    # Check if status is approved
+    if ot.status != 'approved':
+        return JsonResponse({'success': False, 'error': 'Only approved requests can be reverted'})
+    
+    # Get reason from request
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({'success': False, 'error': 'Please provide a reason for reverting'})
+    
+    # Revert to pending
+    ot.status = 'pending'
+    ot.hr_comment = f'Reverted by HR: {reason}'
+    ot.save()
+    
+    # Notify employee
+    Notification.objects.create(
+        employee=ot.employee,
+        message=f'Your approved overtime request for {ot.date.strftime("%b %d, %Y")} has been reverted to pending by HR. Reason: {reason[:50]}...'
+    )
+    
+    # Log action
+    log_action(request.user, 'overtime_hr_revert', 
+              f'Reverted {ot.employee.username}\'s approved overtime request (Reason: {reason})', request, ot.employee)
+    
+    return JsonResponse({'success': True, 'message': 'Overtime approval reverted successfully'})
 
 
 # =========================

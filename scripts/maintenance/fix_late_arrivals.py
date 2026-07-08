@@ -37,9 +37,9 @@ def fix_late_arrivals():
         check_in_local = attendance.check_in.astimezone(local_tz)
         check_in_time = check_in_local.time()
         
-        # Determine correct status (9:30 AM IST cutoff)
+        # Determine correct status (10:00 AM IST cutoff)
         old_status = attendance.status
-        if check_in_time.hour > 9 or (check_in_time.hour == 9 and check_in_time.minute > 30):
+        if check_in_time.hour > 10 or (check_in_time.hour == 10 and check_in_time.minute > 0):
             new_status = 'late'
         else:
             new_status = 'present'

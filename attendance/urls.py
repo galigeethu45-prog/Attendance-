@@ -27,6 +27,7 @@ urlpatterns = [
     path('leave/cancel/<int:leave_id>/', views.cancel_leave, name='cancel_leave'),
     path('leave/approval/', views.leave_approval, name='leave_approval'),
     path('leave/action/<int:leave_id>/<str:action>/', views.leave_action, name='leave_action'),
+    path('leave/revert/<int:leave_id>/', views.revert_leave_approval, name='revert_leave_approval'),
     
     # Profile and notifications
     path('profile/', views.profile, name='profile'),
@@ -36,17 +37,20 @@ urlpatterns = [
     # Overtime
     path('overtime/', views.overtime_view, name='overtime'),
     path('overtime/approval/', views.overtime_approval, name='overtime_approval'),
+    path('overtime/revert/<int:ot_id>/', views.revert_overtime_approval, name='revert_overtime_approval'),
     
     # WFH (Work From Home)
     path('wfh/', views.wfh_request, name='wfh_request'),
     path('wfh/cancel/<int:wfh_id>/', views.cancel_wfh, name='cancel_wfh'),
     path('wfh/approval/', views.wfh_approval, name='wfh_approval'),
     path('wfh/action/<int:wfh_id>/<str:action>/', views.wfh_action, name='wfh_action'),
+    path('wfh/revert/<int:wfh_id>/', views.revert_wfh_approval, name='revert_wfh_approval'),
     
     # Onsite/Client Visit
     path('onsite/', views.onsite_request, name='onsite_request'),
     path('onsite/approval/', views.onsite_approval, name='onsite_approval'),
     path('onsite/action/<int:onsite_id>/<str:action>/', views.onsite_action, name='onsite_action'),
+    path('onsite/revert/<int:onsite_id>/', views.revert_onsite_approval, name='revert_onsite_approval'),
     path('onsite/check-in/', views.onsite_check_in, name='onsite_check_in'),
     path('onsite/check-out/', views.onsite_check_out, name='onsite_check_out'),
     
