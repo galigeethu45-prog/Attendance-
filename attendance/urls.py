@@ -3,6 +3,7 @@ from . import views
 from . import master_data_views
 from . import office_ip_views
 from . import holiday_views
+from . import team_views
 
 urlpatterns = [
     # API endpoints
@@ -93,4 +94,25 @@ urlpatterns = [
     path('holidays/add/', holiday_views.add_holiday, name='add_holiday'),
     path('holidays/delete/<int:holiday_id>/', holiday_views.delete_holiday, name='delete_holiday'),
     path('holidays/auto-generate/', holiday_views.auto_generate_holidays, name='auto_generate_holidays'),
+    
+    # Team Management (TEAM-012 to TEAM-024)
+    path('teams/', team_views.team_management, name='team_management'),
+    path('teams/create/', team_views.create_team, name='create_team'),
+    path('teams/<int:team_id>/update/', team_views.update_team, name='update_team'),
+    path('teams/<int:team_id>/delete/', team_views.delete_team, name='delete_team'),
+    path('teams/<int:team_id>/members/', team_views.team_members_view, name='team_members_view'),
+    path('teams/<int:team_id>/add-member/', team_views.add_team_member, name='add_team_member'),
+    path('teams/<int:team_id>/remove-member/<int:member_id>/', team_views.remove_team_member, name='remove_team_member'),
+    path('teams/<int:team_id>/bulk-add-members/', team_views.bulk_add_members, name='bulk_add_members'),
+    
+    # Team Leader Dashboard
+    path('team-leader/', team_views.team_leader_dashboard, name='team_leader_dashboard'),
+    path('team-leader/<int:team_id>/requests/', team_views.team_pending_requests, name='team_pending_requests'),
+    path('team-leader/<int:team_id>/members/', team_views.team_member_list, name='team_member_list'),
+    
+    # Team Leader Comments
+    path('team-leader/comment/leave/<int:leave_id>/', team_views.add_tl_comment_leave, name='add_tl_comment_leave'),
+    path('team-leader/comment/wfh/<int:wfh_id>/', team_views.add_tl_comment_wfh, name='add_tl_comment_wfh'),
+    path('team-leader/comment/ot/<int:ot_id>/', team_views.add_tl_comment_ot, name='add_tl_comment_ot'),
+    path('team-leader/comment/onsite/<int:onsite_id>/', team_views.add_tl_comment_onsite, name='add_tl_comment_onsite'),
 ]

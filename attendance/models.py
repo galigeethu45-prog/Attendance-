@@ -175,6 +175,13 @@ class EmployeeProfile(models.Model):
     ]
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='employee', db_index=True)
     
+    # Team Leadership flag (set automatically when assigned as team leader)
+    is_team_leader = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='Automatically set to True when user is assigned as Team Leader of any team'
+    )
+    
     # Profile completion
     profile_completed = models.BooleanField(default=False)
 
@@ -494,6 +501,11 @@ class Overtime(models.Model):
     hr_comment = models.TextField(blank=True, null=True)
     hr_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_overtimes')
     
+    # Team Leader comments (TL cannot approve, only comment)
+    tl_comment = models.TextField(blank=True, null=True, help_text="Team Leader's comment")
+    tl_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='tl_commented_overtimes')
+    tl_commented_at = models.DateTimeField(null=True, blank=True)
+    
     # Execution phase (after approval)
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
@@ -676,6 +688,10 @@ class OnsiteRequest(models.Model):
     hr_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_onsite_requests')
     
     # Hierarchical approval
+    tl_comment = models.TextField(blank=True, null=True, help_text="Team Leader's comment")
+    tl_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='tl_commented_onsite')
+    tl_commented_at = models.DateTimeField(null=True, blank=True)
+    
     manager_comment = models.TextField(blank=True, null=True)
     manager_approved = models.BooleanField(default=False)
     manager_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='manager_approved_onsite')
@@ -924,6 +940,256 @@ class SystemSettings(models.Model):
         
         return False, "IP address not found"
 
+
+
+# =========================
+# TEAM MANAGEMENT
+# =========================
+class Team(models.Model):
+    """
+    Team structure for organizing employees
+    One team can have multiple members, one employee can be in multiple teams
+    """
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        db_index=True,
+        help_text='Unique team name (e.g., "Frontend Team", "Marketing Team")'
+    )
+    department = models.CharField(
+        max_length=100,
+        db_index=True,
+        help_text='Department this team belongs to'
+    )
+    team_leader = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='led_teams',
+        help_text='Team Leader responsible for this team'
+    )
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Team description, objectives, or notes'
+    )
+    
+    # Metadata
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text='Whether this team is currently active'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_teams',
+        help_text='HR/Admin who created this team'
+    )
+    
+    class Meta:
+        verbose_name = 'Team'
+        verbose_name_plural = 'Teams'
+        ordering = ['department', 'name']
+        indexes = [
+            models.Index(fields=['department', 'is_active']),
+            models.Index(fields=['team_leader', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.name} ({self.department})"
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save to automatically set is_team_leader flag
+        """
+        # Store old team_leader value for comparison
+        old_leader = None
+        if self.pk:
+            try:
+                old_team = Team.objects.get(pk=self.pk)
+                old_leader = old_team.team_leader
+            except Team.DoesNotExist:
+                pass
+        
+        # Save the team first
+        super().save(*args, **kwargs)
+        
+        # Update is_team_leader flag for new team leader
+        if self.team_leader:
+            profile = EmployeeProfile.objects.filter(user=self.team_leader).first()
+            if profile and not profile.is_team_leader:
+                profile.is_team_leader = True
+                profile.save()
+        
+        # Remove is_team_leader flag from old leader if they're not leading any other team
+        if old_leader and old_leader != self.team_leader:
+            # Check if old leader is still leading any other active team
+            other_teams_led = Team.objects.filter(
+                team_leader=old_leader,
+                is_active=True
+            ).exclude(pk=self.pk).exists()
+            
+            if not other_teams_led:
+                profile = EmployeeProfile.objects.filter(user=old_leader).first()
+                if profile and profile.is_team_leader:
+                    profile.is_team_leader = False
+                    profile.save()
+    
+    def get_active_members(self):
+        """
+        Get all active team members
+        Returns: QuerySet of User objects
+        """
+        return User.objects.filter(
+            team_memberships__team=self,
+            team_memberships__is_active=True
+        ).distinct()
+    
+    def get_member_count(self):
+        """
+        Get count of active team members
+        Returns: Integer
+        """
+        return self.memberships.filter(is_active=True).count()
+    
+    def add_member(self, user, added_by=None):
+        """
+        Add a member to this team
+        Returns: (Boolean success, String message, TeamMembership object or None)
+        """
+        # Check if already a member
+        existing = TeamMembership.objects.filter(
+            team=self,
+            employee=user,
+            is_active=True
+        ).first()
+        
+        if existing:
+            return False, "User is already a member of this team", None
+        
+        # Check if inactive membership exists (re-activate)
+        inactive = TeamMembership.objects.filter(
+            team=self,
+            employee=user,
+            is_active=False
+        ).first()
+        
+        if inactive:
+            inactive.is_active = True
+            inactive.added_at = timezone.now()
+            inactive.added_by = added_by
+            inactive.save()
+            return True, "User re-added to team", inactive
+        
+        # Create new membership
+        membership = TeamMembership.objects.create(
+            team=self,
+            employee=user,
+            added_by=added_by
+        )
+        return True, "User added to team", membership
+    
+    def remove_member(self, user):
+        """
+        Remove a member from this team (soft delete)
+        Returns: (Boolean success, String message)
+        """
+        membership = TeamMembership.objects.filter(
+            team=self,
+            employee=user,
+            is_active=True
+        ).first()
+        
+        if not membership:
+            return False, "User is not a member of this team"
+        
+        membership.is_active = False
+        membership.removed_at = timezone.now()
+        membership.save()
+        return True, "User removed from team"
+
+
+class TeamMembership(models.Model):
+    """
+    Many-to-many relationship between Team and Employee
+    Tracks when members join/leave teams with audit trail
+    """
+    team = models.ForeignKey(
+        Team,
+        on_delete=models.CASCADE,
+        related_name='memberships',
+        db_index=True,
+        help_text='The team this membership belongs to'
+    )
+    employee = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='team_memberships',
+        db_index=True,
+        help_text='The employee who is a member'
+    )
+    
+    # Status
+    is_active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text='Whether this membership is currently active'
+    )
+    
+    # Audit trail
+    added_at = models.DateTimeField(auto_now_add=True)
+    added_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='team_memberships_created',
+        help_text='HR/Admin who added this member'
+    )
+    removed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='When this membership was deactivated'
+    )
+    
+    class Meta:
+        verbose_name = 'Team Membership'
+        verbose_name_plural = 'Team Memberships'
+        ordering = ['-added_at']
+        indexes = [
+            models.Index(fields=['team', 'employee', 'is_active']),
+            models.Index(fields=['employee', 'is_active']),
+        ]
+        # Allow same employee to be in same team multiple times over history
+        # but prevent duplicate active memberships
+        unique_together = []
+    
+    def __str__(self):
+        status = "Active" if self.is_active else "Inactive"
+        return f"{self.employee.username} in {self.team.name} ({status})"
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save to prevent duplicate active memberships
+        """
+        if self.is_active:
+            # Check for existing active membership
+            existing = TeamMembership.objects.filter(
+                team=self.team,
+                employee=self.employee,
+                is_active=True
+            ).exclude(pk=self.pk).first()
+            
+            if existing:
+                raise ValueError(f"{self.employee.username} is already an active member of {self.team.name}")
+        
+        super().save(*args, **kwargs)
 
 
 # =========================

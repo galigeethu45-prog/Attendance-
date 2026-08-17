@@ -1,0 +1,416 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ team.name }} - Member List{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            {% if request.user.is_superuser or employee_profile.is_hr or employee_profile.role in 'hr,manager' %}
+            <a href="{% url 'team_management' %}" class="btn btn-secondary mb-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to Team Management
+            </a>
+            {% else %}
+            <a href="{% url 'team_leader_dashboard' %}" class="btn btn-secondary mb-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to My Teams
+            </a>
+            {% endif %}
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-users me-2"></i>{{ team.name }} - Team Members
+            </h2>
+            <p class="text-muted">
+                <span class="badge bg-info me-2">{{ team.department }}</span>
+                <i class="fas fa-calendar me-2"></i>{{ today|date:"F d, Y" }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Enhanced Stats Cards (Clickable) -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-2">
+            <a href="?filter=all" class="text-decoration-none">
+                <div class="card stat-card glass-card hover-card {% if status_filter == 'all' %}border-primary{% endif %}" style="cursor: pointer;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">Total Members</p>
+                                <h3 class="mb-0 text-white">{{ total_members }}</h3>
+                            </div>
+                            <div class="stat-icon bg-primary">
+                                <i class="fas fa-users"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="?filter=present" class="text-decoration-none">
+                <div class="card stat-card glass-card hover-card {% if status_filter == 'present' %}border-success{% endif %}" style="cursor: pointer;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">Present</p>
+                                <h3 class="mb-0 text-white">{{ present_count }}</h3>
+                            </div>
+                            <div class="stat-icon bg-success">
+                                <i class="fas fa-user-check"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="?filter=absent" class="text-decoration-none">
+                <div class="card stat-card glass-card hover-card {% if status_filter == 'absent' %}border-danger{% endif %}" style="cursor: pointer;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">Absent</p>
+                                <h3 class="mb-0 text-white">{{ absent_count }}</h3>
+                            </div>
+                            <div class="stat-icon bg-danger">
+                                <i class="fas fa-user-times"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="?filter=leave" class="text-decoration-none">
+                <div class="card stat-card glass-card hover-card {% if status_filter == 'leave' %}border-primary{% endif %}" style="cursor: pointer;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">On Leave</p>
+                                <h3 class="mb-0 text-white">{{ leave_count }}</h3>
+                            </div>
+                            <div class="stat-icon bg-primary">
+                                <i class="fas fa-calendar-alt"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="?filter=wfh" class="text-decoration-none">
+                <div class="card stat-card glass-card hover-card {% if status_filter == 'wfh' %}border-info{% endif %}" style="cursor: pointer;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">WFH</p>
+                                <h3 class="mb-0 text-white">{{ wfh_count }}</h3>
+                            </div>
+                            <div class="stat-icon bg-info">
+                                <i class="fas fa-home"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-2">
+            <a href="?filter=late" class="text-decoration-none">
+                <div class="card stat-card glass-card hover-card {% if status_filter == 'late' %}border-warning{% endif %}" style="cursor: pointer;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="text-muted mb-1 small">Late</p>
+                                <h3 class="mb-0 text-white">{{ late_count }}</h3>
+                            </div>
+                            <div class="stat-icon bg-warning">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Active Filter Badge -->
+    {% if status_filter != 'all' %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="alert alert-info d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="fas fa-filter me-2"></i>
+                    Showing: <strong>
+                        {% if status_filter == 'present' %}Present Members
+                        {% elif status_filter == 'absent' %}Absent Members
+                        {% elif status_filter == 'leave' %}Members on Leave
+                        {% elif status_filter == 'wfh' %}Members on WFH
+                        {% elif status_filter == 'late' %}Late Arrivals
+                        {% endif %}
+                    </strong> ({{ members_data|length }} member{{ members_data|length|pluralize }})
+                </span>
+                <a href="?filter=all" class="btn btn-sm btn-light">
+                    <i class="fas fa-times me-1"></i>Clear Filter
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Members List -->
+    <div class="card glass-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Team Members</h5>
+            <input type="text" id="searchMember" class="form-control" style="max-width: 300px;" placeholder="Search members...">
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="membersTable">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 250px;">Employee</th>
+                            <th style="min-width: 120px;">Employee ID</th>
+                            <th style="min-width: 150px;">Department</th>
+                            <th style="min-width: 180px;">Designation</th>
+                            <th style="min-width: 150px;">Today's Status</th>
+                            <th style="min-width: 120px;">Check-in</th>
+                            <th style="min-width: 120px;">Check-out</th>
+                            <th style="min-width: 120px;">Work Hours</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for member in members_data %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if member.employee.employeeprofile.profile_photo %}
+                                    <img src="{{ member.employee.employeeprofile.profile_photo.url }}" 
+                                         alt="{{ member.employee.get_full_name }}" 
+                                         class="rounded-circle me-3 member-avatar" 
+                                         style="width: 40px; height: 40px; min-width: 40px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2);">
+                                    {% else %}
+                                    <div class="rounded-circle bg-primary text-white me-3 d-flex align-items-center justify-content-center member-avatar-placeholder" 
+                                         style="width: 40px; height: 40px; min-width: 40px; font-size: 16px; border: 2px solid rgba(255,255,255,0.2);">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <strong class="d-block">{{ member.employee.get_full_name|default:member.employee.username }}</strong>
+                                        <small class="text-muted">{{ member.employee.email }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="align-middle">
+                                <span class="badge bg-secondary px-3 py-2">
+                                    {{ member.employee.employeeprofile.employee_id|default:"N/A" }}
+                                </span>
+                            </td>
+                            <td class="align-middle">{{ member.employee.employeeprofile.department|default:"-" }}</td>
+                            <td class="align-middle">{{ member.employee.employeeprofile.designation|default:"-" }}</td>
+                            <td class="align-middle">
+                                <span class="badge bg-{{ member.status_class }} px-3 py-2">
+                                    {% if member.status == 'present' %}
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    {% elif member.status == 'absent' %}
+                                    <i class="fas fa-times-circle me-1"></i>
+                                    {% elif member.status == 'on_leave' %}
+                                    <i class="fas fa-calendar-alt me-1"></i>
+                                    {% elif member.status == 'wfh' %}
+                                    <i class="fas fa-home me-1"></i>
+                                    {% elif member.status == 'late' %}
+                                    <i class="fas fa-clock me-1"></i>
+                                    {% endif %}
+                                    {{ member.status_display }}
+                                </span>
+                            </td>
+                            <td class="align-middle">
+                                {% if member.attendance and member.attendance.check_in %}
+                                <small class="text-muted">
+                                    <i class="fas fa-sign-in-alt me-1"></i>
+                                    {{ member.attendance.check_in|date:"h:i A" }}
+                                </small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle">
+                                {% if member.attendance and member.attendance.check_out %}
+                                <small class="text-muted">
+                                    <i class="fas fa-sign-out-alt me-1"></i>
+                                    {{ member.attendance.check_out|date:"h:i A" }}
+                                </small>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle">
+                                {% if member.attendance and member.attendance.total_work_hours %}
+                                <span class="badge bg-info px-3 py-2">
+                                    {{ member.attendance.get_work_hours_display }}
+                                </span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">
+                                <i class="fas fa-users fa-3x mb-3 d-block"></i>
+                                <h5>No members in this team</h5>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Search members
+document.getElementById('searchMember').addEventListener('keyup', function() {
+    const searchValue = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#membersTable tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchValue) ? '' : 'none';
+    });
+});
+</script>
+
+<style>
+/* Override glass-card overflow to prevent avatar clipping */
+.card.glass-card {
+    overflow: visible !important;
+}
+
+/* Hover effect for clickable cards */
+.hover-card {
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.hover-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.hover-card.border-primary {
+    border-color: #0d6efd !important;
+}
+
+.hover-card.border-success {
+    border-color: #198754 !important;
+}
+
+.hover-card.border-danger {
+    border-color: #dc3545 !important;
+}
+
+.hover-card.border-info {
+    border-color: #0dcaf0 !important;
+}
+
+.hover-card.border-warning {
+    border-color: #ffc107 !important;
+}
+
+/* Clean and spacious table styling */
+#membersTable {
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+#membersTable thead th {
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#membersTable tbody td {
+    padding: 20px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#membersTable tbody tr {
+    transition: background 0.2s ease;
+}
+
+#membersTable tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Perfect circular avatars */
+.member-avatar,
+.member-avatar-placeholder {
+    flex-shrink: 0;
+}
+
+/* Badge styling */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+/* Table responsive - smooth scrolling */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Remove card body padding for full-width table */
+.card-body.p-0 {
+    padding: 0 !important;
+}
+
+/* Search input */
+.card-header .form-control {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.card-header .form-control:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    box-shadow: none;
+}
+
+.card-header .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+</style>
+{% endblock %}

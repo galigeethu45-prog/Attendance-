@@ -1,0 +1,453 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Team Management - SmartPunch{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-white mb-2" style="font-weight: 700;">
+                        <i class="fas fa-users me-2"></i>Team Management
+                    </h2>
+                    <p class="text-muted">Create and manage teams across departments</p>
+                </div>
+                <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#createTeamModal">
+                    <i class="fas fa-plus me-2"></i>Create Team
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-1">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Total Teams</p>
+                            <h3 class="mb-0 text-white">{{ teams.count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Total Members</p>
+                            <h3 class="mb-0 text-white" id="totalMembersCount">0</h3>
+                        </div>
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-user-friends"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Team Leaders</p>
+                            <h3 class="mb-0 text-white">{{ teams|length }}</h3>
+                        </div>
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card fade-in-delay-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Departments</p>
+                            <h3 class="mb-0 text-white" id="deptCount">-</h3>
+                        </div>
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-building"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teams Table -->
+    <div class="card glass-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Teams</h5>
+            <input type="text" id="searchTeam" class="form-control" style="max-width: 300px;" placeholder="Search teams...">
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="teamsTable">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 250px;">Team Name</th>
+                            <th style="min-width: 180px;">Department</th>
+                            <th style="min-width: 200px;">Team Leader</th>
+                            <th style="min-width: 130px;" class="text-center">Members</th>
+                            <th style="min-width: 110px;" class="text-center">Status</th>
+                            <th style="min-width: 180px;" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for team in teams %}
+                        <tr>
+                            <td class="align-middle">
+                                <strong><i class="fas fa-users me-2 text-primary"></i>{{ team.name }}</strong>
+                                {% if team.description %}
+                                <br><small class="text-muted">{{ team.description|truncatewords:10 }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle">
+                                <span class="badge bg-info px-3 py-2">{{ team.department }}</span>
+                            </td>
+                            <td class="align-middle">
+                                {% if team.team_leader %}
+                                <i class="fas fa-user-tie me-1"></i>{{ team.team_leader.get_full_name|default:team.team_leader.username }}
+                                {% else %}
+                                <span class="text-muted">No leader assigned</span>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle text-center">
+                                <span class="badge bg-success px-3 py-2">
+                                    <i class="fas fa-users me-1"></i>{{ team.member_count }} member{{ team.member_count|pluralize }}
+                                </span>
+                            </td>
+                            <td class="align-middle text-center">
+                                {% if team.is_active %}
+                                <span class="badge bg-success px-3 py-2"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary px-3 py-2"><i class="fas fa-times-circle me-1"></i>Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="align-middle text-center">
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'team_members_view' team.id %}" class="btn btn-sm btn-info" title="Manage Members">
+                                        <i class="fas fa-users-cog"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-primary" onclick="editTeam({{ team.id }}, '{{ team.name }}', '{{ team.department }}', '{{ team.team_leader.id|default:"" }}', '{{ team.description|escapejs }}')" title="Edit Team">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-danger" onclick="confirmDeleteTeam({{ team.id }}, '{{ team.name }}')" title="Delete Team">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">
+                                <i class="fas fa-users fa-3x mb-3 d-block"></i>
+                                <h5>No teams created yet</h5>
+                                <p>Click "Create Team" to get started</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Team Modal -->
+<div class="modal fade" id="createTeamModal" tabindex="-1" aria-labelledby="createTeamModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'create_team' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createTeamModalLabel">
+                        <i class="fas fa-plus-circle me-2"></i>Create New Team
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="teamName" class="form-label">Team Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="teamName" name="name" required placeholder="e.g., Frontend Team">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="department" class="form-label">Department <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="department" name="department" required placeholder="e.g., Engineering">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="teamLeader" class="form-label">Team Leader</label>
+                        <select class="form-select" id="teamLeader" name="team_leader">
+                            <option value="">Select Team Leader (Optional)</option>
+                            {% for user in potential_leaders %}
+                            <option value="{{ user.id }}">
+                                {{ user.get_full_name|default:user.username }}
+                                {% if user.employeeprofile.employee_id %}
+                                ({{ user.employeeprofile.employee_id }})
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Optional team description"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-check me-1"></i>Create Team
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Team Modal -->
+<div class="modal fade" id="editTeamModal" tabindex="-1" aria-labelledby="editTeamModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" id="editTeamForm">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTeamModalLabel">
+                        <i class="fas fa-edit me-2"></i>Edit Team
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editTeamName" class="form-label">Team Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editTeamName" name="name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editDepartment" class="form-label">Department <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editDepartment" name="department" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTeamLeader" class="form-label">Team Leader</label>
+                        <select class="form-select" id="editTeamLeader" name="team_leader">
+                            <option value="">Select Team Leader (Optional)</option>
+                            {% for user in potential_leaders %}
+                            <option value="{{ user.id }}">
+                                {{ user.get_full_name|default:user.username }}
+                                {% if user.employeeprofile.employee_id %}
+                                ({{ user.employeeprofile.employee_id }})
+                                {% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editDescription" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteTeamModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="deleteTeamForm">
+                {% csrf_token %}
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete team <strong id="deleteTeamName"></strong>?</p>
+                    <p class="text-warning mb-0">
+                        <i class="fas fa-info-circle me-2"></i>This will deactivate the team and remove all members.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Delete Team
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Calculate statistics from table data
+function calculateStats() {
+    const rows = document.querySelectorAll('#teamsTable tbody tr');
+    let totalMembers = 0;
+    const departments = new Set();
+    
+    rows.forEach(row => {
+        // Skip empty state row
+        if (row.cells.length < 6) return;
+        
+        // Extract member count from badge
+        const memberBadge = row.cells[3].textContent;
+        const memberMatch = memberBadge.match(/(\d+)/);
+        if (memberMatch) {
+            totalMembers += parseInt(memberMatch[1]);
+        }
+        
+        // Extract department from badge
+        const deptBadge = row.cells[1].querySelector('.badge');
+        if (deptBadge) {
+            departments.add(deptBadge.textContent.trim());
+        }
+    });
+    
+    // Update the stats
+    document.getElementById('totalMembersCount').textContent = totalMembers;
+    document.getElementById('deptCount').textContent = departments.size;
+}
+
+// Run on page load
+document.addEventListener('DOMContentLoaded', calculateStats);
+
+// Search functionality
+document.getElementById('searchTeam').addEventListener('keyup', function() {
+    const searchValue = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#teamsTable tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchValue) ? '' : 'none';
+    });
+    
+    // Recalculate stats after search
+    calculateStats();
+});
+
+// Edit team
+function editTeam(teamId, name, department, leaderId, description) {
+    document.getElementById('editTeamForm').action = `/teams/${teamId}/update/`;
+    document.getElementById('editTeamName').value = name;
+    document.getElementById('editDepartment').value = department;
+    document.getElementById('editTeamLeader').value = leaderId || '';
+    document.getElementById('editDescription').value = description || '';
+    
+    const modal = new bootstrap.Modal(document.getElementById('editTeamModal'));
+    modal.show();
+}
+
+// Confirm delete
+function confirmDeleteTeam(teamId, teamName) {
+    document.getElementById('deleteTeamForm').action = `/teams/${teamId}/delete/`;
+    document.getElementById('deleteTeamName').textContent = teamName;
+    
+    const modal = new bootstrap.Modal(document.getElementById('deleteTeamModal'));
+    modal.show();
+}
+</script>
+
+<style>
+/* Team Management Table Styling */
+#teamsTable {
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+#teamsTable thead th {
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding: 16px 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#teamsTable tbody td {
+    padding: 20px 12px;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#teamsTable tbody tr {
+    transition: background 0.2s ease;
+}
+
+#teamsTable tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Badge styling */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.3px;
+}
+
+/* Button group spacing */
+.btn-group .btn {
+    padding: 6px 12px;
+}
+
+/* Table responsive - smooth scrolling */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Remove card body padding for full-width table */
+.card-body.p-0 {
+    padding: 0 !important;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,211 @@
+Phase,Sprint,Task ID,Task Name,Description,Category,Dependencies,Priority,Status
+Phase 1,Sprint 1,TEAM-001,Create Team Model,Create Django model for Team with fields: name department team_leader description created_at is_active,Backend,None,High,Not Started
+Phase 1,Sprint 1,TEAM-002,Create TeamMembership Model,Create Django model for many-to-many relationship between Team and Employee,Backend,TEAM-001,High,Not Started
+Phase 1,Sprint 1,TEAM-003,Create Database Migrations,Generate and test database migrations for Team and TeamMembership models,Database,TEAM-002,High,Not Started
+Phase 1,Sprint 1,TEAM-004,Add Team Admin Interface,Register Team and TeamMembership models in Django admin with list display and filters,Backend,TEAM-003,Medium,Not Started
+Phase 1,Sprint 1,TEAM-005,Create Team CRUD API Endpoints,Implement REST API endpoints for creating reading updating and deleting teams (HR only),Backend,TEAM-003,High,Not Started
+Phase 1,Sprint 1,TEAM-006,Create Team Member Assignment API,Implement API endpoint for adding and removing team members with bulk support,Backend,TEAM-005,High,Not Started
+Phase 1,Sprint 1,TEAM-007,Add Role-Based Permission Checks,Implement permission decorator to restrict team management to HR/Admin only,Backend,TEAM-005,High,Not Started
+Phase 1,Sprint 1,TEAM-008,Extend EmployeeProfile Model,Add is_team_leader field to EmployeeProfile model with index,Backend,TEAM-003,High,Not Started
+Phase 1,Sprint 1,TEAM-009,Create Team Leader Assignment Logic,Implement logic to set is_team_leader flag when user is assigned as team leader,Backend,TEAM-008,High,Not Started
+Phase 1,Sprint 1,TEAM-010,Create Team List API,Implement API to list all teams (names only for non-HR filtered details for HR),Backend,TEAM-005,Medium,Not Started
+Phase 1,Sprint 1,TEAM-011,Create Team Detail API,Implement API to get team details with member list (role-based filtering),Backend,TEAM-005,Medium,Not Started
+Phase 1,Sprint 1,TEAM-012,Create HR Team Management Page,Build frontend page for HR to create/edit/delete teams and assign members,Frontend,TEAM-005,High,Not Started
+Phase 1,Sprint 1,TEAM-013,Create Team Member Search UI,Implement search and select interface for adding employees to teams,Frontend,TEAM-012,Medium,Not Started
+Phase 1,Sprint 1,TEAM-014,Create Bulk Member Assignment UI,Implement UI for selecting and assigning multiple employees at once,Frontend,TEAM-012,Medium,Not Started
+Phase 1,Sprint 1,TEAM-015,Create Team Leader Dashboard,Build simplified dashboard showing teams led by logged-in user,Frontend,TEAM-010,High,Not Started
+Phase 1,Sprint 1,TEAM-016,Create Team Pending Requests View,Implement view showing all pending requests from team members (Leave WFH OT Onsite),Frontend,TEAM-015,High,Not Started
+Phase 1,Sprint 1,TEAM-017,Create Team Member List View,Implement view showing team members with current status and basic info,Frontend,TEAM-015,High,Not Started
+Phase 1,Sprint 1,TEAM-018,Add Comment Functionality for Team Leaders,Implement UI and API for Team Leaders to add comments on team member requests,Full Stack,TEAM-016,High,Not Started
+Phase 1,Sprint 1,TEAM-019,Update Request Models,Add tl_comment field to LeaveRequest WFHRequest OvertimeRequest OnsiteRequest models,Backend,TEAM-003,High,Not Started
+Phase 1,Sprint 1,TEAM-020,Create Team Leader Notification System,Implement notifications for Team Leaders when team members submit requests,Backend,TEAM-009,High,Not Started
+Phase 1,Sprint 1,TEAM-021,Update Approval Pages,Modify existing approval pages to show Team Leader comments,Frontend,TEAM-018,Medium,Not Started
+Phase 1,Sprint 1,TEAM-022,Filter Requests by Team,Implement backend filtering to show only team member requests to Team Leaders,Backend,TEAM-010,High,Not Started
+Phase 1,Sprint 1,TEAM-023,Create Team Navigation Menu,Add Team Management menu items for HR and Team Leader Dashboard for TLs,Frontend,TEAM-015,Medium,Not Started
+Phase 1,Sprint 1,TEAM-024,Add Team Indicators to Profile,Show team membership information in employee profile page,Frontend,TEAM-011,Low,Not Started
+Phase 1,Sprint 1,TEAM-025,Create Team Management Tests,Write unit tests for team CRUD operations and permission checks,Testing,TEAM-007,Medium,Not Started
+Phase 1,Sprint 1,TEAM-026,Create Team Leader Permission Tests,Write tests to verify Team Leaders can only see their team data,Testing,TEAM-022,Medium,Not Started
+Phase 1,Sprint 1,TEAM-027,Create Integration Tests,Write integration tests for complete team management workflows,Testing,TEAM-025,Medium,Not Started
+Phase 1,Sprint 1,TEAM-028,Update Notification Model,Extend Notification model to handle team-specific notifications,Backend,TEAM-020,Medium,Not Started
+Phase 1,Sprint 1,TEAM-029,Create Audit Logs for Team Changes,Implement audit logging for all team creation updates deletions and member changes,Backend,TEAM-005,Medium,Not Started
+Phase 1,Sprint 1,TEAM-030,Add Team Validation Rules,Implement validation: unique team names required fields valid team leader,Backend,TEAM-005,High,Not Started
+Phase 1,Sprint 2,PAY-001,Create PayrollCycle Model,Create Django model for PayrollCycle with fields: month year dates status totals,Backend,None,High,Not Started
+Phase 1,Sprint 2,PAY-002,Create PayrollEntry Model,Create Django model for PayrollEntry with salary components and deductions,Backend,PAY-001,High,Not Started
+Phase 1,Sprint 2,PAY-003,Create LeaveBalance Model,Create Django model to track employee leave balances by year,Backend,PAY-001,High,Not Started
+Phase 1,Sprint 2,PAY-004,Extend EmployeeProfile for Payroll,Add fields: base_salary ot_rate bank_account bank_ifsc pan_number,Backend,PAY-001,High,Not Started
+Phase 1,Sprint 2,PAY-005,Create Database Migrations,Generate and test migrations for all payroll-related models,Database,PAY-004,High,Not Started
+Phase 1,Sprint 2,PAY-006,Create Working Days Calculation,Implement function to calculate working days using CompanyHoliday model,Backend,PAY-005,High,Not Started
+Phase 1,Sprint 2,PAY-007,Create Attendance Data Aggregation,Implement function to get present absent half-day counts for employee and date range,Backend,PAY-005,High,Not Started
+Phase 1,Sprint 2,PAY-008,Create Leave Data Aggregation,Implement function to calculate paid and unpaid leaves from LeaveRequest model,Backend,PAY-005,High,Not Started
+Phase 1,Sprint 2,PAY-009,Create OT Data Aggregation,Implement function to calculate total approved OT hours and amount,Backend,PAY-005,High,Not Started
+Phase 1,Sprint 2,PAY-010,Implement Salary Calculation Logic,Create core salary calculation function: base - deductions + OT,Backend,PAY-006,High,Not Started
+Phase 1,Sprint 2,PAY-011,Implement Deduction Calculations,Create functions for half-day absent and unpaid leave deductions,Backend,PAY-010,High,Not Started
+Phase 1,Sprint 2,PAY-012,Implement Leave Policy Logic,Create function to determine paid vs unpaid leaves based on 18-leave policy,Backend,PAY-008,High,Not Started
+Phase 1,Sprint 2,PAY-013,Implement Proration for Joiners/Exits,Create logic to prorate salaries for mid-month joiners and exits,Backend,PAY-010,High,Not Started
+Phase 1,Sprint 2,PAY-014,Create Payroll Processing API,Implement API endpoint to process payroll for selected month/year,Backend,PAY-010,High,Not Started
+Phase 1,Sprint 2,PAY-015,Create Payroll Cycle List API,Implement API to list all payroll cycles with summary data,Backend,PAY-014,Medium,Not Started
+Phase 1,Sprint 2,PAY-016,Create Payroll Entry List API,Implement API to get all entries for a specific payroll cycle,Backend,PAY-014,Medium,Not Started
+Phase 1,Sprint 2,PAY-017,Create Payroll Entry Detail API,Implement API to get detailed breakdown for a single employee's payroll,Backend,PAY-016,Medium,Not Started
+Phase 1,Sprint 2,PAY-018,Create Manual Adjustment API,Implement API for HR to manually adjust employee salaries with reason,Backend,PAY-016,High,Not Started
+Phase 1,Sprint 2,PAY-019,Create Finalize Payroll API,Implement API to finalize payroll (lock for editing),Backend,PAY-014,High,Not Started
+Phase 1,Sprint 2,PAY-020,Create CSV Export Functionality,Implement CSV export with employee ID name bank details net salary,Backend,PAY-019,High,Not Started
+Phase 1,Sprint 2,PAY-021,Create Payroll Dashboard Page,Build HR-only dashboard showing payroll cycle selector and summary stats,Frontend,PAY-015,High,Not Started
+Phase 1,Sprint 2,PAY-022,Create Employee Payroll List View,Build table view showing all employees with calculated salaries for review,Frontend,PAY-016,High,Not Started
+Phase 1,Sprint 2,PAY-023,Create Payroll Detail Modal,Build modal showing detailed salary breakdown for individual employee,Frontend,PAY-017,Medium,Not Started
+Phase 1,Sprint 2,PAY-024,Create Manual Adjustment UI,Build interface for HR to adjust salaries with reason field,Frontend,PAY-018,High,Not Started
+Phase 1,Sprint 2,PAY-025,Create Finalize Confirmation Dialog,Build confirmation dialog for finalizing payroll with warnings,Frontend,PAY-019,High,Not Started
+Phase 1,Sprint 2,PAY-026,Create Export CSV Button,Implement download functionality for finalized payroll CSV,Frontend,PAY-020,Medium,Not Started
+Phase 1,Sprint 2,PAY-027,Create Payroll History View,Build page showing historical payrolls with filters and search,Frontend,PAY-015,Medium,Not Started
+Phase 1,Sprint 2,PAY-028,Add Payroll Menu to HR Dashboard,Add Payroll Management menu item to HR navigation,Frontend,PAY-021,Low,Not Started
+Phase 1,Sprint 2,PAY-029,Create Leave Balance Tracking,Implement automatic update of leave balances when leaves are taken,Backend,PAY-008,High,Not Started
+Phase 1,Sprint 2,PAY-030,Create Leave Balance API,Implement API to get and update employee leave balances,Backend,PAY-029,Medium,Not Started
+Phase 1,Sprint 2,PAY-031,Create Leave Balance Reset Job,Create scheduled job to reset leave balances at year start,Backend,PAY-029,Medium,Not Started
+Phase 1,Sprint 2,PAY-032,Implement Payroll Access Control,Add permission checks to ensure only HR/Admin can access payroll,Backend,PAY-014,High,Not Started
+Phase 1,Sprint 2,PAY-033,Create Payroll Audit Logs,Implement logging for all payroll actions (process adjust finalize export),Backend,PAY-014,High,Not Started
+Phase 1,Sprint 2,PAY-034,Add Validation for Salary Fields,Implement validation for base salary OT rate bank details,Backend,PAY-004,Medium,Not Started
+Phase 1,Sprint 2,PAY-035,Create Payroll Calculation Tests,Write unit tests for all salary calculation functions,Testing,PAY-010,High,Not Started
+Phase 1,Sprint 2,PAY-036,Create Deduction Calculation Tests,Write unit tests for deduction calculations,Testing,PAY-011,High,Not Started
+Phase 1,Sprint 2,PAY-037,Create Leave Policy Tests,Write tests to verify 18-leave policy enforcement,Testing,PAY-012,High,Not Started
+Phase 1,Sprint 2,PAY-038,Create Proration Tests,Write tests for mid-month joiner/exit salary calculations,Testing,PAY-013,Medium,Not Started
+Phase 1,Sprint 2,PAY-039,Create Payroll API Tests,Write integration tests for payroll processing workflow,Testing,PAY-014,Medium,Not Started
+Phase 1,Sprint 2,PAY-040,Create CSV Export Tests,Write tests to verify CSV format and data accuracy,Testing,PAY-020,Medium,Not Started
+Phase 1,Sprint 2,PAY-041,Performance Test Payroll,Test payroll processing with 100+ employees to ensure <60 sec,Testing,PAY-014,High,Not Started
+Phase 1,Sprint 2,PAY-042,Create Payroll Documentation,Write user guide for HR on processing monthly payroll,Documentation,PAY-041,Low,Not Started
+Phase 1,Sprint 2,PAY-043,Add Salary Encryption,Implement encryption for sensitive salary data at rest,Backend,PAY-005,High,Not Started
+Phase 1,Sprint 2,PAY-044,Create Payroll Backup System,Implement automatic backup before finalization,Backend,PAY-019,Medium,Not Started
+Phase 1,Sprint 2,PAY-045,Add Anomaly Detection,Implement warnings for unusual salary calculations (>20% variance),Backend,PAY-010,Low,Not Started
+Phase 2,Sprint 3,DESK-001,Setup Electron Project,Initialize Electron project with package.json and build configuration,Desktop,None,High,Not Started
+Phase 2,Sprint 3,DESK-002,Create Main Process Entry Point,Create main/index.js with app lifecycle management,Desktop,DESK-001,High,Not Started
+Phase 2,Sprint 3,DESK-003,Create Window Manager,Implement window creation management and lifecycle,Desktop,DESK-002,High,Not Started
+Phase 2,Sprint 3,DESK-004,Create System Tray Manager,Implement system tray icon with context menu,Desktop,DESK-002,High,Not Started
+Phase 2,Sprint 3,DESK-005,Create Tray Icon Assets,Design and export tray icons for different states (available away break offline),Design,DESK-004,High,Not Started
+Phase 2,Sprint 3,DESK-006,Implement Auto-Start Registration,Add app to Windows startup registry on installation,Desktop,DESK-002,High,Not Started
+Phase 2,Sprint 3,DESK-007,Create Preload Script,Implement preload.js for secure IPC bridge between main and renderer,Desktop,DESK-003,High,Not Started
+Phase 2,Sprint 3,DESK-008,Embed Django HRMS,Configure BrowserWindow to load existing web application,Desktop,DESK-003,High,Not Started
+Phase 2,Sprint 3,DESK-009,Implement Session Management,Create persistent session storage for login credentials,Desktop,DESK-008,High,Not Started
+Phase 2,Sprint 3,DESK-010,Create Notification Manager,Implement desktop notification system using Electron API,Desktop,DESK-007,High,Not Started
+Phase 2,Sprint 3,DESK-011,Implement IPC Communication,Setup event handlers for main-renderer communication,Desktop,DESK-007,High,Not Started
+Phase 2,Sprint 3,DESK-012,Create Settings Storage,Implement electron-store for app settings persistence,Desktop,DESK-002,Medium,Not Started
+Phase 2,Sprint 3,DESK-013,Create Context Menu Actions,Implement handlers for tray menu clicks (check-in break check-out),Desktop,DESK-004,High,Not Started
+Phase 2,Sprint 3,DESK-014,Implement Deep Linking,Setup protocol handler for smartpunch:// URLs,Desktop,DESK-008,Medium,Not Started
+Phase 2,Sprint 3,DESK-015,Create Auto-Updater,Implement electron-updater for silent background updates,Desktop,DESK-002,High,Not Started
+Phase 2,Sprint 3,DESK-016,Create Update Server Config,Setup GitHub Releases or S3 for update distribution,DevOps,DESK-015,High,Not Started
+Phase 2,Sprint 3,DESK-017,Create Installer Script,Configure electron-builder for Windows installer creation,Desktop,DESK-001,High,Not Started
+Phase 2,Sprint 3,DESK-018,Implement Resource Management,Add cleanup handlers for memory and process management,Desktop,DESK-002,Medium,Not Started
+Phase 2,Sprint 3,DESK-019,Create Error Handling,Implement global error catching and reporting,Desktop,DESK-002,High,Not Started
+Phase 2,Sprint 3,DESK-020,Create Crash Reporter,Implement automatic crash reporting and recovery,Desktop,DESK-019,High,Not Started
+Phase 2,Sprint 3,DESK-021,Test Windows Compatibility,Test on Windows 10 and Windows 11 different versions,Testing,DESK-017,High,Not Started
+Phase 2,Sprint 3,DESK-022,Test Auto-Start,Verify app starts on boot and appears in tray within 3 seconds,Testing,DESK-006,High,Not Started
+Phase 2,Sprint 3,DESK-023,Test Memory Usage,Verify idle RAM <100 MB and active RAM <300 MB,Testing,DESK-018,High,Not Started
+Phase 2,Sprint 3,DESK-024,Test Update Mechanism,Verify updates download install and rollback correctly,Testing,DESK-015,High,Not Started
+Phase 2,Sprint 3,DESK-025,Create Desktop App Documentation,Write user guide for installing and using desktop application,Documentation,DESK-024,Medium,Not Started
+Phase 2,Sprint 4,PRES-001,Create PresenceLog Model,Create Django model for storing presence status changes with timestamps,Backend,None,High,Not Started
+Phase 2,Sprint 4,PRES-002,Extend EmployeeProfile for Status,Add current_status last_status_change last_activity_at fields,Backend,PRES-001,High,Not Started
+Phase 2,Sprint 4,PRES-003,Create Database Migrations,Generate and test migrations for presence tracking tables,Database,PRES-002,High,Not Started
+Phase 2,Sprint 4,PRES-004,Implement System Idle Detection,Use Windows API GetLastInputInfo for idle time detection,Desktop,PRES-003,High,Not Started
+Phase 2,Sprint 4,PRES-005,Create Idle Monitoring Service,Implement background service that polls idle time every 60 seconds,Desktop,PRES-004,High,Not Started
+Phase 2,Sprint 4,PRES-006,Create Status Change Logic,Implement logic to auto-switch to Away after 10 min idle,Desktop,PRES-005,High,Not Started
+Phase 2,Sprint 4,PRES-007,Create Status Update API,Implement API endpoint to update employee status,Backend,PRES-001,High,Not Started
+Phase 2,Sprint 4,PRES-008,Implement Duration Calculation,Calculate and store duration when status changes,Backend,PRES-007,High,Not Started
+Phase 2,Sprint 4,PRES-009,Create Manual Status Selection UI,Add status dropdown to tray menu for manual changes,Desktop,PRES-006,High,Not Started
+Phase 2,Sprint 4,PRES-010,Implement Status Sync,Sync local status to backend immediately on change,Desktop,PRES-007,High,Not Started
+Phase 2,Sprint 4,PRES-011,Create Real-Time Status API,Implement API to get current status of all employees,Backend,PRES-002,High,Not Started
+Phase 2,Sprint 4,PRES-012,Create Status Update WebSocket,Implement WebSocket for real-time status broadcasts (optional),Backend,PRES-011,Medium,Not Started
+Phase 2,Sprint 4,PRES-013,Create Team Status View,Build UI showing team members with current status indicators,Frontend,PRES-011,High,Not Started
+Phase 2,Sprint 4,PRES-014,Add Status Indicators to Profiles,Add colored dot indicators to employee profile cards,Frontend,PRES-011,Medium,Not Started
+Phase 2,Sprint 4,PRES-015,Create Status History API,Implement API to get presence timeline for date range,Backend,PRES-001,High,Not Started
+Phase 2,Sprint 4,PRES-016,Create Timeline Generation Logic,Implement algorithm to generate visual timeline from logs,Backend,PRES-015,High,Not Started
+Phase 2,Sprint 4,PRES-017,Create Timeline Visualization,Build visual timeline component with color-coded bars,Frontend,PRES-015,High,Not Started
+Phase 2,Sprint 4,PRES-018,Create Daily Summary API,Implement API to calculate daily status summary (time in each status),Backend,PRES-015,High,Not Started
+Phase 2,Sprint 4,PRES-019,Create Productivity Score Calculation,Implement productivity score algorithm based on available vs away time,Backend,PRES-018,High,Not Started
+Phase 2,Sprint 4,PRES-020,Create Analytics Dashboard,Build HR/TL dashboard showing team productivity metrics,Frontend,PRES-018,High,Not Started
+Phase 2,Sprint 4,PRES-021,Create Individual Report View,Build detailed report view for single employee with timeline,Frontend,PRES-017,Medium,Not Started
+Phase 2,Sprint 4,PRES-022,Create Weekly Report API,Implement API for weekly aggregated presence data,Backend,PRES-018,Medium,Not Started
+Phase 2,Sprint 4,PRES-023,Integrate with Break System,Auto-update status to On Break when break starts,Backend,PRES-007,High,Not Started
+Phase 2,Sprint 4,PRES-024,Integrate with Check-in/Check-out,Auto-set Available on check-in and Offline on check-out,Backend,PRES-007,High,Not Started
+Phase 2,Sprint 4,PRES-025,Create Offline Queue,Implement queue for status updates when backend unavailable,Desktop,PRES-010,High,Not Started
+Phase 2,Sprint 4,PRES-026,Create Status Tests,Write unit tests for status change logic and transitions,Testing,PRES-006,High,Not Started
+Phase 2,Sprint 4,PRES-027,Create Idle Detection Tests,Test idle time detection accuracy on different Windows versions,Testing,PRES-004,High,Not Started
+Phase 2,Sprint 4,PRES-028,Create Timeline Tests,Test timeline generation with various status patterns,Testing,PRES-016,Medium,Not Started
+Phase 2,Sprint 4,PRES-029,Test Real-Time Updates,Verify status updates visible to all users within 3 seconds,Testing,PRES-013,High,Not Started
+Phase 2,Sprint 4,PRES-030,Privacy Compliance Review,Verify no invasive tracking and document privacy measures,Compliance,PRES-029,High,Not Started
+Phase 2,Sprint 5,FACE-001,Research Face Recognition Libraries,Evaluate face-api.js OpenCV TensorFlow.js for accuracy and performance,Research,None,High,Not Started
+Phase 2,Sprint 5,FACE-002,Select and Setup Face Library,Choose library and integrate into Electron app,Desktop,FACE-001,High,Not Started
+Phase 2,Sprint 5,FACE-003,Create FaceEmbedding Model,Create Django model to store encrypted face embeddings,Backend,None,High,Not Started
+Phase 2,Sprint 5,FACE-004,Create DeviceAssignment Model,Create model to track employee-device mappings,Backend,None,High,Not Started
+Phase 2,Sprint 5,FACE-005,Create FaceVerificationLog Model,Create model to log all verification attempts,Backend,FACE-003,High,Not Started
+Phase 2,Sprint 5,FACE-006,Create Database Migrations,Generate and test migrations for face recognition tables,Database,FACE-005,High,Not Started
+Phase 2,Sprint 5,FACE-007,Implement Camera Access,Request and handle camera permissions in desktop app,Desktop,FACE-002,High,Not Started
+Phase 2,Sprint 5,FACE-008,Create Face Registration UI,Build wizard interface for capturing 3-angle photos,Desktop,FACE-007,High,Not Started
+Phase 2,Sprint 5,FACE-009,Implement Face Detection,Detect face in captured image and validate quality,Desktop,FACE-002,High,Not Started
+Phase 2,Sprint 5,FACE-010,Implement Embedding Generation,Generate 128-dimensional face embedding from photo,Desktop,FACE-009,High,Not Started
+Phase 2,Sprint 5,FACE-011,Implement Embedding Encryption,Encrypt face embedding with AES-256 before storage,Backend,FACE-003,High,Not Started
+Phase 2,Sprint 5,FACE-012,Create Face Registration API,Implement API endpoint to store encrypted face embedding,Backend,FACE-011,High,Not Started
+Phase 2,Sprint 5,FACE-013,Implement Face Verification,Compare live capture embedding with stored embedding,Desktop,FACE-010,High,Not Started
+Phase 2,Sprint 5,FACE-014,Create Confidence Threshold Logic,Implement 85% confidence minimum for successful match,Desktop,FACE-013,High,Not Started
+Phase 2,Sprint 5,FACE-015,Create Verification API,Implement API endpoint to verify face and mark attendance,Backend,FACE-012,High,Not Started
+Phase 2,Sprint 5,FACE-016,Implement Device Fingerprinting,Generate unique device ID from hardware properties,Desktop,FACE-002,High,Not Started
+Phase 2,Sprint 5,FACE-017,Create Device Registration Flow,Build UI for new device registration with HR approval,Desktop,FACE-016,High,Not Started
+Phase 2,Sprint 5,FACE-018,Create Device Assignment API,Implement API for device registration and approval,Backend,FACE-004,High,Not Started
+Phase 2,Sprint 5,FACE-019,Create Device Trust Verification,Check if device is in employee's whitelist before allowing check-in,Backend,FACE-018,High,Not Started
+Phase 2,Sprint 5,FACE-020,Create HR Device Management UI,Build interface for HR to approve/reject/revoke devices,Frontend,FACE-018,High,Not Started
+Phase 2,Sprint 5,FACE-021,Implement Fallback to Manual Check-in,Allow manual check-in if face verification fails 3 times,Desktop,FACE-014,High,Not Started
+Phase 2,Sprint 5,FACE-022,Create Verification Retry Logic,Implement 3-attempt retry with friendly messages,Desktop,FACE-013,High,Not Started
+Phase 2,Sprint 5,FACE-023,Create Liveness Detection,Implement blink or head movement detection (optional),Desktop,FACE-009,Medium,Not Started
+Phase 2,Sprint 5,FACE-024,Create Face Re-registration Flow,Allow employees to re-register face from settings,Desktop,FACE-008,Medium,Not Started
+Phase 2,Sprint 5,FACE-025,Create Audit Logging,Log all verification attempts with result and confidence,Backend,FACE-005,High,Not Started
+Phase 2,Sprint 5,FACE-026,Implement Image Cleanup,Delete captured photos after embedding generated,Desktop,FACE-010,High,Not Started
+Phase 2,Sprint 5,FACE-027,Create Privacy Policy Display,Show privacy policy during first face registration,Desktop,FACE-008,High,Not Started
+Phase 2,Sprint 5,FACE-028,Test Face Recognition Accuracy,Test with 20+ faces in various lighting conditions,Testing,FACE-013,High,Not Started
+Phase 2,Sprint 5,FACE-029,Test False Accept Rate,Measure FAR with different confidence thresholds,Testing,FACE-028,High,Not Started
+Phase 2,Sprint 5,FACE-030,Test False Reject Rate,Measure FRR with legitimate users,Testing,FACE-028,High,Not Started
+Phase 2,Sprint 5,FACE-031,Test Device Registration Flow,Verify complete new device approval workflow,Testing,FACE-017,High,Not Started
+Phase 2,Sprint 5,FACE-032,Security Audit Face Data,Verify encryption data storage and transmission security,Security,FACE-011,High,Not Started
+Phase 2,Sprint 6,AI-001,Create Notification Rules Engine,Implement rule-based system for triggering notifications,Desktop,None,High,Not Started
+Phase 2,Sprint 6,AI-002,Create Notification Manager Class,Build manager to handle notification queue and priorities,Desktop,AI-001,High,Not Started
+Phase 2,Sprint 6,AI-003,Create EmployeePreferences Model,Create model to store employee notification preferences,Backend,None,High,Not Started
+Phase 2,Sprint 6,AI-004,Create Database Migrations,Generate migrations for preferences table,Database,AI-003,High,Not Started
+Phase 2,Sprint 6,AI-005,Implement Morning Greeting Rule,Trigger morning greeting between 8-11 AM if not checked in,Desktop,AI-001,High,Not Started
+Phase 2,Sprint 6,AI-006,Implement Break Reminder Rule,Trigger break reminder after 2 hours continuous work,Desktop,AI-001,High,Not Started
+Phase 2,Sprint 6,AI-007,Implement Lunch Reminder Rule,Trigger lunch reminder at 1 PM if no break taken,Desktop,AI-001,High,Not Started
+Phase 2,Sprint 6,AI-008,Implement Check-out Reminder Rule,Trigger check-out reminder at 6 PM if not checked out,Desktop,AI-001,High,Not Started
+Phase 2,Sprint 6,AI-009,Implement Context Detection,Create functions to detect context (late arrival birthday Friday etc),Desktop,AI-001,High,Not Started
+Phase 2,Sprint 6,AI-010,Create Personalized Greeting Logic,Generate context-aware greeting messages based on situation,Desktop,AI-009,High,Not Started
+Phase 2,Sprint 6,AI-011,Implement Achievement Detection,Detect milestones (100 days perfect attendance etc),Backend,None,Medium,Not Started
+Phase 2,Sprint 6,AI-012,Create Achievement Notification,Trigger celebration notifications for achievements,Desktop,AI-011,Medium,Not Started
+Phase 2,Sprint 6,AI-013,Implement Birthday Detection,Check for employee birthdays and trigger wishes,Backend,AI-011,High,Not Started
+Phase 2,Sprint 6,AI-014,Implement Holiday Reminder,Notify employees about upcoming holidays,Desktop,AI-001,Medium,Not Started
+Phase 2,Sprint 6,AI-015,Create Request Status Notifications,Trigger notifications for leave/WFH/OT approval status changes,Backend,AI-001,High,Not Started
+Phase 2,Sprint 6,AI-016,Implement DND Mode Respect,Skip non-critical notifications when DND is active,Desktop,AI-002,High,Not Started
+Phase 2,Sprint 6,AI-017,Implement Snooze Functionality,Allow users to snooze reminders for 15 minutes,Desktop,AI-002,High,Not Started
+Phase 2,Sprint 6,AI-018,Create Notification History,Store notification history in local storage,Desktop,AI-002,Medium,Not Started
+Phase 2,Sprint 6,AI-019,Create Notification Settings UI,Build interface for employees to customize notification preferences,Desktop,AI-003,Medium,Not Started
+Phase 2,Sprint 6,AI-020,Create Notification Sound Manager,Implement optional sound alerts for notifications,Desktop,AI-002,Low,Not Started
+Phase 2,Sprint 6,AI-021,Test Notification Timing,Verify notifications trigger at correct times and contexts,Testing,AI-005,High,Not Started
+Phase 2,Sprint 6,AI-022,Test DND Mode,Verify DND blocks non-critical notifications,Testing,AI-016,High,Not Started
+Phase 2,Sprint 6,AI-023,Test Snooze Functionality,Verify snoozed notifications reappear after set time,Testing,AI-017,Medium,Not Started
+Phase 2,Sprint 6,AI-024,User Feedback Testing,Collect feedback on notification frequency and relevance,Testing,AI-023,Medium,Not Started
+Phase 2,Sprint 7,ANAL-001,Create Report Generation Service,Build service to generate daily weekly monthly reports,Backend,None,High,Not Started
+Phase 2,Sprint 7,ANAL-002,Create Individual Analytics API,Implement API for employee's own productivity analytics,Backend,ANAL-001,High,Not Started
+Phase 2,Sprint 7,ANAL-003,Create Team Analytics API,Implement API for team-level productivity analytics,Backend,ANAL-001,High,Not Started
+Phase 2,Sprint 7,ANAL-004,Create Comparison Analytics,Implement week-over-week month-over-month comparisons,Backend,ANAL-001,Medium,Not Started
+Phase 2,Sprint 7,ANAL-005,Create Trend Detection,Identify increasing/decreasing patterns in productivity,Backend,ANAL-004,Medium,Not Started
+Phase 2,Sprint 7,ANAL-006,Create Insight Generation,Generate textual insights from analytics data,Backend,ANAL-005,Medium,Not Started
+Phase 2,Sprint 7,ANAL-007,Create Analytics Dashboard,Build comprehensive analytics dashboard for HR/TL,Frontend,ANAL-002,High,Not Started
+Phase 2,Sprint 7,ANAL-008,Create Individual Report View,Build detailed individual employee report page,Frontend,ANAL-002,High,Not Started
+Phase 2,Sprint 7,ANAL-009,Create Team Report View,Build team-level analytics and comparison page,Frontend,ANAL-003,High,Not Started
+Phase 2,Sprint 7,ANAL-010,Create Export Functionality,Implement Excel/PDF export for all reports,Backend,ANAL-001,Medium,Not Started
+Phase 2,Sprint 7,ANAL-011,Create Report Scheduling,Allow HR to schedule automated weekly/monthly reports,Backend,ANAL-001,Low,Not Started
+Phase 2,Sprint 7,ANAL-012,Test Report Accuracy,Verify all calculations and aggregations are correct,Testing,ANAL-001,High,Not Started
+Phase 2,Sprint 7,ANAL-013,Performance Test Analytics,Test report generation with large datasets (1000+ employees),Testing,ANAL-012,High,Not Started
+Phase 2,Sprint 7,ANAL-014,Create Analytics Documentation,Document all metrics calculations and interpretations,Documentation,ANAL-013,Medium,Not Started
+Phase 2,Integration,INT-001,End-to-End User Flow Testing,Test complete employee journey from install to check-out,Testing,ANAL-014,High,Not Started
+Phase 2,Integration,INT-002,Cross-Module Integration Testing,Test interactions between presence face and AI modules,Testing,INT-001,High,Not Started
+Phase 2,Integration,INT-003,Performance Optimization,Optimize app startup time memory usage and responsiveness,Performance,INT-002,High,Not Started
+Phase 2,Integration,INT-004,Security Penetration Testing,Conduct security audit of desktop app and APIs,Security,INT-003,High,Not Started
+Phase 2,Integration,INT-005,User Acceptance Testing,Beta test with 10-20 employees and collect feedback,Testing,INT-004,High,Not Started
+Phase 2,Integration,INT-006,Bug Fixing and Polish,Address all bugs from UAT and polish UI/UX,Development,INT-005,High,Not Started
+Phase 2,Integration,INT-007,Create User Manual,Write comprehensive user guide for all roles,Documentation,INT-006,High,Not Started
+Phase 2,Integration,INT-008,Create Training Materials,Prepare videos/presentations for employee onboarding,Documentation,INT-007,Medium,Not Started
+Phase 2,Integration,INT-009,Production Deployment,Deploy desktop app and backend updates to production,DevOps,INT-006,High,Not Started
+Phase 2,Integration,INT-010,Post-Launch Monitoring,Monitor app performance user adoption and errors,DevOps,INT-009,High,Not Started

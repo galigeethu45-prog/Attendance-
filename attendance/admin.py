@@ -13,7 +13,9 @@ from .models import (
     WFHRequest,
     EmployeeMasterData,
     SystemSettings,
-    OnsiteRequest
+    OnsiteRequest,
+    Team,
+    TeamMembership,
 )
 
 # =========================
@@ -269,3 +271,85 @@ class OnsiteRequestAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         return qs.select_related('employee', 'hr_approver', 'manager_approver')
+
+
+# =========================
+# TEAM ADMIN
+# =========================
+@admin.register(Team)
+class TeamAdmin(admin.ModelAdmin):
+    list_display = ('name', 'department', 'team_leader', 'get_member_count', 'is_active', 'created_at')
+    list_filter = ('is_active', 'department', 'created_at')
+    search_fields = ('name', 'department', 'team_leader__username', 'team_leader__first_name', 'team_leader__last_name')
+    readonly_fields = ('created_at', 'updated_at', 'created_by')
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Team Information', {
+            'fields': ('name', 'department', 'team_leader', 'description')
+        }),
+        ('Status', {
+            'fields': ('is_active',)
+        }),
+        ('Metadata', {
+            'fields': ('created_by', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('team_leader', 'created_by')
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-set created_by on team creation"""
+        if not change:  # Only on creation
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+# =========================
+# TEAM MEMBERSHIP ADMIN (Inline)
+# =========================
+class TeamMembershipInline(admin.TabularInline):
+    model = TeamMembership
+    extra = 1
+    readonly_fields = ('added_at', 'added_by', 'removed_at')
+    fields = ('employee', 'is_active', 'added_by', 'added_at', 'removed_at')
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('employee', 'added_by')
+
+
+# =========================
+# TEAM MEMBERSHIP ADMIN
+# =========================
+@admin.register(TeamMembership)
+class TeamMembershipAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'team', 'is_active', 'added_at', 'added_by', 'removed_at')
+    list_filter = ('is_active', 'team__department', 'added_at')
+    search_fields = ('employee__username', 'employee__first_name', 'employee__last_name', 'team__name')
+    readonly_fields = ('added_at', 'added_by', 'removed_at')
+    date_hierarchy = 'added_at'
+    
+    fieldsets = (
+        ('Membership Information', {
+            'fields': ('team', 'employee', 'is_active')
+        }),
+        ('Audit Trail', {
+            'fields': ('added_by', 'added_at', 'removed_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('employee', 'team', 'added_by')
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-set added_by on membership creation"""
+        if not change:  # Only on creation
+            obj.added_by = request.user
+        super().save_model(request, obj, form, change)
+

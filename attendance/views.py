@@ -1515,14 +1515,33 @@ def leave_approval(request):
     # Get filter parameter (default: pending)
     status_filter = request.GET.get('status', 'pending')
     
+    # Get team member IDs if user is a team leader (not HR/Admin)
+    team_member_ids = None
+    if user_role == 'team_leader' and not request.user.is_superuser:
+        try:
+            from attendance.models import Team, TeamMembership
+            led_teams = Team.objects.filter(team_leader=request.user, is_active=True)
+            if led_teams.exists():
+                team_member_ids = list(TeamMembership.objects.filter(
+                    team__in=led_teams,
+                    is_active=True
+                ).values_list('employee_id', flat=True))
+        except:
+            team_member_ids = []
+    
     # PARALLEL WORKFLOW: Show requests based on status filter
     if status_filter == 'pending':
         if user_role == 'team_leader':
-            # TL sees all pending requests where they haven't commented yet
-            requests = LeaveRequest.objects.filter(
+            # TL sees pending requests from their team members only
+            base_query = LeaveRequest.objects.filter(
                 status='pending',
                 tl_comment__isnull=True
-            ).select_related('employee', 'employee__employeeprofile').order_by('-created_at')
+            )
+            if team_member_ids is not None:
+                requests = base_query.filter(employee_id__in=team_member_ids)
+            else:
+                requests = base_query
+            requests = requests.select_related('employee', 'employee__employeeprofile').order_by('-created_at')
             
         elif user_role == 'manager':
             # Manager sees all pending requests where they haven't approved/rejected yet
@@ -1538,27 +1557,43 @@ def leave_approval(request):
             ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
     
     elif status_filter == 'approved':
-        # Show approved requests
-        requests = LeaveRequest.objects.filter(
-            status='approved'
-        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+        # Show approved requests (filtered for team leaders)
+        base_query = LeaveRequest.objects.filter(status='approved')
+        if user_role == 'team_leader' and team_member_ids is not None:
+            requests = base_query.filter(employee_id__in=team_member_ids)
+        else:
+            requests = base_query
+        requests = requests.select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
     
     elif status_filter == 'rejected':
-        # Show rejected requests
-        requests = LeaveRequest.objects.filter(
-            status='rejected'
-        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+        # Show rejected requests (filtered for team leaders)
+        base_query = LeaveRequest.objects.filter(status='rejected')
+        if user_role == 'team_leader' and team_member_ids is not None:
+            requests = base_query.filter(employee_id__in=team_member_ids)
+        else:
+            requests = base_query
+        requests = requests.select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
     
     else:  # 'all'
-        # Show all requests
-        requests = LeaveRequest.objects.all().select_related(
+        # Show all requests (filtered for team leaders)
+        base_query = LeaveRequest.objects.all()
+        if user_role == 'team_leader' and team_member_ids is not None:
+            requests = base_query.filter(employee_id__in=team_member_ids)
+        else:
+            requests = base_query
+        requests = requests.select_related(
             'employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver'
         ).order_by('-created_at')
     
-    # Count for badges
-    pending_count = LeaveRequest.objects.filter(status='pending').count()
-    approved_count = LeaveRequest.objects.filter(status='approved').count()
-    rejected_count = LeaveRequest.objects.filter(status='rejected').count()
+    # Count for badges (filtered for team leaders)
+    if user_role == 'team_leader' and team_member_ids is not None:
+        pending_count = LeaveRequest.objects.filter(status='pending', employee_id__in=team_member_ids).count()
+        approved_count = LeaveRequest.objects.filter(status='approved', employee_id__in=team_member_ids).count()
+        rejected_count = LeaveRequest.objects.filter(status='rejected', employee_id__in=team_member_ids).count()
+    else:
+        pending_count = LeaveRequest.objects.filter(status='pending').count()
+        approved_count = LeaveRequest.objects.filter(status='approved').count()
+        rejected_count = LeaveRequest.objects.filter(status='rejected').count()
     
     # Load attachments for all requests
     request_ids = list(requests.values_list('id', flat=True))
@@ -1817,11 +1852,20 @@ def profile(request):
     total_late = total_attendance.filter(status='late').count()
     total_hours = total_attendance.aggregate(Sum('total_work_hours'))['total_work_hours__sum'] or 0
     
+    # Check if user is a team leader
+    from attendance.models import Team
+    led_teams = Team.objects.filter(team_leader=request.user, is_active=True)
+    is_team_leader = led_teams.exists()
+    team_count = led_teams.count()
+    
     context = {
         'employee_profile': employee_profile,
         'total_present': total_present,
         'total_late': total_late,
         'total_hours': total_hours,
+        'is_team_leader': is_team_leader,
+        'led_teams': led_teams,
+        'team_count': team_count,
     }
     
     return render(request, 'profile.html', context)
@@ -3587,31 +3631,64 @@ def wfh_approval(request):
     # Get filter parameter (default: pending)
     status_filter = request.GET.get('status', 'pending')
     
+    # Get team member IDs if user is a team leader (not HR/Admin)
+    team_member_ids = None
+    if user_role == 'team_leader' and not request.user.is_superuser:
+        try:
+            from attendance.models import Team, TeamMembership
+            led_teams = Team.objects.filter(team_leader=request.user, is_active=True)
+            if led_teams.exists():
+                team_member_ids = list(TeamMembership.objects.filter(
+                    team__in=led_teams,
+                    is_active=True
+                ).values_list('employee_id', flat=True))
+        except:
+            team_member_ids = []
+    
     # Filter requests based on status
     if status_filter == 'pending':
-        requests = WFHRequest.objects.filter(
-            status='pending'
-        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+        base_query = WFHRequest.objects.filter(status='pending')
+        if user_role == 'team_leader' and team_member_ids is not None:
+            requests = base_query.filter(employee_id__in=team_member_ids)
+        else:
+            requests = base_query
+        requests = requests.select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
     
     elif status_filter == 'approved':
-        requests = WFHRequest.objects.filter(
-            status='approved'
-        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver', 'hr_approver').order_by('-created_at')
+        base_query = WFHRequest.objects.filter(status='approved')
+        if user_role == 'team_leader' and team_member_ids is not None:
+            requests = base_query.filter(employee_id__in=team_member_ids)
+        else:
+            requests = base_query
+        requests = requests.select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver', 'hr_approver').order_by('-created_at')
     
     elif status_filter == 'rejected':
-        requests = WFHRequest.objects.filter(
-            status='rejected'
-        ).select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
+        base_query = WFHRequest.objects.filter(status='rejected')
+        if user_role == 'team_leader' and team_member_ids is not None:
+            requests = base_query.filter(employee_id__in=team_member_ids)
+        else:
+            requests = base_query
+        requests = requests.select_related('employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver').order_by('-created_at')
     
     else:  # 'all'
-        requests = WFHRequest.objects.all().select_related(
+        base_query = WFHRequest.objects.all()
+        if user_role == 'team_leader' and team_member_ids is not None:
+            requests = base_query.filter(employee_id__in=team_member_ids)
+        else:
+            requests = base_query
+        requests = requests.select_related(
             'employee', 'employee__employeeprofile', 'tl_approver', 'manager_approver', 'hr_approver'
         ).order_by('-created_at')
     
-    # Count for badges
-    pending_count = WFHRequest.objects.filter(status='pending').count()
-    approved_count = WFHRequest.objects.filter(status='approved').count()
-    rejected_count = WFHRequest.objects.filter(status='rejected').count()
+    # Count for badges (filtered for team leaders)
+    if user_role == 'team_leader' and team_member_ids is not None:
+        pending_count = WFHRequest.objects.filter(status='pending', employee_id__in=team_member_ids).count()
+        approved_count = WFHRequest.objects.filter(status='approved', employee_id__in=team_member_ids).count()
+        rejected_count = WFHRequest.objects.filter(status='rejected', employee_id__in=team_member_ids).count()
+    else:
+        pending_count = WFHRequest.objects.filter(status='pending').count()
+        approved_count = WFHRequest.objects.filter(status='approved').count()
+        rejected_count = WFHRequest.objects.filter(status='rejected').count()
     
     wfh_ids = list(requests.values_list('id', flat=True))
     wfh_attachments_map = {}

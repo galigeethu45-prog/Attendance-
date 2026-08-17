@@ -17,7 +17,7 @@ class Command(BaseCommand):
         parser.add_argument('employee_ids', nargs='+', type=str, help='Employee IDs to process')
 
     def check_leave_or_wfh(self, user, date):
-        """Check if user has approved leave or WFH for the date"""
+        """Check if user has approved leave for the date (WFH is NOT skipped)"""
         leave = LeaveRequest.objects.filter(
             employee=user,
             status='approved',
@@ -28,15 +28,16 @@ class Command(BaseCommand):
         if leave:
             return True, f"On {leave.get_leave_type_display()} leave"
         
-        wfh = WFHRequest.objects.filter(
-            employee=user,
-            status='approved',
-            start_date__lte=date,
-            end_date__gte=date
-        ).first()
-        
-        if wfh:
-            return True, "On approved WFH"
+        # WFH is no longer a reason to skip - employees on WFH should get checkout assigned
+        # wfh = WFHRequest.objects.filter(
+        #     employee=user,
+        #     status='approved',
+        #     start_date__lte=date,
+        #     end_date__gte=date
+        # ).first()
+        # 
+        # if wfh:
+        #     return True, "On approved WFH"
         
         return False, None
 

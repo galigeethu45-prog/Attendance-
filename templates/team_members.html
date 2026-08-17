@@ -1,0 +1,460 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ team.name }} - Members{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    {% if request.user.is_superuser or employee_profile.is_hr or employee_profile.role in 'hr,manager' %}
+                    <a href="{% url 'team_management' %}" class="btn btn-secondary mb-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Team Management
+                    </a>
+                    {% else %}
+                    <a href="{% url 'team_leader_dashboard' %}" class="btn btn-secondary mb-2">
+                        <i class="fas fa-arrow-left me-2"></i>Back to My Teams
+                    </a>
+                    {% endif %}
+                    <h2 class="text-white mb-2" style="font-weight: 700;">
+                        <i class="fas fa-users me-2"></i>{{ team.name }}
+                    </h2>
+                    <p class="text-muted">
+                        <span class="badge bg-info me-2">{{ team.department }}</span>
+                        {% if team.team_leader %}
+                        <i class="fas fa-user-tie me-1"></i>Led by {{ team.team_leader.get_full_name|default:team.team_leader.username }}
+                        {% endif %}
+                    </p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+                        <i class="fas fa-user-plus me-2"></i>Add Member
+                    </button>
+                    <button type="button" class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#bulkAddModal">
+                        <i class="fas fa-users me-2"></i>Bulk Add
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="card stat-card glass-card fade-in-delay-1">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Total Members</p>
+                            <h3 class="mb-0 text-white">{{ memberships.count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-users"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card glass-card fade-in-delay-2">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Available to Add</p>
+                            <h3 class="mb-0 text-white">{{ available_employees.count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card glass-card fade-in-delay-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Team Leader</p>
+                            <h6 class="mb-0 text-white">
+                                {% if team.team_leader %}
+                                {{ team.team_leader.get_full_name|default:team.team_leader.username }}
+                                {% else %}
+                                Not assigned
+                                {% endif %}
+                            </h6>
+                        </div>
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-user-tie"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Members -->
+    <div class="card glass-card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Current Members</h5>
+            <input type="text" id="searchMember" class="form-control" style="max-width: 300px;" placeholder="Search members...">
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0" id="membersTable">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 250px;">Employee</th>
+                            <th style="min-width: 120px;">Employee ID</th>
+                            <th style="min-width: 150px;">Department</th>
+                            <th style="min-width: 180px;">Designation</th>
+                            <th style="min-width: 140px;">Added On</th>
+                            <th style="min-width: 150px;">Added By</th>
+                            <th style="min-width: 120px;" class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for membership in memberships %}
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if membership.employee.employeeprofile.profile_photo %}
+                                    <img src="{{ membership.employee.employeeprofile.profile_photo.url }}" 
+                                         alt="{{ membership.employee.get_full_name }}" 
+                                         class="rounded-circle me-3" 
+                                         style="width: 40px; height: 40px; min-width: 40px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2);">
+                                    {% else %}
+                                    <div class="rounded-circle bg-primary text-white me-3" 
+                                         style="width: 40px; height: 40px; min-width: 40px; min-height: 40px; border: 2px solid rgba(255,255,255,0.2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative;">
+                                        <i class="fas fa-user" style="font-size: 16px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <strong class="d-block">{{ membership.employee.get_full_name|default:membership.employee.username }}</strong>
+                                        <small class="text-muted">{{ membership.employee.email }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="align-middle">
+                                <span class="badge bg-secondary px-3 py-2" style="font-size: 13px;">{{ membership.employee.employeeprofile.employee_id|default:"N/A" }}</span>
+                            </td>
+                            <td class="align-middle">{{ membership.employee.employeeprofile.department|default:"-" }}</td>
+                            <td class="align-middle">{{ membership.employee.employeeprofile.designation|default:"-" }}</td>
+                            <td class="align-middle">
+                                <div class="text-muted" style="white-space: nowrap; font-size: 13px;">
+                                    <i class="fas fa-calendar me-1"></i>{{ membership.added_at|date:"M d, Y" }}
+                                </div>
+                            </td>
+                            <td class="align-middle">
+                                <div class="text-muted" style="white-space: nowrap; font-size: 13px;">
+                                    {% if membership.added_by %}
+                                    <i class="fas fa-user me-1"></i>{{ membership.added_by.get_full_name|default:membership.added_by.username }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="align-middle text-center">
+                                <button class="btn btn-sm btn-danger" onclick="confirmRemoveMember({{ membership.employee.id }}, '{{ membership.employee.get_full_name|default:membership.employee.username|escapejs }}')">
+                                    <i class="fas fa-user-times me-1"></i> Remove
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5">
+                                <i class="fas fa-users fa-3x mb-3 d-block"></i>
+                                <h5>No members in this team yet</h5>
+                                <p>Click "Add Member" to add team members</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Single Member Modal -->
+<div class="modal fade" id="addMemberModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'add_team_member' team.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-user-plus me-2"></i>Add Team Member
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="employeeSelect" class="form-label">Select Employee <span class="text-danger">*</span></label>
+                        <select class="form-select" id="employeeSelect" name="employee_id" required>
+                            <option value="">Choose an employee...</option>
+                            {% for emp in available_employees %}
+                            <option value="{{ emp.id }}">
+                                {{ emp.get_full_name|default:emp.username }}
+                                {% if emp.employeeprofile.employee_id %}
+                                ({{ emp.employeeprofile.employee_id }})
+                                {% endif %}
+                                - {{ emp.employeeprofile.department|default:"No Department" }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus me-1"></i>Add Member
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Add Members Modal -->
+<div class="modal fade" id="bulkAddModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'bulk_add_members' team.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-users me-2"></i>Bulk Add Members
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Multiple Employees <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control mb-2" id="bulkSearch" placeholder="Search employees...">
+                        <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                            {% for emp in available_employees %}
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="employee_ids" value="{{ emp.id }}" id="emp_{{ emp.id }}">
+                                <label class="form-check-label" for="emp_{{ emp.id }}">
+                                    <strong>{{ emp.get_full_name|default:emp.username }}</strong>
+                                    {% if emp.employeeprofile.employee_id %}
+                                    <span class="badge bg-secondary ms-2">{{ emp.employeeprofile.employee_id }}</span>
+                                    {% endif %}
+                                    <br>
+                                    <small class="text-muted">
+                                        {{ emp.employeeprofile.department|default:"No Department" }}
+                                        {% if emp.employeeprofile.designation %}
+                                        - {{ emp.employeeprofile.designation }}
+                                        {% endif %}
+                                    </small>
+                                </label>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted text-center mb-0">No available employees to add</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="selectedCount">0</span> employee(s) selected
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-users me-1"></i>Add Selected Members
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Remove Member Confirmation Modal -->
+<div class="modal fade" id="removeMemberModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" id="removeMemberForm">
+                {% csrf_token %}
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirm Remove
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to remove <strong id="removeMemberName"></strong> from this team?</p>
+                    <p class="text-warning mb-0">
+                        <i class="fas fa-info-circle me-2"></i>They will no longer have team member access.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-user-times me-1"></i>Remove Member
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Search members
+document.getElementById('searchMember').addEventListener('keyup', function() {
+    const searchValue = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#membersTable tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchValue) ? '' : 'none';
+    });
+});
+
+// Search in bulk add
+document.getElementById('bulkSearch')?.addEventListener('keyup', function() {
+    const searchValue = this.value.toLowerCase();
+    const checkboxes = document.querySelectorAll('.form-check');
+    
+    checkboxes.forEach(checkbox => {
+        const text = checkbox.textContent.toLowerCase();
+        checkbox.style.display = text.includes(searchValue) ? '' : 'none';
+    });
+});
+
+// Count selected
+document.querySelectorAll('input[name="employee_ids"]').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const count = document.querySelectorAll('input[name="employee_ids"]:checked').length;
+        document.getElementById('selectedCount').textContent = count;
+    });
+});
+
+// Confirm remove member
+function confirmRemoveMember(memberId, memberName) {
+    document.getElementById('removeMemberForm').action = `/teams/{{ team.id }}/remove-member/${memberId}/`;
+    document.getElementById('removeMemberName').textContent = memberName;
+    
+    const modal = new bootstrap.Modal(document.getElementById('removeMemberModal'));
+    modal.show();
+}
+</script>
+
+<style>
+/* Override glass-card overflow for this specific card to prevent avatar clipping */
+.card.glass-card {
+    overflow: visible !important;
+}
+
+/* Clean table styling */
+#membersTable {
+    font-size: 14px;
+    overflow: visible;
+}
+
+#membersTable tbody {
+    overflow: visible;
+}
+
+#membersTable thead th {
+    background: rgba(255, 255, 255, 0.05);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    padding: 18px 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+#membersTable tbody td {
+    vertical-align: middle;
+    border: none;
+    padding: 20px 15px;
+    overflow: visible;
+}
+
+#membersTable tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.2s ease;
+    overflow: visible;
+}
+
+#membersTable tbody tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Badge styling */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+/* Button spacing */
+.btn-sm {
+    padding: 8px 18px;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+/* Table responsive */
+.table-responsive {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+}
+
+.card-body.p-0 {
+    padding: 0 !important;
+    overflow: visible;
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.card-body.p-0 {
+    padding: 0 !important;
+}
+
+.card-header .form-control {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.card-header .form-control:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    box-shadow: none;
+}
+
+.card-header .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+</style>
+{% endblock %}

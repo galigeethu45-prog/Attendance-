@@ -1,0 +1,360 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ team.name }} - Pending Requests{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            {% if request.user.is_superuser or employee_profile.is_hr or employee_profile.role in 'hr,manager' %}
+            <a href="{% url 'team_management' %}" class="btn btn-secondary mb-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to Team Management
+            </a>
+            {% else %}
+            <a href="{% url 'team_leader_dashboard' %}" class="btn btn-secondary mb-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to My Teams
+            </a>
+            {% endif %}
+            <h2 class="text-white mb-2" style="font-weight: 700;">
+                <i class="fas fa-clipboard-list me-2"></i>Team Requests - {{ team.name }}
+            </h2>
+            <p class="text-muted">
+                <span class="badge bg-info me-2">{{ team.department }}</span>
+                Review and comment on team member requests
+            </p>
+        </div>
+    </div>
+
+    <!-- Status Filter Tabs -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card glass-card">
+                <div class="card-body p-0">
+                    <ul class="nav nav-pills nav-fill" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if status_filter == 'pending' %}active{% endif %}" 
+                               href="?status=pending" style="border-radius: 0;">
+                                <i class="fas fa-clock me-2"></i>Pending
+                                {% if pending_count > 0 %}
+                                <span class="badge bg-warning ms-2">{{ pending_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if status_filter == 'approved' %}active{% endif %}" 
+                               href="?status=approved" style="border-radius: 0;">
+                                <i class="fas fa-check-circle me-2"></i>Approved
+                                {% if approved_count > 0 %}
+                                <span class="badge bg-success ms-2">{{ approved_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if status_filter == 'rejected' %}active{% endif %}" 
+                               href="?status=rejected" style="border-radius: 0;">
+                                <i class="fas fa-times-circle me-2"></i>Rejected
+                                {% if rejected_count > 0 %}
+                                <span class="badge bg-danger ms-2">{{ rejected_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link {% if status_filter == 'all' %}active{% endif %}" 
+                               href="?status=all" style="border-radius: 0;">
+                                <i class="fas fa-list me-2"></i>All Requests
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card glass-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Leave Requests</p>
+                            <h3 class="mb-0 text-white">{{ leave_requests.count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-calendar-alt"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">WFH Requests</p>
+                            <h3 class="mb-0 text-white">{{ wfh_requests.count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-home"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">OT Requests</p>
+                            <h3 class="mb-0 text-white">{{ ot_requests.count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card glass-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Onsite Requests</p>
+                            <h3 class="mb-0 text-white">{{ onsite_requests.count }}</h3>
+                        </div>
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-building"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leave Requests -->
+    {% if leave_requests %}
+    <div class="card glass-card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Leave Requests</h5>
+        </div>
+        <div class="card-body">
+            {% for leave in leave_requests %}
+            <div class="request-card mb-3 p-3 border rounded">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas fa-user me-2"></i>{{ leave.employee.get_full_name|default:leave.employee.username }}
+                        </h6>
+                        <span class="badge bg-primary">{{ leave.get_leave_type_display }}</span>
+                        <span class="badge bg-info ms-2">{{ leave.total_days }} day{{ leave.total_days|pluralize }}</span>
+                        {% if leave.status == 'approved' %}
+                        <span class="badge bg-success ms-2"><i class="fas fa-check-circle me-1"></i>Approved</span>
+                        {% elif leave.status == 'rejected' %}
+                        <span class="badge bg-danger ms-2"><i class="fas fa-times-circle me-1"></i>Rejected</span>
+                        {% elif leave.status == 'pending' %}
+                        <span class="badge bg-warning ms-2"><i class="fas fa-clock me-1"></i>Pending</span>
+                        {% endif %}
+                    </div>
+                    <small class="text-muted">{{ leave.created_at|date:"M d, Y" }}</small>
+                </div>
+                <p class="mb-2"><strong>Period:</strong> {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }}</p>
+                <p class="mb-2"><strong>Reason:</strong> {{ leave.reason }}</p>
+                
+                {% if leave.tl_comment %}
+                <div class="alert alert-info mb-2">
+                    <strong><i class="fas fa-comment me-2"></i>Your Comment:</strong> {{ leave.tl_comment }}
+                </div>
+                {% elif leave.status == 'pending' %}
+                <form method="post" action="{% url 'add_tl_comment_leave' leave.id %}" class="mt-3">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <textarea class="form-control" name="tl_comment" rows="2" placeholder="Add your comment..." required></textarea>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-comment me-1"></i>Add Comment
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+                
+                {% if leave.status == 'approved' and leave.manager_approver %}
+                <div class="alert alert-success mb-0 mt-2">
+                    <small><i class="fas fa-check-circle me-1"></i>Approved by {{ leave.manager_approver.get_full_name|default:leave.manager_approver.username }}</small>
+                </div>
+                {% elif leave.status == 'rejected' %}
+                <div class="alert alert-danger mb-0 mt-2">
+                    <small><i class="fas fa-times-circle me-1"></i>Request was rejected</small>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- WFH Requests -->
+    {% if wfh_requests %}
+    <div class="card glass-card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-home me-2"></i>WFH Requests</h5>
+        </div>
+        <div class="card-body">
+            {% for wfh in wfh_requests %}
+            <div class="request-card mb-3 p-3 border rounded">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas fa-user me-2"></i>{{ wfh.employee.get_full_name|default:wfh.employee.username }}
+                        </h6>
+                        <span class="badge bg-info">{{ wfh.total_days }} day{{ wfh.total_days|pluralize }}</span>
+                    </div>
+                    <small class="text-muted">{{ wfh.created_at|date:"M d, Y" }}</small>
+                </div>
+                <p class="mb-2"><strong>Period:</strong> {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }}</p>
+                <p class="mb-2"><strong>Reason:</strong> {{ wfh.reason }}</p>
+                
+                {% if wfh.tl_comment %}
+                <div class="alert alert-info mb-2">
+                    <strong><i class="fas fa-comment me-2"></i>Your Comment:</strong> {{ wfh.tl_comment }}
+                </div>
+                {% else %}
+                <form method="post" action="{% url 'add_tl_comment_wfh' wfh.id %}" class="mt-3">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <textarea class="form-control" name="tl_comment" rows="2" placeholder="Add your comment..." required></textarea>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-comment me-1"></i>Add Comment
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- OT Requests -->
+    {% if ot_requests %}
+    <div class="card glass-card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Overtime Requests</h5>
+        </div>
+        <div class="card-body">
+            {% for ot in ot_requests %}
+            <div class="request-card mb-3 p-3 border rounded">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas fa-user me-2"></i>{{ ot.employee.get_full_name|default:ot.employee.username }}
+                        </h6>
+                        <span class="badge bg-warning">{{ ot.date|date:"M d, Y" }}</span>
+                    </div>
+                    <small class="text-muted">{{ ot.requested_at|date:"M d, Y" }}</small>
+                </div>
+                <p class="mb-2"><strong>Reason:</strong> {{ ot.reason }}</p>
+                
+                {% if ot.tl_comment %}
+                <div class="alert alert-info mb-2">
+                    <strong><i class="fas fa-comment me-2"></i>Your Comment:</strong> {{ ot.tl_comment }}
+                </div>
+                {% else %}
+                <form method="post" action="{% url 'add_tl_comment_ot' ot.id %}" class="mt-3">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <textarea class="form-control" name="tl_comment" rows="2" placeholder="Add your comment..." required></textarea>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-comment me-1"></i>Add Comment
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Onsite Requests -->
+    {% if onsite_requests %}
+    <div class="card glass-card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-building me-2"></i>Onsite Requests</h5>
+        </div>
+        <div class="card-body">
+            {% for onsite in onsite_requests %}
+            <div class="request-card mb-3 p-3 border rounded">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas fa-user me-2"></i>{{ onsite.employee.get_full_name|default:onsite.employee.username }}
+                        </h6>
+                        <span class="badge bg-success">{{ onsite.visit_date|date:"M d, Y" }}</span>
+                    </div>
+                    <small class="text-muted">{{ onsite.created_at|date:"M d, Y" }}</small>
+                </div>
+                <p class="mb-2"><strong>Client:</strong> {{ onsite.client_name }}</p>
+                <p class="mb-2"><strong>Location:</strong> {{ onsite.location }}</p>
+                <p class="mb-2"><strong>Purpose:</strong> {{ onsite.purpose }}</p>
+                
+                {% if onsite.tl_comment %}
+                <div class="alert alert-info mb-2">
+                    <strong><i class="fas fa-comment me-2"></i>Your Comment:</strong> {{ onsite.tl_comment }}
+                </div>
+                {% else %}
+                <form method="post" action="{% url 'add_tl_comment_onsite' onsite.id %}" class="mt-3">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <textarea class="form-control" name="tl_comment" rows="2" placeholder="Add your comment..." required></textarea>
+                        <button class="btn btn-primary" type="submit">
+                            <i class="fas fa-comment me-1"></i>Add Comment
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not leave_requests and not wfh_requests and not ot_requests and not onsite_requests %}
+    <div class="card glass-card">
+        <div class="card-body text-center py-5">
+            {% if status_filter == 'pending' %}
+            <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+            <h4 class="text-white">No Pending Requests</h4>
+            <p class="text-muted">All team member requests have been processed</p>
+            {% elif status_filter == 'approved' %}
+            <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+            <h4 class="text-white">No Approved Requests</h4>
+            <p class="text-muted">No requests have been approved yet</p>
+            {% elif status_filter == 'rejected' %}
+            <i class="fas fa-times-circle fa-4x text-danger mb-3"></i>
+            <h4 class="text-white">No Rejected Requests</h4>
+            <p class="text-muted">No requests have been rejected</p>
+            {% else %}
+            <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+            <h4 class="text-white">No Requests</h4>
+            <p class="text-muted">No requests found for this team</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.request-card {
+    background: rgba(255, 255, 255, 0.05);
+    transition: background 0.3s ease;
+}
+
+.request-card:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+</style>
+{% endblock %}

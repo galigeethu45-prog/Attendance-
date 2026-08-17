@@ -29,9 +29,14 @@
                     {% if employee_profile %}
                     <p class="mb-1"><strong>Department:</strong> {{ employee_profile.department }}</p>
                     <p class="mb-1"><strong>Designation:</strong> {{ employee_profile.designation }}</p>
-                    {% if employee_profile.is_hr %}
-                    <span class="badge bg-primary">HR</span>
-                    {% endif %}
+                    <div class="mt-2">
+                        {% if employee_profile.is_hr %}
+                        <span class="badge bg-primary mb-1"><i class="fas fa-user-shield me-1"></i>HR</span>
+                        {% endif %}
+                        {% if is_team_leader %}
+                        <span class="badge bg-success mb-1"><i class="fas fa-users me-1"></i>Team Leader ({{ team_count }} team{{ team_count|pluralize }})</span>
+                        {% endif %}
+                    </div>
                     {% endif %}
                 </div>
             </div>
