@@ -347,7 +347,7 @@ def assign_missing_checkouts_api(request):
         ).select_related('employee').order_by('-date')
         
         for att in all_missing:
-            # Check leave/WFH
+            # Check leave only (WFH employees still need checkout)
             is_on_leave = LeaveRequest.objects.filter(
                 employee=att.employee,
                 status='approved',
@@ -355,12 +355,13 @@ def assign_missing_checkouts_api(request):
                 end_date__gte=att.date
             ).exists()
             
-            is_on_wfh = WFHRequest.objects.filter(
-                employee=att.employee,
-                status='approved',
-                start_date__lte=att.date,
-                end_date__gte=att.date
-            ).exists()
+            # WFH check removed - WFH employees need checkout assigned
+            # is_on_wfh = WFHRequest.objects.filter(
+            #     employee=att.employee,
+            #     status='approved',
+            #     start_date__lte=att.date,
+            #     end_date__gte=att.date
+            # ).exists()
             
             if is_on_leave:
                 skipped_count += 1
@@ -371,15 +372,15 @@ def assign_missing_checkouts_api(request):
                     'success': False,
                     'reason': 'On Leave'
                 })
-            elif is_on_wfh:
-                skipped_count += 1
-                results.append({
-                    'employee_name': att.employee.get_full_name() or att.employee.username,
-                    'date': att.date.strftime('%b %d, %Y'),
-                    'check_in_time': att.check_in.strftime('%I:%M %p'),
-                    'success': False,
-                    'reason': 'On WFH'
-                })
+            # elif is_on_wfh:  # REMOVED - WFH should not skip checkout
+            #     skipped_count += 1
+            #     results.append({
+            #         'employee_name': att.employee.get_full_name() or att.employee.username,
+            #         'date': att.date.strftime('%b %d, %Y'),
+            #         'check_in_time': att.check_in.strftime('%I:%M %p'),
+            #         'success': False,
+            #         'reason': 'On WFH'
+            #     })
             else:
                 # Assign checkout
                 try:
@@ -436,6 +437,7 @@ def assign_missing_checkouts_api(request):
         ).order_by('-date')
         
         for att in missing_for_emp:
+            # Check leave only (WFH employees still need checkout)
             is_on_leave = LeaveRequest.objects.filter(
                 employee=emp,
                 status='approved',
@@ -443,12 +445,13 @@ def assign_missing_checkouts_api(request):
                 end_date__gte=att.date
             ).exists()
             
-            is_on_wfh = WFHRequest.objects.filter(
-                employee=emp,
-                status='approved',
-                start_date__lte=att.date,
-                end_date__gte=att.date
-            ).exists()
+            # WFH check removed - WFH employees need checkout assigned
+            # is_on_wfh = WFHRequest.objects.filter(
+            #     employee=emp,
+            #     status='approved',
+            #     start_date__lte=att.date,
+            #     end_date__gte=att.date
+            # ).exists()
             
             if is_on_leave:
                 skipped_count += 1
@@ -459,15 +462,15 @@ def assign_missing_checkouts_api(request):
                     'success': False,
                     'reason': 'On Leave'
                 })
-            elif is_on_wfh:
-                skipped_count += 1
-                results.append({
-                    'employee_name': emp.get_full_name() or emp.username,
-                    'date': att.date.strftime('%b %d, %Y'),
-                    'check_in_time': att.check_in.strftime('%I:%M %p'),
-                    'success': False,
-                    'reason': 'On WFH'
-                })
+            # elif is_on_wfh:  # REMOVED - WFH should not skip checkout
+            #     skipped_count += 1
+            #     results.append({
+            #         'employee_name': emp.get_full_name() or emp.username,
+            #         'date': att.date.strftime('%b %d, %Y'),
+            #         'check_in_time': att.check_in.strftime('%I:%M %p'),
+            #         'success': False,
+            #         'reason': 'On WFH'
+            #     })
             else:
                 try:
                     checkout_datetime = timezone.make_aware(

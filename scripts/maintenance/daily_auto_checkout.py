@@ -28,8 +28,8 @@ def log_message(message):
 
 
 def check_leave_or_wfh(user, date):
-    """Check if user has approved leave or WFH for the date"""
-    # Check leave
+    """Check if user has approved leave for the date (WFH is NOT skipped)"""
+    # Check leave only - WFH employees need checkout assigned
     leave = LeaveRequest.objects.filter(
         employee=user,
         status='approved',
@@ -40,16 +40,16 @@ def check_leave_or_wfh(user, date):
     if leave:
         return True, f"On {leave.get_leave_type_display()} leave"
     
-    # Check WFH
-    wfh = WFHRequest.objects.filter(
-        employee=user,
-        status='approved',
-        start_date__lte=date,
-        end_date__gte=date
-    ).first()
-    
-    if wfh:
-        return True, "On approved WFH"
+    # WFH check removed - WFH employees still need checkout assigned
+    # wfh = WFHRequest.objects.filter(
+    #     employee=user,
+    #     status='approved',
+    #     start_date__lte=date,
+    #     end_date__gte=date
+    # ).first()
+    # 
+    # if wfh:
+    #     return True, "On approved WFH"
     
     return False, None
 
