@@ -16,6 +16,9 @@ from .models import (
     OnsiteRequest,
     Team,
     TeamMembership,
+    PayrollCycle,
+    PayrollEntry,
+    LeaveBalance,
 )
 
 # =========================
@@ -353,3 +356,130 @@ class TeamMembershipAdmin(admin.ModelAdmin):
             obj.added_by = request.user
         super().save_model(request, obj, form, change)
 
+
+
+
+# =========================
+# PAYROLL CYCLE ADMIN
+# =========================
+@admin.register(PayrollCycle)
+class PayrollCycleAdmin(admin.ModelAdmin):
+    list_display = ('__str__', 'year', 'month', 'status', 'total_employees', 'total_net_salary', 'processed_by', 'processed_at')
+    list_filter = ('status', 'year', 'month')
+    search_fields = ('year', 'notes')
+    readonly_fields = ('processed_at', 'finalized_at', 'paid_at', 'total_employees', 'total_gross_salary', 'total_deductions', 'total_overtime', 'total_net_salary')
+    date_hierarchy = 'processed_at'
+    
+    fieldsets = (
+        ('Cycle Information', {
+            'fields': ('month', 'year', 'status')
+        }),
+        ('Totals (Auto-Calculated)', {
+            'fields': ('total_employees', 'total_gross_salary', 'total_deductions', 'total_overtime', 'total_net_salary'),
+            'classes': ('collapse',)
+        }),
+        ('Processing Information', {
+            'fields': ('processed_by', 'processed_at', 'finalized_at', 'paid_at', 'notes')
+        }),
+    )
+    
+    def has_delete_permission(self, request, obj=None):
+        # Don't allow deletion of finalized/paid cycles
+        if obj and obj.status in ['finalized', 'paid']:
+            return False
+        return super().has_delete_permission(request, obj)
+
+
+# =========================
+# PAYROLL ENTRY ADMIN
+# =========================
+@admin.register(PayrollEntry)
+class PayrollEntryAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'payroll_cycle', 'base_salary', 'present_days', 'absent_days', 'half_days', 'total_deductions', 'net_salary', 'payment_status')
+    list_filter = ('payment_status', 'payroll_cycle__year', 'payroll_cycle__month', 'payroll_cycle__status')
+    search_fields = ('employee__employee_id', 'employee__user__username', 'employee__user__first_name', 'employee__user__last_name')
+    readonly_fields = ('created_at', 'updated_at', 'per_day_salary', 'half_day_deduction', 'absent_deduction', 'unpaid_leave_deduction', 'total_deductions', 'overtime_amount', 'gross_salary', 'net_salary')
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('payroll_cycle', 'employee', 'base_salary', 'working_days', 'per_day_salary')
+        }),
+        ('Attendance Breakdown', {
+            'fields': ('present_days', 'absent_days', 'half_days', 'late_days', 'wfh_days')
+        }),
+        ('Leave Breakdown', {
+            'fields': ('paid_leaves', 'unpaid_leaves')
+        }),
+        ('Overtime', {
+            'fields': ('overtime_hours', 'overtime_rate', 'overtime_amount')
+        }),
+        ('Deductions (Auto-Calculated)', {
+            'fields': ('half_day_deduction', 'absent_deduction', 'unpaid_leave_deduction', 'other_deductions', 'total_deductions'),
+            'classes': ('collapse',)
+        }),
+        ('Final Salary', {
+            'fields': ('gross_salary', 'net_salary')
+        }),
+        ('Manual Adjustments', {
+            'fields': ('manual_adjustment', 'adjustment_reason')
+        }),
+        ('Payment Status', {
+            'fields': ('payment_status', 'payment_date', 'payment_reference')
+        }),
+        ('Notes & Metadata', {
+            'fields': ('notes', 'created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('employee', 'employee__user', 'payroll_cycle')
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-calculate totals before saving"""
+        obj.calculate_totals()
+        super().save_model(request, obj, form, change)
+
+
+# =========================
+# LEAVE BALANCE ADMIN
+# =========================
+@admin.register(LeaveBalance)
+class LeaveBalanceAdmin(admin.ModelAdmin):
+    list_display = ('employee', 'year', 'sick_leave_balance', 'casual_leave_balance', 'earned_leave_balance', 'total_balance')
+    list_filter = ('year',)
+    search_fields = ('employee__employee_id', 'employee__user__username', 'employee__user__first_name', 'employee__user__last_name')
+    readonly_fields = ('created_at', 'updated_at')
+    
+    fieldsets = (
+        ('Employee & Year', {
+            'fields': ('employee', 'year')
+        }),
+        ('Sick Leave', {
+            'fields': ('sick_leave_allocated', 'sick_leave_used', 'sick_leave_balance')
+        }),
+        ('Casual Leave', {
+            'fields': ('casual_leave_allocated', 'casual_leave_used', 'casual_leave_balance')
+        }),
+        ('Earned Leave', {
+            'fields': ('earned_leave_allocated', 'earned_leave_used', 'earned_leave_balance')
+        }),
+        ('Totals', {
+            'fields': ('total_allocated', 'total_used', 'total_balance')
+        }),
+        ('Metadata', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('employee', 'employee__user')
+    
+    def save_model(self, request, obj, form, change):
+        """Auto-update balances before saving"""
+        obj.update_balances()
+        super().save_model(request, obj, form, change)

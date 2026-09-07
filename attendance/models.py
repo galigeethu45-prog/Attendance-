@@ -160,6 +160,16 @@ class EmployeeProfile(models.Model):
     aadhar_number = models.CharField(max_length=12, blank=True)
     pan_number = models.CharField(max_length=10, blank=True)
     
+    # Salary & Bank Information (for Payroll)
+    base_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text='Monthly base salary')
+    ot_rate = models.DecimalField(max_digits=8, decimal_places=2, default=300.00, help_text='Overtime hourly rate')
+    bank_account_number = models.CharField(max_length=50, blank=True)
+    bank_ifsc_code = models.CharField(max_length=20, blank=True)
+    bank_name = models.CharField(max_length=100, blank=True)
+    pf_number = models.CharField(max_length=50, blank=True, help_text='Provident Fund Number')
+    uan_number = models.CharField(max_length=20, blank=True, help_text='Universal Account Number')
+    esi_number = models.CharField(max_length=20, blank=True, help_text='Employee State Insurance Number')
+    
     # Company Information
     department = models.CharField(max_length=100, blank=True, db_index=True)
     designation = models.CharField(max_length=100, blank=True)
@@ -1381,3 +1391,229 @@ class CompanyHoliday(models.Model):
             current_date += timedelta(days=1)
         
         return working_days
+
+
+
+# ============================================
+# PAYROLL SYSTEM MODELS
+# ============================================
+
+class PayrollCycle(models.Model):
+    """
+    Represents a monthly payroll processing cycle
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('finalized', 'Finalized'),
+        ('paid', 'Paid'),
+    ]
+    
+    month = models.IntegerField(help_text='Month (1-12)')
+    year = models.IntegerField(help_text='Year (e.g., 2026)')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft', db_index=True)
+    
+    # Aggregated totals
+    total_employees = models.IntegerField(default=0)
+    total_gross_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    total_deductions = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    total_overtime = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    total_net_salary = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    
+    # Processing metadata
+    processed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='processed_payrolls')
+    processed_at = models.DateTimeField(auto_now_add=True)
+    finalized_at = models.DateTimeField(null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-year', '-month']
+        unique_together = ['month', 'year']
+        indexes = [
+            models.Index(fields=['year', 'month']),
+            models.Index(fields=['status']),
+        ]
+    
+    def __str__(self):
+        return f"Payroll {self.year}-{self.month:02d} ({self.get_status_display()})"
+    
+    def get_month_name(self):
+        """Return month name"""
+        from calendar import month_name
+        return month_name[self.month]
+
+
+class PayrollEntry(models.Model):
+    """
+    Individual employee payroll entry for a specific cycle
+    """
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processed', 'Processed'),
+        ('paid', 'Paid'),
+        ('hold', 'On Hold'),
+    ]
+    
+    payroll_cycle = models.ForeignKey(PayrollCycle, on_delete=models.CASCADE, related_name='entries')
+    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, related_name='payroll_entries')
+    
+    # Base Information
+    base_salary = models.DecimalField(max_digits=10, decimal_places=2, help_text='Base salary for the month')
+    working_days = models.IntegerField(help_text='Total working days in the month (excluding weekends & holidays)')
+    per_day_salary = models.DecimalField(max_digits=10, decimal_places=2, help_text='Calculated: base_salary / working_days')
+    
+    # Attendance Breakdown
+    present_days = models.IntegerField(default=0, help_text='Full working days')
+    absent_days = models.IntegerField(default=0, help_text='Absent days')
+    half_days = models.IntegerField(default=0, help_text='Half day/late check-ins')
+    late_days = models.IntegerField(default=0, help_text='Late arrivals count (informational)')
+    wfh_days = models.IntegerField(default=0, help_text='Work from home days (counted as present)')
+    
+    # Leave Breakdown
+    paid_leaves = models.IntegerField(default=0, help_text='Paid leave days taken (within 18 limit)')
+    unpaid_leaves = models.IntegerField(default=0, help_text='Unpaid leave days (beyond 18)')
+    
+    # Overtime
+    overtime_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text='Approved OT hours')
+    overtime_rate = models.DecimalField(max_digits=8, decimal_places=2, default=300.00, help_text='OT rate per hour')
+    overtime_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text='Calculated: hours × rate')
+    
+    # Deductions
+    half_day_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text='(per_day_salary / 2) × half_days')
+    absent_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text='per_day_salary × absent_days')
+    unpaid_leave_deduction = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text='per_day_salary × unpaid_leaves')
+    other_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text='Manual deductions')
+    total_deductions = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text='Sum of all deductions')
+    
+    # Final Salary Calculation
+    gross_salary = models.DecimalField(max_digits=10, decimal_places=2, help_text='base_salary + overtime_amount')
+    net_salary = models.DecimalField(max_digits=10, decimal_places=2, help_text='gross_salary - total_deductions + manual_adjustment')
+    
+    # Manual Adjustments
+    manual_adjustment = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text='Manual bonus or deduction (+/-)')
+    adjustment_reason = models.TextField(blank=True, help_text='Reason for manual adjustment')
+    
+    # Payment Status
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending', db_index=True)
+    payment_date = models.DateField(null=True, blank=True)
+    payment_reference = models.CharField(max_length=100, blank=True, help_text='Transaction ID or reference')
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['employee__employee_id']
+        unique_together = ['payroll_cycle', 'employee']
+        indexes = [
+            models.Index(fields=['payroll_cycle', 'employee']),
+            models.Index(fields=['payment_status']),
+            models.Index(fields=['employee']),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.employee_id} - {self.payroll_cycle}"
+    
+    def calculate_totals(self):
+        """
+        Calculate all deductions and final salary
+        This method should be called after setting all attendance fields
+        """
+        # Calculate per day salary
+        if self.working_days > 0:
+            self.per_day_salary = self.base_salary / self.working_days
+        else:
+            self.per_day_salary = 0
+        
+        # Calculate deductions
+        self.half_day_deduction = (self.per_day_salary / 2) * self.half_days
+        self.absent_deduction = self.per_day_salary * self.absent_days
+        self.unpaid_leave_deduction = self.per_day_salary * self.unpaid_leaves
+        self.total_deductions = (
+            self.half_day_deduction + 
+            self.absent_deduction + 
+            self.unpaid_leave_deduction + 
+            self.other_deductions
+        )
+        
+        # Calculate overtime
+        self.overtime_amount = self.overtime_hours * self.overtime_rate
+        
+        # Calculate final amounts
+        self.gross_salary = self.base_salary + self.overtime_amount
+        self.net_salary = self.gross_salary - self.total_deductions + self.manual_adjustment
+        
+        # Ensure net salary is not negative
+        if self.net_salary < 0:
+            self.net_salary = 0
+
+
+class LeaveBalance(models.Model):
+    """
+    Annual leave balance tracking per employee
+    """
+    employee = models.ForeignKey(EmployeeProfile, on_delete=models.CASCADE, related_name='leave_balances')
+    year = models.IntegerField(help_text='Calendar year')
+    
+    # Sick Leave (6 per year)
+    sick_leave_allocated = models.IntegerField(default=6)
+    sick_leave_used = models.IntegerField(default=0)
+    sick_leave_balance = models.IntegerField(default=6)
+    
+    # Casual Leave (6 per year)
+    casual_leave_allocated = models.IntegerField(default=6)
+    casual_leave_used = models.IntegerField(default=0)
+    casual_leave_balance = models.IntegerField(default=6)
+    
+    # Earned Leave (6 per year)
+    earned_leave_allocated = models.IntegerField(default=6)
+    earned_leave_used = models.IntegerField(default=0)
+    earned_leave_balance = models.IntegerField(default=6)
+    
+    # Totals (18 per year)
+    total_allocated = models.IntegerField(default=18)
+    total_used = models.IntegerField(default=0)
+    total_balance = models.IntegerField(default=18)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-year', 'employee__employee_id']
+        unique_together = ['employee', 'year']
+        indexes = [
+            models.Index(fields=['year', 'employee']),
+        ]
+    
+    def __str__(self):
+        return f"{self.employee.employee_id} - {self.year} Leave Balance"
+    
+    def update_balances(self):
+        """
+        Recalculate balance fields based on used values
+        """
+        self.sick_leave_balance = self.sick_leave_allocated - self.sick_leave_used
+        self.casual_leave_balance = self.casual_leave_allocated - self.casual_leave_used
+        self.earned_leave_balance = self.earned_leave_allocated - self.earned_leave_used
+        self.total_balance = self.total_allocated - self.total_used
+    
+    def has_sufficient_balance(self, leave_type, days):
+        """
+        Check if employee has enough leave balance for a request
+        """
+        if leave_type == 'sick':
+            return self.sick_leave_balance >= days
+        elif leave_type == 'casual':
+            return self.casual_leave_balance >= days
+        elif leave_type == 'earned':
+            return self.earned_leave_balance >= days
+        return False
+    
+    def get_available_paid_leaves(self):
+        """
+        Get total paid leaves available (max 18)
+        """
+        return min(self.total_balance, 18)

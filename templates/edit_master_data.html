@@ -32,9 +32,9 @@
                 </h5>
                 <div class="row mb-4">
                     <div class="col-md-6">
-                        <label class="form-label text-white">Employee ID</label>
-                        <input type="text" class="form-control" value="{{ master_data.employee_id }}" readonly>
-                        <small class="text-muted">Cannot be changed</small>
+                        <label class="form-label text-white">Employee ID *</label>
+                        <input type="text" class="form-control" name="employee_id" value="{{ master_data.employee_id }}" required>
+                        <small class="text-muted">HR can modify employee ID</small>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label text-white">Account Status</label>
@@ -101,7 +101,17 @@
                 <div class="row mb-4">
                     <div class="col-md-4">
                         <label class="form-label text-white">Department *</label>
-                        <input type="text" class="form-control" name="department" value="{{ master_data.department }}" required>
+                        <select class="form-select" name="department" required>
+                            <option value="">Select Department</option>
+                            <option value="IT" {% if master_data.department == 'IT' %}selected{% endif %}>IT</option>
+                            <option value="HR" {% if master_data.department == 'HR' %}selected{% endif %}>HR</option>
+                            <option value="Finance" {% if master_data.department == 'Finance' %}selected{% endif %}>Finance</option>
+                            <option value="Marketing" {% if master_data.department == 'Marketing' %}selected{% endif %}>Marketing</option>
+                            <option value="Sales" {% if master_data.department == 'Sales' %}selected{% endif %}>Sales</option>
+                            <option value="Operations" {% if master_data.department == 'Operations' %}selected{% endif %}>Operations</option>
+                            <option value="Admin" {% if master_data.department == 'Admin' %}selected{% endif %}>Admin</option>
+                            <option value="Support" {% if master_data.department == 'Support' %}selected{% endif %}>Support</option>
+                        </select>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label text-white">Designation *</label>

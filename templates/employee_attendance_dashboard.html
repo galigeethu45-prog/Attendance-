@@ -144,6 +144,8 @@
                                     <th class="text-center" style="width: 100px;">ABSENT</th>
                                     <th class="text-center" style="width: 100px;">LATE</th>
                                     <th class="text-center" style="width: 110px;">HALF DAYS</th>
+                                    <th class="text-center" style="width: 100px;">LEAVES</th>
+                                    <th class="text-center" style="width: 100px;">WFH DAYS</th>
                                     <th class="text-center" style="width: 120px;">TOTAL HOURS</th>
                                     <th class="text-center" style="width: 130px;">ACTIONS</th>
                                 </tr>
@@ -177,6 +179,12 @@
                                     </td>
                                     <td class="text-center">
                                         <span class="stats-badge stats-badge-info">{{ stat.half_days }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stats-badge" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600;">{{ stat.leaves_taken }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="stats-badge" style="background: linear-gradient(135deg, #16a085, #1abc9c); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600;">{{ stat.wfh_days }}</span>
                                     </td>
                                     <td class="text-center">
                                         <span class="text-white" style="font-weight: 600; font-size: 0.95rem;">{{ stat.total_hours|floatformat:1 }}h</span>

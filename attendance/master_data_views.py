@@ -198,7 +198,27 @@ def edit_master_data(request, master_id):
             dob = datetime.strptime(request.POST.get('date_of_birth'), '%Y-%m-%d').date()
             doj = datetime.strptime(request.POST.get('date_of_joining'), '%Y-%m-%d').date()
             
-            # Update fields
+            # Get new employee_id
+            new_employee_id = request.POST.get('employee_id', '').strip()
+            
+            # Check if employee_id is being changed and if new ID already exists
+            if new_employee_id != master_data.employee_id:
+                if EmployeeMasterData.objects.filter(employee_id=new_employee_id).exists():
+                    messages.error(request, f'Employee ID {new_employee_id} already exists!')
+                    context = {'master_data': master_data}
+                    return render(request, 'edit_master_data.html', context)
+                
+                # Update employee_id
+                old_employee_id = master_data.employee_id
+                master_data.employee_id = new_employee_id
+                
+                # Update linked user profile's employee_id if exists
+                if master_data.linked_user:
+                    profile = master_data.linked_user.employeeprofile
+                    profile.employee_id = new_employee_id
+                    profile.save()
+            
+            # Update other fields
             master_data.first_name = request.POST.get('first_name').strip()
             master_data.middle_name = request.POST.get('middle_name', '').strip() or None
             master_data.last_name = request.POST.get('last_name').strip()
@@ -234,10 +254,14 @@ def edit_master_data(request, master_id):
                 profile.save()
             
             # Log action
+            log_description = f'Updated master data for {master_data.employee_id} - {master_data.get_full_name()}'
+            if 'old_employee_id' in locals():
+                log_description += f' (Employee ID changed from {old_employee_id} to {new_employee_id})'
+            
             AuditLog.objects.create(
                 user=request.user,
                 action='master_data_update',
-                description=f'Updated master data for {master_data.employee_id} - {master_data.get_full_name()}'
+                description=log_description
             )
             
             messages.success(request, 'Master data updated successfully!')

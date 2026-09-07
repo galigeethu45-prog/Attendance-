@@ -1,0 +1,624 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Payroll Cycle - {{ cycle_month_name }} {{ cycle_year }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cycle-header-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 15px;
+    }
+    
+    .status-badge {
+        padding: 8px 20px;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .status-draft {
+        background: linear-gradient(135deg, #ffc107, #ff9800);
+        color: #000;
+    }
+    
+    .status-finalized {
+        background: linear-gradient(135deg, #17a2b8, #138496);
+        color: #fff;
+    }
+    
+    .status-paid {
+        background: linear-gradient(135deg, #28a745, #218838);
+        color: #fff;
+    }
+    
+    .entry-row {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .entry-row:hover {
+        background: rgba(255, 255, 255, 0.05);
+        transform: scale(1.01);
+    }
+    
+    .table-dark-custom {
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+    }
+    
+    .action-buttons .btn {
+        margin: 0 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Back Button -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <a href="{% url 'payroll_dashboard' %}" class="btn btn-outline-light">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Cycle Header -->
+    <div class="row mb-4 fade-in">
+        <div class="col-12">
+            <div class="card cycle-header-card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="text-white mb-2">
+                                <i class="fas fa-calendar-alt me-2"></i>
+                                <span id="cycleTitle">Loading...</span>
+                            </h2>
+                            <div id="cycleStatus"></div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="action-buttons" id="cycleActions">
+                                <!-- Actions will be dynamically added -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Summary Stats -->
+                    <div class="row mt-4" id="cycleSummary">
+                        <!-- Summary will be dynamically added -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entries Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card glass-card fade-in">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-white mb-0">
+                            <i class="fas fa-list me-2"></i>Employee Payroll Entries
+                        </h5>
+                        <div class="d-flex gap-2">
+                            <input type="text" class="form-control form-control-sm" id="searchInput" 
+                                   placeholder="Search employee..." style="width: 250px;">
+                            <select class="form-select form-select-sm" id="statusFilter" onchange="filterEntries()">
+                                <option value="">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="processed">Processed</option>
+                                <option value="paid">Paid</option>
+                                <option value="hold">On Hold</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover" id="entriesTable">
+                            <thead>
+                                <tr>
+                                    <th>Employee ID</th>
+                                    <th>Name</th>
+                                    <th>Department</th>
+                                    <th>Base Salary</th>
+                                    <th>Present</th>
+                                    <th>Absent</th>
+                                    <th>Half Days</th>
+                                    <th>Deductions</th>
+                                    <th>OT Amount</th>
+                                    <th>Net Salary</th>
+                                    <th>Payment Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="entriesTableBody">
+                                <tr>
+                                    <td colspan="12" class="text-center py-5">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <p class="text-muted mt-2">Loading entries...</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Adjustment Modal -->
+<div class="modal fade" id="adjustmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h5 class="modal-title text-white">
+                    <i class="fas fa-edit me-2"></i>Manual Adjustment
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="adjustmentEmployeeInfo" class="mb-3"></div>
+                
+                <form id="adjustmentForm">
+                    <input type="hidden" id="entryId">
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-white">Adjustment Amount (₹)</label>
+                        <input type="number" class="form-control" id="adjustmentAmount" step="0.01" 
+                               placeholder="Enter positive for bonus, negative for deduction">
+                        <small class="text-muted">Positive amount = Bonus, Negative amount = Deduction</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-white">Reason <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="adjustmentReason" rows="3" 
+                                  placeholder="Enter reason for adjustment" required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-white">Notes (Optional)</label>
+                        <textarea class="form-control" id="adjustmentNotes" rows="2" 
+                                  placeholder="Additional notes"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveAdjustment()">
+                    <i class="fas fa-save me-2"></i>Save Adjustment
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Finalize Confirmation Modal -->
+<div class="modal fade" id="finalizeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h5 class="modal-title text-white">
+                    <i class="fas fa-lock me-2"></i>Finalize Payroll
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> Once finalized, you cannot edit or recalculate entries. 
+                    Are you sure you want to finalize this payroll cycle?
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-white">Notes (Optional)</label>
+                    <textarea class="form-control" id="finalizeNotes" rows="2" 
+                              placeholder="Add any notes about finalization"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="finalizeCycle()">
+                    <i class="fas fa-lock me-2"></i>Finalize
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mark Paid Modal -->
+<div class="modal fade" id="markPaidModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content glass-card">
+            <div class="modal-header">
+                <h5 class="modal-title text-white">
+                    <i class="fas fa-check-circle me-2"></i>Mark as Paid
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    This will mark all entries as PAID. Confirm that payments have been processed.
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-white">Payment Date</label>
+                    <input type="date" class="form-control" id="paymentDate">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label text-white">Notes (Optional)</label>
+                    <textarea class="form-control" id="paidNotes" rows="2" 
+                              placeholder="Transaction reference or notes"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="markAsPaid()">
+                    <i class="fas fa-check me-2"></i>Mark as Paid
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let cycleData = null;
+let allEntries = [];
+const cycleId = {{ cycle_id }};
+
+// Load cycle details on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadCycleDetails();
+    setupSearch();
+    setTodayDate();
+});
+
+// Set today's date in payment date field
+function setTodayDate() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('paymentDate').value = today;
+}
+
+// Load cycle and entries
+async function loadCycleDetails() {
+    try {
+        const response = await fetch(`/payroll/api/cycles/${cycleId}/`);
+        cycleData = await response.json();
+        allEntries = cycleData.entries || [];
+        
+        displayCycleHeader();
+        displayEntries();
+    } catch (error) {
+        console.error('Error loading cycle details:', error);
+        showAlert('Error loading payroll cycle', 'danger');
+    }
+}
+
+// Display cycle header and actions
+function displayCycleHeader() {
+    // Title and status
+    document.getElementById('cycleTitle').textContent = 
+        `${cycleData.month_name} ${cycleData.year} Payroll`;
+    
+    document.getElementById('cycleStatus').innerHTML = `
+        <span class="status-badge status-${cycleData.status}">${cycleData.status_display}</span>
+        <p class="text-muted mt-2 mb-0">
+            <small>Processed by: ${cycleData.processed_by_name} on 
+            ${new Date(cycleData.processed_at).toLocaleDateString()}</small>
+        </p>
+    `;
+    
+    // Summary stats
+    document.getElementById('cycleSummary').innerHTML = `
+        <div class="col-md-3">
+            <p class="text-muted mb-1">Total Employees</p>
+            <h4 class="text-white mb-0">${cycleData.total_employees}</h4>
+        </div>
+        <div class="col-md-3">
+            <p class="text-muted mb-1">Gross Salary</p>
+            <h4 class="text-white mb-0">₹${parseFloat(cycleData.total_gross_salary).toLocaleString('en-IN', {minimumFractionDigits: 2})}</h4>
+        </div>
+        <div class="col-md-3">
+            <p class="text-muted mb-1">Total Deductions</p>
+            <h4 class="text-danger mb-0">₹${parseFloat(cycleData.total_deductions).toLocaleString('en-IN', {minimumFractionDigits: 2})}</h4>
+        </div>
+        <div class="col-md-3">
+            <p class="text-muted mb-1">Net Salary</p>
+            <h4 class="text-success mb-0">₹${parseFloat(cycleData.total_net_salary).toLocaleString('en-IN', {minimumFractionDigits: 2})}</h4>
+        </div>
+    `;
+    
+    // Action buttons based on status
+    let actionsHtml = '';
+    
+    if (cycleData.status === 'draft') {
+        actionsHtml = `
+            <button class="btn btn-warning btn-sm" onclick="showFinalizeModal()">
+                <i class="fas fa-lock me-2"></i>Finalize
+            </button>
+        `;
+    } else if (cycleData.status === 'finalized') {
+        actionsHtml = `
+            <button class="btn btn-success btn-sm" onclick="showMarkPaidModal()">
+                <i class="fas fa-check-circle me-2"></i>Mark as Paid
+            </button>
+        `;
+    }
+    
+    // Export button (always available)
+    actionsHtml += `
+        <button class="btn btn-primary btn-sm" onclick="exportCSV()">
+            <i class="fas fa-file-csv me-2"></i>Export CSV
+        </button>
+    `;
+    
+    document.getElementById('cycleActions').innerHTML = actionsHtml;
+}
+
+// Display entries in table
+function displayEntries(entriesToShow = allEntries) {
+    const tbody = document.getElementById('entriesTableBody');
+    
+    if (entriesToShow.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="12" class="text-center py-4 text-muted">
+                    No entries found
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    let html = '';
+    entriesToShow.forEach(entry => {
+        const statusClass = entry.payment_status === 'paid' ? 'success' : 
+                          entry.payment_status === 'hold' ? 'warning' : 'secondary';
+        
+        html += `
+            <tr class="entry-row">
+                <td>${entry.employee_id}</td>
+                <td>${entry.employee_name}</td>
+                <td><small>${entry.employee_details?.department || '-'}</small></td>
+                <td>₹${parseFloat(entry.base_salary).toLocaleString('en-IN')}</td>
+                <td><span class="badge bg-success">${entry.present_days}</span></td>
+                <td><span class="badge bg-danger">${entry.absent_days}</span></td>
+                <td><span class="badge bg-warning">${entry.half_days}</span></td>
+                <td class="text-danger">₹${parseFloat(entry.total_deductions).toLocaleString('en-IN')}</td>
+                <td class="text-info">₹${parseFloat(entry.overtime_amount).toLocaleString('en-IN')}</td>
+                <td class="text-success"><strong>₹${parseFloat(entry.net_salary).toLocaleString('en-IN')}</strong></td>
+                <td><span class="badge bg-${statusClass}">${entry.payment_status_display}</span></td>
+                <td>
+                    ${cycleData.status === 'draft' ? `
+                        <button class="btn btn-sm btn-outline-primary" onclick="showAdjustmentModal(${entry.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    ` : `
+                        <button class="btn btn-sm btn-outline-info" onclick="viewEntryDetails(${entry.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    `}
+                </td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+// Setup search functionality
+function setupSearch() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', filterEntries);
+}
+
+// Filter entries
+function filterEntries() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const statusFilter = document.getElementById('statusFilter').value;
+    
+    let filtered = allEntries;
+    
+    // Apply search filter
+    if (searchTerm) {
+        filtered = filtered.filter(entry => 
+            entry.employee_id.toLowerCase().includes(searchTerm) ||
+            entry.employee_name.toLowerCase().includes(searchTerm)
+        );
+    }
+    
+    // Apply status filter
+    if (statusFilter) {
+        filtered = filtered.filter(entry => entry.payment_status === statusFilter);
+    }
+    
+    displayEntries(filtered);
+}
+
+// Show adjustment modal
+async function showAdjustmentModal(entryId) {
+    try {
+        const response = await fetch(`/payroll/api/entries/${entryId}/`);
+        const entry = await response.json();
+        
+        document.getElementById('entryId').value = entryId;
+        document.getElementById('adjustmentAmount').value = entry.manual_adjustment || 0;
+        document.getElementById('adjustmentReason').value = entry.adjustment_reason || '';
+        document.getElementById('adjustmentNotes').value = entry.notes || '';
+        
+        document.getElementById('adjustmentEmployeeInfo').innerHTML = `
+            <div class="alert alert-info">
+                <h6 class="mb-1">${entry.employee_details.full_name} (${entry.employee_details.employee_id})</h6>
+                <small>Current Net Salary: ₹${parseFloat(entry.net_salary).toLocaleString('en-IN', {minimumFractionDigits: 2})}</small>
+            </div>
+        `;
+        
+        const modal = new bootstrap.Modal(document.getElementById('adjustmentModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error loading entry:', error);
+        showAlert('Error loading entry details', 'danger');
+    }
+}
+
+// Save adjustment
+async function saveAdjustment() {
+    const entryId = document.getElementById('entryId').value;
+    const amount = parseFloat(document.getElementById('adjustmentAmount').value) || 0;
+    const reason = document.getElementById('adjustmentReason').value.trim();
+    const notes = document.getElementById('adjustmentNotes').value.trim();
+    
+    if (amount !== 0 && !reason) {
+        showAlert('Reason is required when adjustment amount is non-zero', 'danger');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/payroll/api/entries/${entryId}/`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                manual_adjustment: amount,
+                adjustment_reason: reason,
+                notes: notes
+            })
+        });
+        
+        if (response.ok) {
+            showAlert('Adjustment saved successfully', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('adjustmentModal')).hide();
+            loadCycleDetails();
+        } else {
+            const data = await response.json();
+            showAlert(data.adjustment_reason?.[0] || 'Error saving adjustment', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error saving adjustment', 'danger');
+    }
+}
+
+// Show finalize modal
+function showFinalizeModal() {
+    document.getElementById('finalizeNotes').value = '';
+    const modal = new bootstrap.Modal(document.getElementById('finalizeModal'));
+    modal.show();
+}
+
+// Finalize cycle
+async function finalizeCycle() {
+    const notes = document.getElementById('finalizeNotes').value;
+    
+    try {
+        const response = await fetch(`/payroll/api/cycles/${cycleId}/finalize/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ notes })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showAlert('Payroll cycle finalized successfully', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('finalizeModal')).hide();
+            loadCycleDetails();
+        } else {
+            showAlert(data.error || 'Error finalizing cycle', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error finalizing cycle', 'danger');
+    }
+}
+
+// Show mark paid modal
+function showMarkPaidModal() {
+    const modal = new bootstrap.Modal(document.getElementById('markPaidModal'));
+    modal.show();
+}
+
+// Mark as paid
+async function markAsPaid() {
+    const paymentDate = document.getElementById('paymentDate').value;
+    const notes = document.getElementById('paidNotes').value;
+    
+    try {
+        const response = await fetch(`/payroll/api/cycles/${cycleId}/mark-paid/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ payment_date: paymentDate, notes })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            showAlert('Payroll cycle marked as paid successfully', 'success');
+            bootstrap.Modal.getInstance(document.getElementById('markPaidModal')).hide();
+            loadCycleDetails();
+        } else {
+            showAlert(data.error || 'Error marking cycle as paid', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlert('Error marking cycle as paid', 'danger');
+    }
+}
+
+// Export CSV
+function exportCSV() {
+    window.location.href = `/payroll/api/cycles/${cycleId}/export-csv/`;
+}
+
+// View entry details (for finalized/paid cycles)
+function viewEntryDetails(entryId) {
+    // Could open a read-only modal or navigate to detail page
+    showAlert('View-only mode. Entry cannot be edited.', 'info');
+}
+
+// Helper functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    setTimeout(() => alertDiv.remove(), 5000);
+}
+</script>
+{% endblock %}

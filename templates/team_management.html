@@ -356,7 +356,7 @@ document.getElementById('searchTeam').addEventListener('keyup', function() {
 
 // Edit team
 function editTeam(teamId, name, department, leaderId, description) {
-    document.getElementById('editTeamForm').action = `/teams/${teamId}/update/`;
+    document.getElementById('editTeamForm').action = `/attendance/teams/${teamId}/update/`;
     document.getElementById('editTeamName').value = name;
     document.getElementById('editDepartment').value = department;
     document.getElementById('editTeamLeader').value = leaderId || '';
@@ -368,7 +368,7 @@ function editTeam(teamId, name, department, leaderId, description) {
 
 // Confirm delete
 function confirmDeleteTeam(teamId, teamName) {
-    document.getElementById('deleteTeamForm').action = `/teams/${teamId}/delete/`;
+    document.getElementById('deleteTeamForm').action = `/attendance/teams/${teamId}/delete/`;
     document.getElementById('deleteTeamName').textContent = teamName;
     
     const modal = new bootstrap.Modal(document.getElementById('deleteTeamModal'));

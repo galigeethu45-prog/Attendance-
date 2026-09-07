@@ -116,3 +116,22 @@ urlpatterns = [
     path('team-leader/comment/ot/<int:ot_id>/', team_views.add_tl_comment_ot, name='add_tl_comment_ot'),
     path('team-leader/comment/onsite/<int:onsite_id>/', team_views.add_tl_comment_onsite, name='add_tl_comment_onsite'),
 ]
+
+# REST Framework Router for Payroll APIs
+from rest_framework.routers import DefaultRouter
+from . import payroll_views
+
+payroll_router = DefaultRouter()
+payroll_router.register(r'cycles', payroll_views.PayrollCycleViewSet, basename='payroll-cycle')
+payroll_router.register(r'entries', payroll_views.PayrollEntryViewSet, basename='payroll-entry')
+payroll_router.register(r'leave-balances', payroll_views.LeaveBalanceViewSet, basename='leave-balance')
+
+# Add payroll API routes
+urlpatterns += [
+    path('payroll/api/', include(payroll_router.urls)),
+    path('payroll/api/dashboard-stats/', payroll_views.payroll_dashboard_stats, name='payroll_dashboard_stats'),
+    
+    # Payroll UI Pages (Template Views)
+    path('payroll/', payroll_views.payroll_dashboard_view, name='payroll_dashboard'),
+    path('payroll/cycles/<int:cycle_id>/', payroll_views.payroll_cycle_detail_view, name='payroll_cycle_detail'),
+]
