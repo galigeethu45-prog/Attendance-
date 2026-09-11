@@ -60,6 +60,10 @@ urlpatterns = [
     path('hr/employee-attendance/', views.employee_attendance_dashboard, name='employee_attendance_dashboard'),
     path('hr/export-attendance-csv/', views.export_attendance_csv, name='export_attendance_csv'),
     path('hr/employee-list/<str:list_type>/', views.employee_list_view, name='employee_list_view'),
+    
+    # Attendance Details API (for modal)
+    path('api/attendance-details/', views.attendance_details_api, name='attendance_details_api'),
+    
     path('leave/approve/<int:leave_id>/', views.approve_leave, name='approve_leave'),
     path('leave/reject/<int:leave_id>/', views.reject_leave, name='reject_leave'),
     path('employee/<int:user_id>/details/', views.employee_details, name='employee_details'),

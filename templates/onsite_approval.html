@@ -65,6 +65,28 @@
                             </a>
                         </li>
                     </ul>
+                    
+                    <!-- Filters -->
+                    <form method="get" class="row g-3 mb-3">
+                        <input type="hidden" name="status" value="{{ status_filter }}">
+                        <div class="col-md-4">
+                            <label class="form-label text-white">Employee ID</label>
+                            <input type="text" name="employee_id" class="form-control" value="{{ employee_id_filter }}" placeholder="Search by Employee ID">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-white">From Date</label>
+                            <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label text-white">To Date</label>
+                            <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter me-1"></i>Filter
+                            </button>
+                        </div>
+                    </form>
                 </div>
                 
                 <div class="card-body">
@@ -127,6 +149,15 @@
                                 </div>
                                 <div class="request-card-value">
                                     {{ onsite.expected_duration }}
+                                </div>
+                            </div>
+
+                            <div class="request-card-field">
+                                <div class="request-card-label">
+                                    <i class="fas fa-history"></i> Requested
+                                </div>
+                                <div class="request-card-value">
+                                    <small class="text-muted">{{ onsite.created_at|date:"M d, Y - h:i A" }}</small>
                                 </div>
                             </div>
 

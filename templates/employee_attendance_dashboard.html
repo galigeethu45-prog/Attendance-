@@ -169,22 +169,48 @@
                                     <td><span class="text-white">{{ stat.employee_id }}</span></td>
                                     <td><span class="text-white">{{ stat.department }}</span></td>
                                     <td class="text-center">
-                                        <span class="stats-badge stats-badge-success">{{ stat.present_days }}</span>
+                                        <button class="stats-badge stats-badge-success clickable-badge" 
+                                                onclick="showAttendanceDetails({{ stat.employee.id }}, 'present', '{{ stat.name }}', '{{ start_date|date:'Y-m-d' }}', '{{ end_date|date:'Y-m-d' }}')"
+                                                {% if stat.present_days == 0 %}disabled{% endif %}>
+                                            {{ stat.present_days }}
+                                        </button>
                                     </td>
                                     <td class="text-center">
-                                        <span class="stats-badge stats-badge-danger">{{ stat.absent_days }}</span>
+                                        <button class="stats-badge stats-badge-danger clickable-badge" 
+                                                onclick="showAttendanceDetails({{ stat.employee.id }}, 'absent', '{{ stat.name }}', '{{ start_date|date:'Y-m-d' }}', '{{ end_date|date:'Y-m-d' }}')"
+                                                {% if stat.absent_days == 0 %}disabled{% endif %}>
+                                            {{ stat.absent_days }}
+                                        </button>
                                     </td>
                                     <td class="text-center">
-                                        <span class="stats-badge stats-badge-warning">{{ stat.late_days }}</span>
+                                        <button class="stats-badge stats-badge-warning clickable-badge" 
+                                                onclick="showAttendanceDetails({{ stat.employee.id }}, 'late', '{{ stat.name }}', '{{ start_date|date:'Y-m-d' }}', '{{ end_date|date:'Y-m-d' }}')"
+                                                {% if stat.late_days == 0 %}disabled{% endif %}>
+                                            {{ stat.late_days }}
+                                        </button>
                                     </td>
                                     <td class="text-center">
-                                        <span class="stats-badge stats-badge-info">{{ stat.half_days }}</span>
+                                        <button class="stats-badge stats-badge-info clickable-badge" 
+                                                onclick="showAttendanceDetails({{ stat.employee.id }}, 'half-day', '{{ stat.name }}', '{{ start_date|date:'Y-m-d' }}', '{{ end_date|date:'Y-m-d' }}')"
+                                                {% if stat.half_days == 0 %}disabled{% endif %}>
+                                            {{ stat.half_days }}
+                                        </button>
                                     </td>
                                     <td class="text-center">
-                                        <span class="stats-badge" style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600;">{{ stat.leaves_taken }}</span>
+                                        <button class="stats-badge clickable-badge" 
+                                                style="background: linear-gradient(135deg, #8e44ad, #9b59b6); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600; border: none;"
+                                                onclick="showAttendanceDetails({{ stat.employee.id }}, 'leave', '{{ stat.name }}', '{{ start_date|date:'Y-m-d' }}', '{{ end_date|date:'Y-m-d' }}')"
+                                                {% if stat.leaves_taken == 0 %}disabled{% endif %}>
+                                            {{ stat.leaves_taken }}
+                                        </button>
                                     </td>
                                     <td class="text-center">
-                                        <span class="stats-badge" style="background: linear-gradient(135deg, #16a085, #1abc9c); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600;">{{ stat.wfh_days }}</span>
+                                        <button class="stats-badge clickable-badge" 
+                                                style="background: linear-gradient(135deg, #16a085, #1abc9c); color: white; padding: 4px 12px; border-radius: 12px; font-weight: 600; border: none;"
+                                                onclick="showAttendanceDetails({{ stat.employee.id }}, 'wfh', '{{ stat.name }}', '{{ start_date|date:'Y-m-d' }}', '{{ end_date|date:'Y-m-d' }}')"
+                                                {% if stat.wfh_days == 0 %}disabled{% endif %}>
+                                            {{ stat.wfh_days }}
+                                        </button>
                                     </td>
                                     <td class="text-center">
                                         <span class="text-white" style="font-weight: 600; font-size: 0.95rem;">{{ stat.total_hours|floatformat:1 }}h</span>
@@ -275,6 +301,33 @@
         </div>
     </div>
 </div>
+
+<!-- Attendance Details Modal -->
+<div class="modal fade" id="attendanceDetailsModal" tabindex="-1" aria-labelledby="attendanceDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content" style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid rgba(255,255,255,0.1);">
+            <div class="modal-header border-bottom border-secondary">
+                <h5 class="modal-title text-white" id="attendanceDetailsModalLabel">
+                    <i class="fas fa-calendar-alt me-2"></i>
+                    <span id="modalTitle">Attendance Details</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-white mt-3">Loading details...</p>
+                </div>
+            </div>
+            <div class="modal-footer border-top border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -296,5 +349,168 @@ document.addEventListener('DOMContentLoaded', function() {
         endDateInput.value = today.toISOString().split('T')[0];
     }
 });
+
+// Show attendance details in modal
+async function showAttendanceDetails(employeeId, statusType, employeeName, startDate, endDate) {
+    const modal = new bootstrap.Modal(document.getElementById('attendanceDetailsModal'));
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    
+    // Set title based on status type
+    const statusTitles = {
+        'present': '<i class="fas fa-check-circle text-success me-2"></i>Present Days',
+        'absent': '<i class="fas fa-times-circle text-danger me-2"></i>Absent Days',
+        'late': '<i class="fas fa-clock text-warning me-2"></i>Late Arrivals',
+        'half-day': '<i class="fas fa-adjust text-info me-2"></i>Half Days',
+        'leave': '<i class="fas fa-umbrella-beach" style="color: #9b59b6;" me-2></i>Leaves',
+        'wfh': '<i class="fas fa-home" style="color: #1abc9c;" me-2></i>Work From Home'
+    };
+    
+    modalTitle.innerHTML = `${statusTitles[statusType]} - ${employeeName}`;
+    
+    // Show loading state
+    modalBody.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-white mt-3">Loading details...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Fetch data from backend
+    try {
+        const response = await fetch(`/attendance/api/attendance-details/?employee_id=${employeeId}&status=${statusType}&start_date=${startDate}&end_date=${endDate}`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch data');
+        }
+        
+        const data = await response.json();
+        
+        // Build the modal content based on status type
+        if (data.records && data.records.length > 0) {
+            let content = `
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <p class="text-white mb-0">
+                            <strong>Total ${data.records.length} day${data.records.length !== 1 ? 's' : ''}</strong> 
+                            from ${new Date(startDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})} 
+                            to ${new Date(endDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}
+                        </p>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover" style="background: rgba(255,255,255,0.05);">
+                            <thead style="background: rgba(255,255,255,0.1);">
+                                <tr>
+                                    <th class="text-white">Date</th>
+            `;
+            
+            // Add columns based on status type
+            if (statusType === 'present' || statusType === 'late' || statusType === 'half-day') {
+                content += `
+                    <th class="text-white">Check In</th>
+                    <th class="text-white">Check Out</th>
+                    <th class="text-white">Hours</th>
+                `;
+            } else if (statusType === 'leave') {
+                content += `
+                    <th class="text-white">Leave Type</th>
+                    <th class="text-white">Reason</th>
+                `;
+            } else if (statusType === 'wfh') {
+                content += `
+                    <th class="text-white">Reason</th>
+                `;
+            } else if (statusType === 'absent') {
+                content += `
+                    <th class="text-white">Status</th>
+                `;
+            }
+            
+            content += `</tr></thead><tbody>`;
+            
+            // Add rows
+            data.records.forEach(record => {
+                const date = new Date(record.date);
+                const formattedDate = date.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+                
+                content += `<tr>`;
+                content += `<td class="text-white"><strong>${formattedDate}</strong></td>`;
+                
+                if (statusType === 'present' || statusType === 'late' || statusType === 'half-day') {
+                    content += `
+                        <td class="text-white">${record.check_in || '-'}</td>
+                        <td class="text-white">${record.check_out || '-'}</td>
+                        <td class="text-white"><strong>${record.hours || '0.0'}h</strong></td>
+                    `;
+                } else if (statusType === 'leave') {
+                    content += `
+                        <td><span class="badge" style="background: linear-gradient(135deg, #8e44ad, #9b59b6);">${record.leave_type || 'N/A'}</span></td>
+                        <td class="text-white-50"><small>${record.reason || 'No reason provided'}</small></td>
+                    `;
+                } else if (statusType === 'wfh') {
+                    content += `
+                        <td class="text-white-50"><small>${record.reason || 'No reason provided'}</small></td>
+                    `;
+                } else if (statusType === 'absent') {
+                    content += `
+                        <td><span class="badge bg-danger">Absent</span></td>
+                    `;
+                }
+                
+                content += `</tr>`;
+            });
+            
+            content += `</tbody></table></div></div>`;
+            
+            modalBody.innerHTML = content;
+        } else {
+            modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-info-circle text-muted" style="font-size: 3rem;"></i>
+                    <p class="text-white mt-3">No records found for this period</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error fetching attendance details:', error);
+        modalBody.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                <p class="text-white mt-3">Failed to load details. Please try again.</p>
+            </div>
+        `;
+    }
+}
 </script>
+
+<style>
+.clickable-badge {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+}
+
+.clickable-badge:hover:not(:disabled) {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.clickable-badge:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.clickable-badge:active:not(:disabled) {
+    transform: scale(0.95);
+}
+</style>
 {% endblock %}

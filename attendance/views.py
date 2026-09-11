@@ -775,6 +775,15 @@ def dashboard(request):
         status='approved'
     ).first()
     
+    # Check for approved leave for today
+    approved_leave_today = LeaveRequest.objects.filter(
+        employee=request.user,
+        status='approved'
+    ).filter(
+        Q(start_date__lte=today, end_date__gte=today) |  # Date range includes today
+        Q(selected_dates__contains=[today.strftime('%Y-%m-%d')])  # Selected dates includes today
+    ).first()
+    
     context = {
         'today_attendance': today_attendance,
         'active_break': active_break,
@@ -792,6 +801,7 @@ def dashboard(request):
         'unread_notifications': unread_notifications,
         'current_date': timezone.now(),
         'approved_onsite_today': approved_onsite_today,
+        'approved_leave_today': approved_leave_today,
         'is_manager': is_manager,
         'pending_leave_approvals': pending_leave_approvals,
         'pending_wfh_approvals': pending_wfh_approvals,
@@ -809,6 +819,20 @@ def dashboard(request):
 def check_in(request):
     if request.method == 'POST':
         today = get_local_today()
+        
+        # CHECK FOR APPROVED LEAVE: Prevent check-in if employee has approved leave for today
+        approved_leave_today = LeaveRequest.objects.filter(
+            employee=request.user,
+            status='approved'
+        ).filter(
+            Q(start_date__lte=today, end_date__gte=today) |  # Date range includes today
+            Q(selected_dates__contains=[today.strftime('%Y-%m-%d')])  # Selected dates includes today
+        ).first()
+        
+        if approved_leave_today:
+            messages.error(request, f'❌ Cannot check in - You have approved {approved_leave_today.get_leave_type_display()} for today.')
+            messages.info(request, 'If you need to work today, please cancel or modify your leave request first.')
+            return redirect('dashboard')
         
         # HOLIDAY CHECK: Check if today is a holiday
         from attendance.models import CompanyHoliday
@@ -1595,6 +1619,30 @@ def leave_approval(request):
         approved_count = LeaveRequest.objects.filter(status='approved').count()
         rejected_count = LeaveRequest.objects.filter(status='rejected').count()
     
+    # Apply additional filters
+    employee_id_filter = request.GET.get('employee_id', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    
+    if employee_id_filter:
+        requests = requests.filter(employee__employeeprofile__employee_id__icontains=employee_id_filter)
+    
+    if date_from:
+        try:
+            from datetime import datetime
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            requests = requests.filter(created_at__date__gte=date_from_obj)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            from datetime import datetime
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            requests = requests.filter(created_at__date__lte=date_to_obj)
+        except ValueError:
+            pass
+    
     # Load attachments for all requests
     request_ids = list(requests.values_list('id', flat=True))
     attachments_qs = RequestAttachment.objects.filter(request_type='leave', request_id__in=request_ids)
@@ -1610,6 +1658,9 @@ def leave_approval(request):
         'approved_count': approved_count,
         'rejected_count': rejected_count,
         'attachments_map': attachments_map,
+        'employee_id_filter': employee_id_filter,
+        'date_from': date_from,
+        'date_to': date_to,
     }
     
     return render(request, 'leave_approval.html', context)
@@ -2678,6 +2729,222 @@ def employee_attendance_dashboard(request):
 
 
 # =========================
+# ATTENDANCE DETAILS API (FOR MODAL)
+# =========================
+@login_required
+def attendance_details_api(request):
+    """
+    API endpoint to fetch detailed attendance records for modal display
+    Returns dates and details for specific status types (present, absent, late, etc.)
+    """
+    from django.http import JsonResponse
+    
+    # Check if user is HR, Manager, or superuser
+    is_authorized = False
+    if request.user.is_superuser:
+        is_authorized = True
+    else:
+        try:
+            profile = request.user.employeeprofile
+            if profile.is_hr or profile.role == 'manager':
+                is_authorized = True
+        except EmployeeProfile.DoesNotExist:
+            pass
+    
+    if not is_authorized:
+        return JsonResponse({'error': 'Access denied'}, status=403)
+    
+    # Get parameters
+    employee_id = request.GET.get('employee_id')
+    status_type = request.GET.get('status')
+    start_date_str = request.GET.get('start_date')
+    end_date_str = request.GET.get('end_date')
+    
+    if not all([employee_id, status_type, start_date_str, end_date_str]):
+        return JsonResponse({'error': 'Missing required parameters'}, status=400)
+    
+    try:
+        employee = User.objects.get(id=employee_id)
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except (User.DoesNotExist, ValueError) as e:
+        return JsonResponse({'error': 'Invalid parameters'}, status=400)
+    
+    records = []
+    
+    if status_type in ['present', 'late', 'half-day']:
+        # Fetch attendance records with the specific status
+        attendance_records = Attendance.objects.filter(
+            employee=employee,
+            date__range=[start_date, end_date],
+            status=status_type
+        ).order_by('-date')
+        
+        import pytz
+        local_tz = pytz.timezone('Asia/Kolkata')
+        
+        for att in attendance_records:
+            check_in_time = att.check_in.astimezone(local_tz).strftime('%I:%M %p') if att.check_in else '-'
+            check_out_time = att.check_out.astimezone(local_tz).strftime('%I:%M %p') if att.check_out else '-'
+            
+            records.append({
+                'date': att.date.isoformat(),
+                'check_in': check_in_time,
+                'check_out': check_out_time,
+                'hours': round(att.total_work_hours, 2) if att.total_work_hours else 0,
+            })
+    
+    elif status_type == 'absent':
+        # Calculate absent days (working days without attendance and without leave)
+        from attendance.models import CompanyHoliday
+        
+        # Get all working days in range
+        working_days = []
+        current_date = start_date
+        while current_date <= end_date:
+            is_holiday, _ = CompanyHoliday.is_holiday(current_date)
+            is_sunday = current_date.weekday() == 6
+            is_second_fourth_saturday = (current_date.weekday() == 5 and 
+                                        (8 <= current_date.day <= 14 or 22 <= current_date.day <= 28))
+            
+            if not (is_holiday or is_sunday or is_second_fourth_saturday):
+                working_days.append(current_date)
+            
+            current_date += timedelta(days=1)
+        
+        # Get days with attendance
+        attended_dates = set(Attendance.objects.filter(
+            employee=employee,
+            date__range=[start_date, end_date]
+        ).values_list('date', flat=True))
+        
+        # Get approved leave dates
+        leave_dates = set()
+        leave_requests = LeaveRequest.objects.filter(
+            employee=employee,
+            status='approved'
+        ).filter(
+            Q(start_date__lte=end_date, end_date__gte=start_date)
+        )
+        
+        for leave in leave_requests:
+            if leave.selected_dates:
+                for date_str in leave.selected_dates:
+                    try:
+                        leave_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                        if start_date <= leave_date <= end_date:
+                            leave_dates.add(leave_date)
+                    except ValueError:
+                        pass
+            else:
+                current = leave.start_date
+                while current <= leave.end_date:
+                    if start_date <= current <= end_date:
+                        leave_dates.add(current)
+                    current += timedelta(days=1)
+        
+        # Absent = working days - attended days - leave days
+        absent_dates = [d for d in working_days if d not in attended_dates and d not in leave_dates]
+        absent_dates.sort(reverse=True)
+        
+        for date in absent_dates:
+            records.append({
+                'date': date.isoformat(),
+            })
+    
+    elif status_type == 'leave':
+        # Fetch approved leave requests
+        leave_requests = LeaveRequest.objects.filter(
+            employee=employee,
+            status='approved'
+        ).filter(
+            Q(start_date__lte=end_date, end_date__gte=start_date)
+        ).order_by('-start_date')
+        
+        leave_dates_with_details = []
+        for leave in leave_requests:
+            if leave.selected_dates:
+                # Non-consecutive dates
+                for date_str in leave.selected_dates:
+                    try:
+                        leave_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                        if start_date <= leave_date <= end_date:
+                            leave_dates_with_details.append({
+                                'date': leave_date,
+                                'leave_type': leave.get_leave_type_display(),
+                                'reason': leave.reason
+                            })
+                    except ValueError:
+                        pass
+            else:
+                # Date range
+                current = leave.start_date
+                while current <= leave.end_date:
+                    if start_date <= current <= end_date:
+                        leave_dates_with_details.append({
+                            'date': current,
+                            'leave_type': leave.get_leave_type_display(),
+                            'reason': leave.reason
+                        })
+                    current += timedelta(days=1)
+        
+        # Sort by date descending
+        leave_dates_with_details.sort(key=lambda x: x['date'], reverse=True)
+        
+        for item in leave_dates_with_details:
+            records.append({
+                'date': item['date'].isoformat(),
+                'leave_type': item['leave_type'],
+                'reason': item['reason']
+            })
+    
+    elif status_type == 'wfh':
+        # Fetch approved WFH requests
+        wfh_requests = WFHRequest.objects.filter(
+            employee=employee,
+            status='approved'
+        ).filter(
+            Q(start_date__lte=end_date, end_date__gte=start_date)
+        ).order_by('-start_date')
+        
+        wfh_dates_with_details = []
+        for wfh in wfh_requests:
+            if wfh.selected_dates:
+                # Non-consecutive dates
+                for date_str in wfh.selected_dates:
+                    try:
+                        wfh_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+                        if start_date <= wfh_date <= end_date:
+                            wfh_dates_with_details.append({
+                                'date': wfh_date,
+                                'reason': wfh.reason
+                            })
+                    except ValueError:
+                        pass
+            else:
+                # Date range
+                current = wfh.start_date
+                while current <= wfh.end_date:
+                    if start_date <= current <= end_date:
+                        wfh_dates_with_details.append({
+                            'date': current,
+                            'reason': wfh.reason
+                        })
+                    current += timedelta(days=1)
+        
+        # Sort by date descending
+        wfh_dates_with_details.sort(key=lambda x: x['date'], reverse=True)
+        
+        for item in wfh_dates_with_details:
+            records.append({
+                'date': item['date'].isoformat(),
+                'reason': item['reason']
+            })
+    
+    return JsonResponse({'records': records})
+
+
+# =========================
 # EMPLOYEE LIST (FOR DASHBOARD TILES)
 # =========================
 @login_required
@@ -3252,6 +3519,30 @@ def overtime_approval(request):
     approved_count = Overtime.objects.filter(status='approved').count()
     rejected_count = Overtime.objects.filter(status='rejected').count()
     
+    # Apply additional filters
+    employee_id_filter = request.GET.get('employee_id', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    
+    if employee_id_filter:
+        ot_requests = ot_requests.filter(employee__employeeprofile__employee_id__icontains=employee_id_filter)
+    
+    if date_from:
+        try:
+            from datetime import datetime
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            ot_requests = ot_requests.filter(requested_at__date__gte=date_from_obj)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            from datetime import datetime
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            ot_requests = ot_requests.filter(requested_at__date__lte=date_to_obj)
+        except ValueError:
+            pass
+    
     ot_ids = list(ot_requests.values_list('id', flat=True))
     ot_attachments_map = {}
     for att in RequestAttachment.objects.filter(request_type='overtime', request_id__in=ot_ids):
@@ -3264,6 +3555,9 @@ def overtime_approval(request):
         'approved_count': approved_count,
         'rejected_count': rejected_count,
         'attachments_map': ot_attachments_map,
+        'employee_id_filter': employee_id_filter,
+        'date_from': date_from,
+        'date_to': date_to,
     }
     
     return render(request, 'overtime_approval.html', context)
@@ -3690,6 +3984,30 @@ def wfh_approval(request):
         approved_count = WFHRequest.objects.filter(status='approved').count()
         rejected_count = WFHRequest.objects.filter(status='rejected').count()
     
+    # Apply additional filters
+    employee_id_filter = request.GET.get('employee_id', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    
+    if employee_id_filter:
+        requests = requests.filter(employee__employeeprofile__employee_id__icontains=employee_id_filter)
+    
+    if date_from:
+        try:
+            from datetime import datetime
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            requests = requests.filter(created_at__date__gte=date_from_obj)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            from datetime import datetime
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            requests = requests.filter(created_at__date__lte=date_to_obj)
+        except ValueError:
+            pass
+    
     wfh_ids = list(requests.values_list('id', flat=True))
     wfh_attachments_map = {}
     for att in RequestAttachment.objects.filter(request_type='wfh', request_id__in=wfh_ids):
@@ -3703,6 +4021,9 @@ def wfh_approval(request):
         'approved_count': approved_count,
         'rejected_count': rejected_count,
         'attachments_map': wfh_attachments_map,
+        'employee_id_filter': employee_id_filter,
+        'date_from': date_from,
+        'date_to': date_to,
     }
     
     return render(request, 'wfh_approval.html', context)
@@ -4241,6 +4562,30 @@ def onsite_approval(request):
     approved_count = OnsiteRequest.objects.filter(status='approved').count()
     rejected_count = OnsiteRequest.objects.filter(status='rejected').count()
     
+    # Apply additional filters
+    employee_id_filter = request.GET.get('employee_id', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    
+    if employee_id_filter:
+        requests = requests.filter(employee__employeeprofile__employee_id__icontains=employee_id_filter)
+    
+    if date_from:
+        try:
+            from datetime import datetime
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d').date()
+            requests = requests.filter(created_at__date__gte=date_from_obj)
+        except ValueError:
+            pass
+    
+    if date_to:
+        try:
+            from datetime import datetime
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d').date()
+            requests = requests.filter(created_at__date__lte=date_to_obj)
+        except ValueError:
+            pass
+    
     onsite_ids = list(requests.values_list('id', flat=True))
     onsite_attachments_map = {}
     for att in RequestAttachment.objects.filter(request_type='onsite', request_id__in=onsite_ids):
@@ -4254,6 +4599,9 @@ def onsite_approval(request):
         'approved_count': approved_count,
         'rejected_count': rejected_count,
         'attachments_map': onsite_attachments_map,
+        'employee_id_filter': employee_id_filter,
+        'date_from': date_from,
+        'date_to': date_to,
     }
     
     return render(request, 'onsite_approval.html', context)
