@@ -35,8 +35,25 @@ class Command(BaseCommand):
             raise ValueError(f"Invalid month format: {month_str}. Use YYYY-MM format (e.g., 2026-08)")
 
     def is_weekend(self, date):
-        """Check if date is Saturday or Sunday"""
-        return date.weekday() in [5, 6]  # 5=Saturday, 6=Sunday
+        """Check if date is Sunday or 2nd/4th Saturday (working Saturdays are NOT skipped)"""
+        # Sunday is always a weekend
+        if date.weekday() == 6:  # 6=Sunday
+            return True
+        
+        # For Saturday, check if it's 2nd or 4th Saturday of the month
+        if date.weekday() == 5:  # 5=Saturday
+            # Calculate which Saturday of the month this is
+            saturday_count = 0
+            for day in range(1, date.day + 1):
+                check_date = date.replace(day=day)
+                if check_date.weekday() == 5:  # Count Saturdays up to this date
+                    saturday_count += 1
+            
+            # Skip only 2nd and 4th Saturday
+            if saturday_count in [2, 4]:
+                return True
+        
+        return False
 
     def is_holiday(self, date):
         """Check if date is a company holiday"""
@@ -150,7 +167,18 @@ class Command(BaseCommand):
             # Check if should skip
             if self.is_weekend(current_date):
                 skipped_weekend += 1
-                self.stdout.write(f'⏭️  {current_date} - Weekend (Skipped)')
+                # Check if it's Sunday or 2nd/4th Saturday
+                if current_date.weekday() == 6:
+                    self.stdout.write(f'⏭️  {current_date} - Weekend (Sunday) (Skipped)')
+                else:  # It's 2nd or 4th Saturday
+                    # Calculate which Saturday
+                    saturday_count = 0
+                    for day in range(1, current_date.day + 1):
+                        check_date = current_date.replace(day=day)
+                        if check_date.weekday() == 5:
+                            saturday_count += 1
+                    ordinal = "2nd" if saturday_count == 2 else "4th"
+                    self.stdout.write(f'⏭️  {current_date} - Weekend ({ordinal} Saturday) (Skipped)')
             elif self.is_holiday(current_date):
                 holiday = CompanyHoliday.objects.get(date=current_date)
                 skipped_holiday += 1
