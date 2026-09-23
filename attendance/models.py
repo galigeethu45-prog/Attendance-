@@ -406,6 +406,7 @@ class LeaveRequest(models.Model):
         ('sick', 'Sick Leave'),
         ('casual', 'Casual Leave'),
         ('earned', 'Earned Leaves'),
+        ('halfday', 'Half Day Leave'),
         ('menstrual', 'Menstrual Leave'),
         ('unpaid', 'Unpaid Leaves'),
     ]
@@ -424,6 +425,10 @@ class LeaveRequest(models.Model):
     # Multi-date selection support (JSON field for non-consecutive dates)
     # Format: ["2026-05-21", "2026-05-25", "2026-05-30"]
     selected_dates = models.JSONField(null=True, blank=True, help_text="List of specific dates (for non-consecutive leaves)")
+    
+    # Half-day timing fields (flexible timing for half-day leaves)
+    half_day_start_time = models.TimeField(null=True, blank=True, help_text="Start time for half-day leave (e.g., 09:00)")
+    half_day_end_time = models.TimeField(null=True, blank=True, help_text="End time for half-day leave (e.g., 13:00)")
     
     reason = models.TextField(default='')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')

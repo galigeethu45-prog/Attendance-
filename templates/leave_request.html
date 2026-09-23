@@ -29,6 +29,7 @@
                                 <option value="sick">Sick Leave</option>
                                 <option value="casual">Casual Leave</option>
                                 <option value="earned">Earned Leaves</option>
+                                <option value="halfday">Half Day Leave</option>
                                 {% if leave_balance.show_menstrual %}
                                 <option value="menstrual">Menstrual Leave</option>
                                 {% endif %}
@@ -54,6 +55,43 @@
                             <div class="mb-3">
                                 <label for="end_date" class="form-label text-white">End Date</label>
                                 <input type="date" class="form-control" id="end_date" name="end_date">
+                            </div>
+                            
+                            <!-- Half-Day Timing (only for single day leaves) -->
+                            <div id="halfDayTimingFields" style="display: none;">
+                                <div class="alert alert-info mb-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <small>You can specify custom timings for your half-day leave</small>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="half_day_start_time" class="form-label text-white">
+                                            <i class="fas fa-clock me-1"></i>Start Time
+                                        </label>
+                                        <input type="time" class="form-control" id="half_day_start_time" name="half_day_start_time" 
+                                               placeholder="09:00">
+                                        <small class="text-muted">e.g., 09:00 AM</small>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="half_day_end_time" class="form-label text-white">
+                                            <i class="fas fa-clock me-1"></i>End Time
+                                        </label>
+                                        <input type="time" class="form-control" id="half_day_end_time" name="half_day_end_time" 
+                                               placeholder="13:00">
+                                        <small class="text-muted">e.g., 01:00 PM</small>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <div class="btn-group w-100" role="group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="setHalfDayTiming('09:00', '13:00')">
+                                            Morning (9 AM - 1 PM)
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="setHalfDayTiming('14:00', '18:00')">
+                                            Afternoon (2 PM - 6 PM)
+                                        </button>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">Quick presets (or enter custom times above)</small>
+                                </div>
                             </div>
                         </div>
 
@@ -148,6 +186,19 @@
                             <div class="progress-bar bg-primary" style="width: {{ leave_balance.earned_percent }}%"></div>
                         </div>
                         <small class="text-muted">{{ leave_balance.earned_used }} used this year</small>
+                    </div>
+
+                    <!-- Half Day Leave (Tracked separately, unlimited) -->
+                    <div class="mb-3">
+                        <div class="alert alert-success mb-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <i class="fas fa-clock me-2"></i><strong>Half Day Leave:</strong>
+                                </div>
+                                <span class="badge bg-success">{{ leave_balance.halfday_used }} taken this year</span>
+                            </div>
+                            <small class="text-muted d-block mt-1">Unlimited - Does not affect other leave balances</small>
+                        </div>
                     </div>
 
                     <!-- Menstrual Leave (Only for Female) -->
@@ -431,6 +482,39 @@ document.addEventListener('DOMContentLoaded', function() {
         renderPreview();
     });
 });
+
+// Set half-day timing presets
+function setHalfDayTiming(startTime, endTime) {
+    document.getElementById('half_day_start_time').value = startTime;
+    document.getElementById('half_day_end_time').value = endTime;
+}
+
+// Show/hide half-day timing fields based on leave type selection
+document.getElementById('leave_type').addEventListener('change', checkHalfDayEligibility);
+document.getElementById('start_date').addEventListener('change', checkHalfDayEligibility);
+document.getElementById('end_date').addEventListener('change', checkHalfDayEligibility);
+
+function checkHalfDayEligibility() {
+    const leaveType = document.getElementById('leave_type').value;
+    const startDate = document.getElementById('start_date').value;
+    const endDate = document.getElementById('end_date').value;
+    const halfDayFields = document.getElementById('halfDayTimingFields');
+    
+    // Show half-day timing ONLY if leave type is 'halfday' AND it's a single day
+    if (leaveType === 'halfday' && startDate && endDate && startDate === endDate) {
+        halfDayFields.style.display = 'block';
+        // Make timing fields required for half-day leave
+        document.getElementById('half_day_start_time').required = true;
+        document.getElementById('half_day_end_time').required = true;
+    } else {
+        halfDayFields.style.display = 'none';
+        // Clear timing fields when hiding
+        document.getElementById('half_day_start_time').value = '';
+        document.getElementById('half_day_end_time').value = '';
+        document.getElementById('half_day_start_time').required = false;
+        document.getElementById('half_day_end_time').required = false;
+    }
+}
 
 async function cancelLeave(leaveId) {
     const confirmed = await systemConfirm('Are you sure you want to cancel this leave request?', {

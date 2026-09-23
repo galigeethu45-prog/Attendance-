@@ -784,6 +784,16 @@ def dashboard(request):
         Q(selected_dates__contains=[today.strftime('%Y-%m-%d')])  # Selected dates includes today
     ).first()
     
+    # Get employee birthday for celebration check
+    employee_birthday = None
+    try:
+        profile = request.user.employeeprofile
+        if profile.date_of_birth:
+            # Format as MM-DD for comparison with today's date
+            employee_birthday = profile.date_of_birth.strftime('%m-%d')
+    except EmployeeProfile.DoesNotExist:
+        pass
+    
     context = {
         'today_attendance': today_attendance,
         'active_break': active_break,
@@ -802,6 +812,7 @@ def dashboard(request):
         'current_date': timezone.now(),
         'approved_onsite_today': approved_onsite_today,
         'approved_leave_today': approved_leave_today,
+        'employee_birthday': employee_birthday,  # For birthday celebration
         'is_manager': is_manager,
         'pending_leave_approvals': pending_leave_approvals,
         'pending_wfh_approvals': pending_wfh_approvals,
@@ -1323,6 +1334,28 @@ def leave_request(request):
             messages.error(request, error)
             return redirect('leave_request')
         
+        # Handle half-day timing fields (optional)
+        half_day_start_time = request.POST.get('half_day_start_time')
+        half_day_end_time = request.POST.get('half_day_end_time')
+        
+        half_day_start_time_obj = None
+        half_day_end_time_obj = None
+        
+        # Parse time fields if provided (only for single-day leaves)
+        if half_day_start_time and half_day_end_time:
+            try:
+                from datetime import datetime as dt
+                half_day_start_time_obj = dt.strptime(half_day_start_time, '%H:%M').time()
+                half_day_end_time_obj = dt.strptime(half_day_end_time, '%H:%M').time()
+                
+                # Validate that start time is before end time
+                if half_day_start_time_obj >= half_day_end_time_obj:
+                    messages.error(request, 'Half-day start time must be before end time.')
+                    return redirect('leave_request')
+            except ValueError:
+                messages.error(request, 'Invalid time format for half-day leave.')
+                return redirect('leave_request')
+        
         # Create leave request
         leave_req = LeaveRequest.objects.create(
             employee=request.user,
@@ -1330,7 +1363,9 @@ def leave_request(request):
             start_date=start_date_obj,
             end_date=end_date_obj,
             selected_dates=selected_dates,  # Store JSON array or None
-            reason=reason
+            reason=reason,
+            half_day_start_time=half_day_start_time_obj,
+            half_day_end_time=half_day_end_time_obj
         )
         
         # Save attachments if any
@@ -1380,6 +1415,16 @@ def leave_request(request):
             casual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='casual'))
         except:
             casual_used = 0
+        
+        try:
+            earned_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='earned'))
+        except:
+            earned_used = 0
+        
+        try:
+            halfday_used = approved_leaves.filter(leave_type='halfday').count()  # Count number of half-days, not total_days
+        except:
+            halfday_used = 0
             
         try:
             earned_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='earned'))
@@ -1440,6 +1485,8 @@ def leave_request(request):
             'earned_remaining': earned_remaining,
             'earned_total': EARNED_LIMIT,
             'earned_percent': earned_percent,
+            
+            'halfday_used': halfday_used,  # Just count, no limit
             
             'show_menstrual': show_menstrual,
             'gender_not_set': gender_not_set,
@@ -3593,6 +3640,82 @@ def employee_details(request, user_id):
     total_half_day = total_attendance.filter(status='half-day').count()
     total_hours = total_attendance.aggregate(Sum('total_work_hours'))['total_work_hours__sum'] or 0
     
+    # Calculate leave balance statistics
+    try:
+        from attendance.constants import SICK_LIMIT, CASUAL_LIMIT, EARNED_LIMIT, MENSTRUAL_LIMIT
+    except ImportError:
+        # Fallback if constants not found
+        SICK_LIMIT = 6
+        CASUAL_LIMIT = 6
+        EARNED_LIMIT = 6
+        MENSTRUAL_LIMIT = 12
+    
+    current_year = timezone.localtime(timezone.now()).year
+    
+    # Get approved leaves for current year by type
+    approved_leaves = LeaveRequest.objects.filter(
+        employee=employee_user,
+        status='approved',
+        start_date__year=current_year
+    )
+    
+    sick_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='sick'))
+    casual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='casual'))
+    earned_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='earned'))
+    halfday_used = approved_leaves.filter(leave_type='halfday').count()  # Count of half-days, not total_days
+    menstrual_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='menstrual'))
+    unpaid_used = sum(leave.total_days for leave in approved_leaves.filter(leave_type='unpaid'))
+    
+    # Calculate remaining leaves
+    sick_remaining = max(0, SICK_LIMIT - sick_used)
+    casual_remaining = max(0, CASUAL_LIMIT - casual_used)
+    earned_remaining = max(0, EARNED_LIMIT - earned_used)
+    
+    # Check if employee is female for menstrual leave
+    try:
+        show_menstrual = viewed_profile.gender == 'female'
+        menstrual_remaining = max(0, MENSTRUAL_LIMIT - menstrual_used) if show_menstrual else 0
+    except:
+        show_menstrual = False
+        menstrual_remaining = 0
+    
+    # Calculate percentages for progress bars
+    sick_percent = int((sick_remaining / SICK_LIMIT) * 100) if SICK_LIMIT > 0 else 0
+    casual_percent = int((casual_remaining / CASUAL_LIMIT) * 100) if CASUAL_LIMIT > 0 else 0
+    earned_percent = int((earned_remaining / EARNED_LIMIT) * 100) if EARNED_LIMIT > 0 else 0
+    menstrual_percent = int((menstrual_remaining / MENSTRUAL_LIMIT) * 100) if show_menstrual and MENSTRUAL_LIMIT > 0 else 0
+    
+    # Total leaves taken (excluding unpaid)
+    total_leaves_taken = sick_used + casual_used + earned_used + menstrual_used
+    
+    leave_stats = {
+        'sick_used': sick_used,
+        'sick_remaining': sick_remaining,
+        'sick_total': SICK_LIMIT,
+        'sick_percent': sick_percent,
+        
+        'casual_used': casual_used,
+        'casual_remaining': casual_remaining,
+        'casual_total': CASUAL_LIMIT,
+        'casual_percent': casual_percent,
+        
+        'earned_used': earned_used,
+        'earned_remaining': earned_remaining,
+        'earned_total': EARNED_LIMIT,
+        'earned_percent': earned_percent,
+        
+        'halfday_used': halfday_used,  # Tracked separately, no limit
+        
+        'show_menstrual': show_menstrual,
+        'menstrual_used': menstrual_used,
+        'menstrual_remaining': menstrual_remaining,
+        'menstrual_total': MENSTRUAL_LIMIT,
+        'menstrual_percent': menstrual_percent,
+        
+        'unpaid_used': unpaid_used,
+        'total_leaves_taken': total_leaves_taken,
+    }
+    
     # Recent attendance
     recent_attendance = Attendance.objects.filter(
         employee=employee_user
@@ -3612,6 +3735,7 @@ def employee_details(request, user_id):
         'total_hours': total_hours,
         'recent_attendance': recent_attendance,
         'leave_requests': leave_requests,
+        'leave_stats': leave_stats,
     }
     
     return render(request, 'employee_details.html', context)

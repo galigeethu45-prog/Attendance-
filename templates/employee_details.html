@@ -117,6 +117,109 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Leave Balance Summary Card -->
+            <div class="card glass-card mb-4 fade-in-delay-3">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-umbrella-beach me-2"></i>Leave Balance (Annual)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Sick Leave -->
+                        <div class="col-md-6 mb-3">
+                            <div class="leave-summary-card" style="background: linear-gradient(135deg, #17a2b8 20%, #138496 100%); border-radius: 12px; padding: 20px;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <h6 class="mb-0 text-white"><i class="fas fa-head-side-cough me-2"></i>Sick Leave</h6>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0 text-white">{{ leave_stats.sick_remaining }}/{{ leave_stats.sick_total }}</h4>
+                                    </div>
+                                </div>
+                                <div class="progress mb-2" style="height: 8px; background: rgba(255,255,255,0.2);">
+                                    <div class="progress-bar" style="width: {{ leave_stats.sick_percent }}%; background: rgba(255,255,255,0.8);"></div>
+                                </div>
+                                <small class="text-white-50">{{ leave_stats.sick_used }} used this year</small>
+                            </div>
+                        </div>
+
+                        <!-- Casual Leave -->
+                        <div class="col-md-6 mb-3">
+                            <div class="leave-summary-card" style="background: linear-gradient(135deg, #28a745 20%, #218838 100%); border-radius: 12px; padding: 20px;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <h6 class="mb-0 text-white"><i class="fas fa-coffee me-2"></i>Casual Leave</h6>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0 text-white">{{ leave_stats.casual_remaining }}/{{ leave_stats.casual_total }}</h4>
+                                    </div>
+                                </div>
+                                <div class="progress mb-2" style="height: 8px; background: rgba(255,255,255,0.2);">
+                                    <div class="progress-bar" style="width: {{ leave_stats.casual_percent }}%; background: rgba(255,255,255,0.8);"></div>
+                                </div>
+                                <small class="text-white-50">{{ leave_stats.casual_used }} used this year</small>
+                            </div>
+                        </div>
+
+                        <!-- Earned Leave -->
+                        <div class="col-md-6 mb-3">
+                            <div class="leave-summary-card" style="background: linear-gradient(135deg, #007bff 20%, #0056b3 100%); border-radius: 12px; padding: 20px;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <h6 class="mb-0 text-white"><i class="fas fa-calendar-check me-2"></i>Earned Leave</h6>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0 text-white">{{ leave_stats.earned_remaining }}/{{ leave_stats.earned_total }}</h4>
+                                    </div>
+                                </div>
+                                <div class="progress mb-2" style="height: 8px; background: rgba(255,255,255,0.2);">
+                                    <div class="progress-bar" style="width: {{ leave_stats.earned_percent }}%; background: rgba(255,255,255,0.8);"></div>
+                                </div>
+                                <small class="text-white-50">{{ leave_stats.earned_used }} used this year</small>
+                            </div>
+                        </div>
+
+                        <!-- Menstrual Leave (Only for Female employees) -->
+                        {% if leave_stats.show_menstrual %}
+                        <div class="col-md-6 mb-3">
+                            <div class="leave-summary-card" style="background: linear-gradient(135deg, #ffc107 20%, #e0a800 100%); border-radius: 12px; padding: 20px;">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div>
+                                        <h6 class="mb-0 text-white"><i class="fas fa-female me-2"></i>Menstrual Leave</h6>
+                                    </div>
+                                    <div>
+                                        <h4 class="mb-0 text-white">{{ leave_stats.menstrual_remaining }}/{{ leave_stats.menstrual_total }}</h4>
+                                    </div>
+                                </div>
+                                <div class="progress mb-2" style="height: 8px; background: rgba(255,255,255,0.2);">
+                                    <div class="progress-bar" style="width: {{ leave_stats.menstrual_percent }}%; background: rgba(255,255,255,0.8);"></div>
+                                </div>
+                                <small class="text-white-50">{{ leave_stats.menstrual_used }} used this year (1 per month)</small>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Total Leaves Summary -->
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0 mt-2">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                    <div class="mb-2 mb-md-0">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>Total Leaves Taken:</strong> {{ leave_stats.total_leaves_taken }} days
+                                    </div>
+                                    <div class="d-flex gap-2 flex-wrap">
+                                        <span><strong>Half Days:</strong> <span class="badge bg-success">{{ leave_stats.halfday_used }}</span></span>
+                                        <span><strong>Unpaid:</strong> <span class="badge bg-secondary">{{ leave_stats.unpaid_used }} days</span></span>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-1">
+                                    <i class="fas fa-check-circle me-1"></i>Half Day leaves are tracked separately and don't affect other leave balances
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- Personal Information -->
             <div class="card glass-card mb-4 fade-in-delay-4">

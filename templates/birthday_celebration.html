@@ -1,0 +1,810 @@
+<!-- Birthday Celebration Modal - Full Screen Overlay -->
+<div id="birthdayModal" class="birthday-modal" style="display: none;">
+    <div class="birthday-overlay"></div>
+    
+    <!-- Debug Button (Remove after testing) -->
+    <button onclick="testBirthday()" style="position: fixed; top: 10px; right: 10px; z-index: 10001; padding: 10px 20px; background: #ff6b6b; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+        🎂 Force Show Birthday
+    </button>
+    
+    <!-- Confetti Canvas -->
+    <canvas id="confettiCanvas"></canvas>
+    
+    <!-- Balloons -->
+    <div class="balloons-container">
+        <div class="balloon balloon-1">🎈</div>
+        <div class="balloon balloon-2">🎈</div>
+        <div class="balloon balloon-3">🎈</div>
+        <div class="balloon balloon-4">🎈</div>
+        <div class="balloon balloon-5">🎈</div>
+        <div class="balloon balloon-6">🎈</div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="birthday-content">
+        <!-- Initial Birthday Message -->
+        <div id="birthdayMessage" class="birthday-message">
+            <div class="birthday-title">
+                <h1 class="happy-birthday-text">
+                    <span class="letter">🎉</span>
+                    <span class="letter">H</span>
+                    <span class="letter">A</span>
+                    <span class="letter">P</span>
+                    <span class="letter">P</span>
+                    <span class="letter">Y</span>
+                    <span class="letter">&nbsp;</span>
+                    <span class="letter">B</span>
+                    <span class="letter">I</span>
+                    <span class="letter">R</span>
+                    <span class="letter">T</span>
+                    <span class="letter">H</span>
+                    <span class="letter">D</span>
+                    <span class="letter">A</span>
+                    <span class="letter">Y</span>
+                    <span class="letter">🎉</span>
+                </h1>
+            </div>
+            <h2 class="employee-name-birthday" id="employeeBirthdayName"></h2>
+            <p class="birthday-intro">Click the cake to celebrate! 🎂</p>
+        </div>
+        
+        <!-- Interactive Cake -->
+        <div id="cakeContainer" class="cake-container">
+            <div class="cake-wrapper">
+                <!-- Candle Flames -->
+                <div class="candles">
+                    <div class="candle candle-1">
+                        <div class="flame flame-1"></div>
+                    </div>
+                    <div class="candle candle-2">
+                        <div class="flame flame-2"></div>
+                    </div>
+                    <div class="candle candle-3">
+                        <div class="flame flame-3"></div>
+                    </div>
+                </div>
+                
+                <!-- Cake Layers -->
+                <div class="cake cake-layer-1"></div>
+                <div class="cake cake-layer-2"></div>
+                <div class="cake cake-layer-3"></div>
+                <div class="cake-base"></div>
+                
+                <!-- Click instruction -->
+                <div class="click-instruction">
+                    <span class="pulse-dot"></span>
+                    Click to cut the cake!
+                </div>
+            </div>
+        </div>
+        
+        <!-- Birthday Wishes (Hidden initially) -->
+        <div id="birthdayWishes" class="birthday-wishes" style="display: none;">
+            <div class="wishes-card">
+                <div class="wishes-header">
+                    <div class="wishes-icon">🎊</div>
+                    <h3>Best Wishes From ARRAAFI INFOTECH Team! 🎉</h3>
+                </div>
+                <div class="wishes-content">
+                    <p class="wishes-text">
+                        Dear <strong id="wishesEmployeeName"></strong>,
+                    </p>
+                    <p class="wishes-text">
+                        On this special day, the entire ARRAAFI INFOTECH family wishes you a very Happy Birthday! 🎂✨
+                    </p>
+                    <p class="wishes-text">
+                        May this year bring you countless moments of joy, success in all your endeavors, and prosperity in everything you do. 
+                        Your dedication and hard work inspire us every day. Here's to another amazing year of achievements and wonderful memories!
+                    </p>
+                    <p class="wishes-text">
+                        We feel blessed to have you as part of our team. May your birthday be filled with laughter, love, and all the happiness you deserve! 🎊🎈
+                    </p>
+                    <p class="wishes-signature">
+                        - With warm regards,<br>
+                        <strong>The ARRAAFI INFOTECH Team</strong> ❤️
+                    </p>
+                </div>
+                <button class="close-birthday-btn" onclick="closeBirthdayModal()">
+                    <i class="fas fa-heart"></i> Thank You!
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Fireworks -->
+    <div class="fireworks">
+        <div class="firework firework-1"></div>
+        <div class="firework firework-2"></div>
+        <div class="firework firework-3"></div>
+    </div>
+</div>
+
+<style>
+/* Birthday Modal - Full Screen */
+.birthday-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    overflow: hidden;
+}
+
+.birthday-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    animation: gradientShift 10s ease infinite;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    50% { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+}
+
+/* Confetti Canvas */
+#confettiCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Balloons */
+.balloons-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.balloon {
+    position: absolute;
+    font-size: 60px;
+    animation: floatUp 6s ease-in infinite;
+    opacity: 0;
+}
+
+.balloon-1 { left: 10%; animation-delay: 0s; }
+.balloon-2 { left: 25%; animation-delay: 1s; }
+.balloon-3 { left: 40%; animation-delay: 2s; }
+.balloon-4 { left: 55%; animation-delay: 0.5s; }
+.balloon-5 { left: 70%; animation-delay: 1.5s; }
+.balloon-6 { left: 85%; animation-delay: 2.5s; }
+
+@keyframes floatUp {
+    0% {
+        bottom: -100px;
+        opacity: 0;
+        transform: translateX(0) rotate(0deg);
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        bottom: 110%;
+        opacity: 0;
+        transform: translateX(50px) rotate(360deg);
+    }
+}
+
+/* Main Content */
+.birthday-content {
+    position: relative;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    padding: 20px;
+}
+
+/* Birthday Message */
+.birthday-message {
+    text-align: center;
+    animation: fadeInDown 1s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.happy-birthday-text {
+    font-size: 4rem;
+    font-weight: 900;
+    margin: 0;
+    text-shadow: 3px 3px 10px rgba(0,0,0,0.3);
+    color: #fff;
+}
+
+.happy-birthday-text .letter {
+    display: inline-block;
+    animation: bounce 1s ease infinite;
+}
+
+.happy-birthday-text .letter:nth-child(1) { animation-delay: 0s; }
+.happy-birthday-text .letter:nth-child(2) { animation-delay: 0.1s; }
+.happy-birthday-text .letter:nth-child(3) { animation-delay: 0.2s; }
+.happy-birthday-text .letter:nth-child(4) { animation-delay: 0.3s; }
+.happy-birthday-text .letter:nth-child(5) { animation-delay: 0.4s; }
+.happy-birthday-text .letter:nth-child(6) { animation-delay: 0.5s; }
+.happy-birthday-text .letter:nth-child(7) { animation-delay: 0.6s; }
+.happy-birthday-text .letter:nth-child(8) { animation-delay: 0.7s; }
+.happy-birthday-text .letter:nth-child(9) { animation-delay: 0.8s; }
+.happy-birthday-text .letter:nth-child(10) { animation-delay: 0.9s; }
+.happy-birthday-text .letter:nth-child(11) { animation-delay: 1s; }
+.happy-birthday-text .letter:nth-child(12) { animation-delay: 1.1s; }
+.happy-birthday-text .letter:nth-child(13) { animation-delay: 1.2s; }
+.happy-birthday-text .letter:nth-child(14) { animation-delay: 1.3s; }
+.happy-birthday-text .letter:nth-child(15) { animation-delay: 1.4s; }
+.happy-birthday-text .letter:nth-child(16) { animation-delay: 1.5s; }
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-20px); }
+}
+
+.employee-name-birthday {
+    font-size: 3rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 20px 0;
+    text-shadow: 2px 2px 8px rgba(0,0,0,0.3);
+    animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+    0%, 100% { text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #ff00de; }
+    50% { text-shadow: 0 0 20px #fff, 0 0 30px #ff00de, 0 0 40px #ff00de; }
+}
+
+.birthday-intro {
+    font-size: 1.5rem;
+    color: #fff;
+    margin-top: 10px;
+    animation: pulse 2s ease infinite;
+}
+
+/* Cake Container */
+.cake-container {
+    margin-top: 40px;
+    animation: zoomIn 1.5s ease-out;
+}
+
+@keyframes zoomIn {
+    from {
+        opacity: 0;
+        transform: scale(0.3);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.cake-wrapper {
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.cake-wrapper:hover {
+    transform: scale(1.1);
+}
+
+/* Candles */
+.candles {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-bottom: -10px;
+    z-index: 10;
+}
+
+.candle {
+    width: 8px;
+    height: 60px;
+    background: linear-gradient(to bottom, #ff6b6b, #ee5a6f);
+    border-radius: 4px;
+    position: relative;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.flame {
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 15px;
+    height: 25px;
+    background: radial-gradient(ellipse at center, #fff 0%, #ffeb3b 30%, #ff9800 60%, transparent 100%);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    animation: flicker 0.5s ease-in-out infinite;
+}
+
+@keyframes flicker {
+    0%, 100% {
+        transform: translateX(-50%) scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: translateX(-50%) scale(1.1, 0.9);
+        opacity: 0.8;
+    }
+}
+
+/* Cake Layers */
+.cake {
+    width: 300px;
+    height: 80px;
+    margin: 0 auto;
+    border-radius: 20px;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.cake-layer-1 {
+    background: linear-gradient(to bottom, #ff6b9d, #c94b7d);
+    margin-bottom: -5px;
+    z-index: 3;
+}
+
+.cake-layer-2 {
+    background: linear-gradient(to bottom, #fff, #f0f0f0);
+    width: 340px;
+    margin-bottom: -5px;
+    z-index: 2;
+}
+
+.cake-layer-3 {
+    background: linear-gradient(to bottom, #ff6b9d, #c94b7d);
+    width: 380px;
+    z-index: 1;
+}
+
+.cake-base {
+    width: 420px;
+    height: 30px;
+    background: linear-gradient(to bottom, #8b4513, #654321);
+    margin: -5px auto 0;
+    border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+
+/* Click Instruction */
+.click-instruction {
+    position: absolute;
+    bottom: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 600;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: pulse 2s ease infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+    50% { opacity: 0.7; transform: translateX(-50%) scale(1.05); }
+}
+
+.pulse-dot {
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    animation: pulseDot 1.5s ease infinite;
+}
+
+@keyframes pulseDot {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.5); opacity: 0.5; }
+}
+
+/* Birthday Wishes */
+.birthday-wishes {
+    animation: fadeIn 1s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.wishes-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 30px;
+    padding: 40px;
+    max-width: 700px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideUp 0.8s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.wishes-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.wishes-icon {
+    font-size: 4rem;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.wishes-header h3 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #667eea;
+    margin: 0;
+}
+
+.wishes-content {
+    color: #333;
+    line-height: 1.8;
+}
+
+.wishes-text {
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+    text-align: justify;
+}
+
+.wishes-text strong {
+    color: #667eea;
+    font-weight: 700;
+}
+
+.wishes-signature {
+    text-align: right;
+    font-size: 1.1rem;
+    margin-top: 30px;
+    color: #555;
+}
+
+.close-birthday-btn {
+    display: block;
+    margin: 30px auto 0;
+    padding: 15px 40px;
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.close-birthday-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+/* Fireworks */
+.fireworks {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.firework {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    animation: explode 2s ease-out infinite;
+}
+
+.firework-1 { top: 20%; left: 30%; animation-delay: 0s; }
+.firework-2 { top: 30%; left: 70%; animation-delay: 1s; }
+.firework-3 { top: 50%; left: 50%; animation-delay: 2s; }
+
+@keyframes explode {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 1),
+                    0 0 0 0 rgba(255, 107, 107, 1),
+                    0 0 0 0 rgba(78, 205, 196, 1),
+                    0 0 0 0 rgba(255, 230, 109, 1);
+        opacity: 1;
+    }
+    100% {
+        box-shadow: 0 -100px 0 60px transparent,
+                    100px 0 0 60px transparent,
+                    0 100px 0 60px transparent,
+                    -100px 0 0 60px transparent,
+                    70px -70px 0 60px transparent,
+                    -70px 70px 0 60px transparent,
+                    70px 70px 0 60px transparent,
+                    -70px -70px 0 60px transparent;
+        opacity: 0;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .happy-birthday-text { font-size: 2.5rem; }
+    .employee-name-birthday { font-size: 2rem; }
+    .birthday-intro { font-size: 1.2rem; }
+    .cake { width: 200px; height: 60px; }
+    .cake-layer-2 { width: 230px; }
+    .cake-layer-3 { width: 260px; }
+    .cake-base { width: 290px; }
+    .wishes-card { padding: 20px; }
+    .wishes-text { font-size: 1rem; }
+}
+</style>
+
+<script>
+// Birthday Celebration JavaScript
+let birthdayModalShown = false;
+
+// Check if today is user's birthday and show modal
+function checkBirthday() {
+    // This will be called after dashboard loads
+    const userBirthday = '{{ employee_birthday }}';  // Format: MM-DD
+    const userName = '{{ user.get_full_name|default:user.username }}';
+    
+    console.log('Birthday Check - User Birthday:', userBirthday);
+    console.log('Birthday Check - User Name:', userName);
+    
+    if (!userBirthday) {
+        console.log('No birthday set in profile');
+        return;
+    }
+    
+    const today = new Date();
+    const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
+    const todayDay = String(today.getDate()).padStart(2, '0');
+    const todayFormatted = `${todayMonth}-${todayDay}`;
+    
+    console.log('Today formatted:', todayFormatted);
+    console.log('Birthday matches?', userBirthday === todayFormatted);
+    
+    // Check if already shown today (use sessionStorage instead - clears when browser closes)
+    const lastShown = sessionStorage.getItem('birthdayModalShown');
+    const todayFull = today.toDateString();
+    
+    console.log('Last shown:', lastShown);
+    console.log('Today full:', todayFull);
+    console.log('Already shown today?', lastShown === todayFull);
+    
+    if (userBirthday === todayFormatted) {
+        // Show if not shown in this session OR if forced
+        if (lastShown !== todayFull) {
+            console.log('✅ SHOWING BIRTHDAY CELEBRATION!');
+            setTimeout(() => {
+                showBirthdayModal(userName);
+                sessionStorage.setItem('birthdayModalShown', todayFull);
+            }, 1000);  // Show after 1 second of page load
+        } else {
+            console.log('❌ Birthday celebration not shown. Reasons:');
+            console.log('  - Already shown in this browser session');
+            console.log('  - Click "🎂 Force Show Birthday" button to see it again');
+        }
+    } else {
+        console.log('❌ Birthday celebration not shown. Reasons:');
+        console.log('  - Birthday does not match today');
+    }
+}
+
+// Show birthday modal
+function showBirthdayModal(userName) {
+    const modal = document.getElementById('birthdayModal');
+    document.getElementById('employeeBirthdayName').textContent = userName;
+    document.getElementById('wishesEmployeeName').textContent = userName;
+    
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    
+    // Start confetti
+    startConfetti();
+    
+    // Play birthday sound (optional - commented out by default)
+    // playBirthdaySound();
+    
+    // Setup cake click event
+    document.getElementById('cakeContainer').onclick = function() {
+        cutCake();
+    };
+}
+
+// Cut the cake animation
+function cutCake() {
+    const cakeContainer = document.getElementById('cakeContainer');
+    const birthdayMessage = document.getElementById('birthdayMessage');
+    const birthdayWishes = document.getElementById('birthdayWishes');
+    
+    // Hide cake with animation
+    cakeContainer.style.transition = 'all 0.8s ease';
+    cakeContainer.style.transform = 'scale(0) rotate(360deg)';
+    cakeContainer.style.opacity = '0';
+    
+    // Hide birthday message
+    birthdayMessage.style.transition = 'all 0.5s ease';
+    birthdayMessage.style.opacity = '0';
+    birthdayMessage.style.transform = 'translateY(-50px)';
+    
+    // Trigger massive confetti explosion
+    triggerConfettiExplosion();
+    
+    // Show wishes after animation
+    setTimeout(() => {
+        cakeContainer.style.display = 'none';
+        birthdayMessage.style.display = 'none';
+        birthdayWishes.style.display = 'block';
+    }, 800);
+}
+
+// Close birthday modal
+function closeBirthdayModal() {
+    const modal = document.getElementById('birthdayModal');
+    modal.style.transition = 'opacity 0.5s ease';
+    modal.style.opacity = '0';
+    
+    setTimeout(() => {
+        modal.style.display = 'none';
+        modal.style.opacity = '1';
+        document.body.style.overflow = 'auto';
+        stopConfetti();
+    }, 500);
+}
+
+// Confetti Animation
+let confettiInterval;
+let confettiCanvas;
+let confettiCtx;
+let confettiParticles = [];
+
+function startConfetti() {
+    confettiCanvas = document.getElementById('confettiCanvas');
+    confettiCtx = confettiCanvas.getContext('2d');
+    
+    confettiCanvas.width = window.innerWidth;
+    confettiCanvas.height = window.innerHeight;
+    
+    // Create confetti particles
+    for (let i = 0; i < 150; i++) {
+        confettiParticles.push(createConfettiParticle());
+    }
+    
+    animateConfetti();
+}
+
+function createConfettiParticle() {
+    return {
+        x: Math.random() * confettiCanvas.width,
+        y: Math.random() * confettiCanvas.height - confettiCanvas.height,
+        size: Math.random() * 8 + 5,
+        speedY: Math.random() * 3 + 2,
+        speedX: Math.random() * 3 - 1.5,
+        color: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a29bfe'][Math.floor(Math.random() * 6)],
+        rotation: Math.random() * 360,
+        rotationSpeed: Math.random() * 10 - 5
+    };
+}
+
+function animateConfetti() {
+    confettiCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    
+    confettiParticles.forEach((particle, index) => {
+        particle.y += particle.speedY;
+        particle.x += particle.speedX;
+        particle.rotation += particle.rotationSpeed;
+        
+        confettiCtx.save();
+        confettiCtx.translate(particle.x, particle.y);
+        confettiCtx.rotate(particle.rotation * Math.PI / 180);
+        confettiCtx.fillStyle = particle.color;
+        confettiCtx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);
+        confettiCtx.restore();
+        
+        // Reset particle if it goes off screen
+        if (particle.y > confettiCanvas.height) {
+            confettiParticles[index] = createConfettiParticle();
+        }
+    });
+    
+    confettiInterval = requestAnimationFrame(animateConfetti);
+}
+
+function triggerConfettiExplosion() {
+    // Add more confetti particles for explosion effect
+    for (let i = 0; i < 200; i++) {
+        confettiParticles.push({
+            x: confettiCanvas.width / 2,
+            y: confettiCanvas.height / 2,
+            size: Math.random() * 10 + 5,
+            speedY: Math.random() * 10 - 5,
+            speedX: Math.random() * 20 - 10,
+            color: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#6c5ce7', '#a29bfe', '#fd79a8', '#fdcb6e'][Math.floor(Math.random() * 8)],
+            rotation: Math.random() * 360,
+            rotationSpeed: Math.random() * 20 - 10
+        });
+    }
+}
+
+function stopConfetti() {
+    if (confettiInterval) {
+        cancelAnimationFrame(confettiInterval);
+    }
+    confettiParticles = [];
+}
+
+// Optional: Play birthday sound
+function playBirthdaySound() {
+    // You can add an audio element to play birthday music
+    // const audio = new Audio('/static/audio/birthday.mp3');
+    // audio.play();
+}
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    if (confettiCanvas) {
+        confettiCanvas.width = window.innerWidth;
+        confettiCanvas.height = window.innerHeight;
+    }
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Clear old localStorage if it exists (migration from localStorage to sessionStorage)
+    const oldStorage = localStorage.getItem('birthdayModalShown');
+    if (oldStorage) {
+        console.log('🧹 Clearing old localStorage birthday flag');
+        localStorage.removeItem('birthdayModalShown');
+    }
+    checkBirthday();
+});
+
+// Test function to manually trigger birthday
+function testBirthday() {
+    const userName = '{{ user.get_full_name|default:user.username }}';
+    console.log('🎂 Manual test triggered!');
+    // Clear both localStorage and sessionStorage
+    localStorage.removeItem('birthdayModalShown');
+    sessionStorage.removeItem('birthdayModalShown');
+    showBirthdayModal(userName);
+}
+</script>

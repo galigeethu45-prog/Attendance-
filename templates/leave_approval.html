@@ -162,6 +162,20 @@
                                     {{ leave.total_days }} day{{ leave.total_days|pluralize }}
                                 </div>
                             </div>
+                            
+                            <!-- Half-Day Timing (if specified) -->
+                            {% if leave.half_day_start_time and leave.half_day_end_time %}
+                            <div class="request-card-field">
+                                <div class="request-card-label">
+                                    <i class="fas fa-hourglass-half"></i> Half-Day Timing
+                                </div>
+                                <div class="request-card-value">
+                                    <span class="badge bg-info">
+                                        {{ leave.half_day_start_time|time:"h:i A" }} - {{ leave.half_day_end_time|time:"h:i A" }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endif %}
 
                             <div class="request-card-field">
                                 <div class="request-card-label">
@@ -286,6 +300,11 @@
                                             <br><small class="text-muted">{{ leave.selected_dates|join:", " }}</small>
                                         {% else %}
                                             {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }} ({{ leave.total_days }} days)
+                                        {% endif %}
+                                        {% if leave.half_day_start_time and leave.half_day_end_time %}
+                                        <br><span class="badge bg-info mt-1">
+                                            <i class="fas fa-hourglass-half me-1"></i>Half-Day: {{ leave.half_day_start_time|time:"h:i A" }} - {{ leave.half_day_end_time|time:"h:i A" }}
+                                        </span>
                                         {% endif %}
                                     </div>
                                     <div class="mb-3">
