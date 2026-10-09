@@ -1253,7 +1253,7 @@ def leave_request(request):
         reason = request.POST.get('reason')
         
         # Validate leave type
-        valid_types = ['sick', 'casual', 'earned', 'menstrual', 'unpaid']
+        valid_types = ['sick', 'casual', 'earned', 'menstrual', 'unpaid', 'halfday']
         is_valid, error = FieldValidator.validate_choice(leave_type, valid_types, "leave type")
         if not is_valid:
             messages.error(request, error)
@@ -1334,15 +1334,34 @@ def leave_request(request):
             messages.error(request, error)
             return redirect('leave_request')
         
-        # Handle half-day timing fields (optional)
+        # Handle half-day timing fields (required for halfday type)
         half_day_start_time = request.POST.get('half_day_start_time')
         half_day_end_time = request.POST.get('half_day_end_time')
         
         half_day_start_time_obj = None
         half_day_end_time_obj = None
         
-        # Parse time fields if provided (only for single-day leaves)
-        if half_day_start_time and half_day_end_time:
+        # For halfday leave type, timing fields are REQUIRED
+        if leave_type == 'halfday':
+            if not half_day_start_time or not half_day_end_time:
+                messages.error(request, 'Half-day leave requires start time and end time.')
+                return redirect('leave_request')
+            
+            try:
+                from datetime import datetime as dt
+                half_day_start_time_obj = dt.strptime(half_day_start_time, '%H:%M').time()
+                half_day_end_time_obj = dt.strptime(half_day_end_time, '%H:%M').time()
+                
+                # Validate that start time is before end time
+                if half_day_start_time_obj >= half_day_end_time_obj:
+                    messages.error(request, 'Half-day start time must be before end time.')
+                    return redirect('leave_request')
+            except ValueError:
+                messages.error(request, 'Invalid time format for half-day leave.')
+                return redirect('leave_request')
+        
+        # Parse time fields if provided for other leave types (optional)
+        elif half_day_start_time and half_day_end_time:
             try:
                 from datetime import datetime as dt
                 half_day_start_time_obj = dt.strptime(half_day_start_time, '%H:%M').time()

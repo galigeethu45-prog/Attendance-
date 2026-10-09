@@ -18,6 +18,12 @@ from .views import (
     team_members_api,
 )
 
+# EOD API Integration - Read-Only
+from .eod_views import (
+    eod_employee_list,
+    eod_attendance_list,
+)
+
 urlpatterns = [
     # Authentication
     path('login/', login_api),
@@ -39,4 +45,8 @@ urlpatterns = [
     path('teams/<int:team_id>/add-member/', team_add_member_api, name='team_add_member'),
     path('teams/<int:team_id>/remove-member/', team_remove_member_api, name='team_remove_member'),
     path('teams/<int:team_id>/members/', team_members_api, name='team_members'),
+    
+    # EOD Integration - Read-Only API (Phase 1)
+    path('eod/employees/', eod_employee_list, name='eod_employee_list'),
+    path('eod/attendance/', eod_attendance_list, name='eod_attendance_list'),
 ]
