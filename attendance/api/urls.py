@@ -18,11 +18,12 @@ from .views import (
     team_members_api,
 )
 
-# EOD API Integration - Read-Only
-from .eod_views import (
-    eod_employee_list,
-    eod_attendance_list,
-)
+# EOD API Integration - Read-Only (DISABLED FOR PRODUCTION)
+# Uncomment when ready to integrate with EOD system
+# from .eod_views import (
+#     eod_employee_list,
+#     eod_attendance_list,
+# )
 
 urlpatterns = [
     # Authentication
@@ -46,7 +47,9 @@ urlpatterns = [
     path('teams/<int:team_id>/remove-member/', team_remove_member_api, name='team_remove_member'),
     path('teams/<int:team_id>/members/', team_members_api, name='team_members'),
     
-    # EOD Integration - Read-Only API (Phase 1)
-    path('eod/employees/', eod_employee_list, name='eod_employee_list'),
-    path('eod/attendance/', eod_attendance_list, name='eod_attendance_list'),
+    # EOD Integration - Read-Only API (Phase 1) - DISABLED FOR PRODUCTION
+    # Uncomment these routes when ready to integrate with EOD system
+    # All EOD files are in: EOD_INTEGRATION_WORK/ folder
+    # path('eod/employees/', eod_employee_list, name='eod_employee_list'),
+    # path('eod/attendance/', eod_attendance_list, name='eod_attendance_list'),
 ]

@@ -65,66 +65,114 @@
         </div>
     </div>
 
-    <!-- Attendance Table -->
+    <!-- Attendance Table - Modern Design -->
     <div class="card glass-card fade-in-delay-2">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Records</h5>
+        <div class="modern-table-header">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Attendance Records</h5>
             <button class="btn btn-sm btn-success" onclick="exportToCSV()">
                 <i class="fas fa-download me-1"></i>Export CSV
             </button>
         </div>
-        <div class="card-body" style="overflow-x: auto;">
-            <div class="table-responsive">
-                <table class="table table-hover table-sm" id="attendanceTable" style="min-width: 800px;">
-                    <thead>
-                        <tr>
-                            <th style="white-space: nowrap;">Date</th>
-                            <th style="white-space: nowrap;">Day</th>
-                            <th style="white-space: nowrap;">Check In</th>
-                            <th style="white-space: nowrap;">Check Out</th>
-                            <th style="white-space: nowrap;">Work Hours</th>
-                            <th style="white-space: nowrap;">Breaks</th>
-                            <th style="white-space: nowrap;">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for record in attendance_records %}
-                        <tr>
-                            <td style="white-space: nowrap;">{{ record.date|date:"M d, Y" }}</td>
-                            <td style="white-space: nowrap;">{{ record.date|date:"l" }}</td>
-                            <td style="white-space: nowrap;">{{ record.check_in|time:"h:i A"|default:"-" }}</td>
-                            <td style="white-space: nowrap;">{{ record.check_out|time:"h:i A"|default:"-" }}</td>
-                            <td style="white-space: nowrap;">{{ record.get_work_hours_display }}</td>
-                            <td style="white-space: nowrap;">
-                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#breakModal{{ record.id }}">
-                                    <i class="fas fa-coffee me-1"></i>{{ record.breaks.count }}
-                                </button>
-                            </td>
-                            <td style="white-space: nowrap;">
-                                <span class="badge bg-{{ record.status }}">
-                                    {{ record.get_status_display }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center text-muted py-4">No attendance records found</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="card-body p-0">
+            <div class="modern-table-container" id="attendanceTable">
+                {% for record in attendance_records %}
+                <div class="modern-table-row" style="grid-template-columns: 1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1.2fr;">
+                    <!-- Date -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Date</div>
+                        <div class="modern-cell-value">
+                            <i class="fas fa-calendar me-2 text-muted"></i>
+                            <strong>{{ record.date|date:"M d, Y" }}</strong>
+                        </div>
+                    </div>
+                    
+                    <!-- Day -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Day</div>
+                        <div class="modern-cell-value text-muted">
+                            {{ record.date|date:"l" }}
+                        </div>
+                    </div>
+                    
+                    <!-- Check In -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Check In</div>
+                        {% if record.check_in %}
+                        <div class="modern-time-value">
+                            <i class="fas fa-sign-in-alt modern-time-icon"></i>
+                            <span>{{ record.check_in|time:"h:i A" }}</span>
+                        </div>
+                        {% else %}
+                        <div class="modern-cell-value text-muted">-</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Check Out -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Check Out</div>
+                        {% if record.check_out %}
+                        <div class="modern-time-value">
+                            <i class="fas fa-sign-out-alt modern-time-icon"></i>
+                            <span>{{ record.check_out|time:"h:i A" }}</span>
+                        </div>
+                        {% else %}
+                        <div class="modern-cell-value text-muted">-</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Work Hours -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Work Hours</div>
+                        <span class="modern-badge modern-badge-info">
+                            <i class="fas fa-clock"></i>
+                            {{ record.get_work_hours_display }}
+                        </span>
+                    </div>
+                    
+                    <!-- Breaks -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Breaks</div>
+                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#breakModal{{ record.id }}" style="padding: 6px 12px; border-radius: 6px;">
+                            <i class="fas fa-coffee me-1"></i>{{ record.breaks.count }}
+                        </button>
+                    </div>
+                    
+                    <!-- Status -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Status</div>
+                        <span class="modern-badge modern-badge-{{ record.status }}">
+                            {% if record.status == 'present' %}
+                            <i class="fas fa-check-circle"></i>
+                            {% elif record.status == 'late' %}
+                            <i class="fas fa-clock"></i>
+                            {% elif record.status == 'half-day' %}
+                            <i class="fas fa-hourglass-half"></i>
+                            {% elif record.status == 'absent' %}
+                            <i class="fas fa-times-circle"></i>
+                            {% endif %}
+                            {{ record.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="modern-empty-state">
+                    <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                    <h5>No attendance records found</h5>
+                    <p class="text-muted">Try adjusting your filters or check back later</p>
+                </div>
+                {% endfor %}
             </div>
 
             <!-- Pagination -->
             {% if is_paginated %}
-            <nav class="mt-3">
+            <nav class="mt-3 px-4 pb-3">
                 <ul class="pagination justify-content-center">
                     {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1">First</a>
+                        <a class="page-link" href="?page=1{% if selected_month %}&month={{ selected_month }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">First</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if selected_month %}&month={{ selected_month }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Previous</a>
                     </li>
                     {% endif %}
 
@@ -134,10 +182,10 @@
 
                     {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a>
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if selected_month %}&month={{ selected_month }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Next</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Last</a>
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if selected_month %}&month={{ selected_month }}{% endif %}{% if selected_year %}&year={{ selected_year }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}">Last</a>
                     </li>
                     {% endif %}
                 </ul>
@@ -196,21 +244,33 @@
 {% block extra_js %}
 <script>
 function exportToCSV() {
-    const table = document.getElementById('attendanceTable');
+    // Get all table rows
+    const rows = document.querySelectorAll('.modern-table-row');
     let csv = [];
-    const rows = table.querySelectorAll('tr');
     
-    for (let row of rows) {
-        const cols = row.querySelectorAll('td, th');
-        let csvRow = [];
-        for (let col of cols) {
-            if (col.cellIndex !== 5) { // Skip breaks column
-                csvRow.push(col.innerText);
+    // Add header
+    csv.push(['Date', 'Day', 'Check In', 'Check Out', 'Work Hours', 'Breaks', 'Status'].join(','));
+    
+    // Add data rows
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('.modern-table-cell');
+        let rowData = [];
+        cells.forEach((cell, index) => {
+            if (index === 5) { // Breaks column - get button text
+                const btn = cell.querySelector('button');
+                rowData.push(btn ? btn.innerText.trim() : '0');
+            } else {
+                // Get text content, clean up
+                let text = cell.textContent.trim().replace(/\s+/g, ' ');
+                // Remove label text for mobile
+                text = text.replace(/^(Date|Day|Check In|Check Out|Work Hours|Breaks|Status)\s+/, '');
+                rowData.push(text);
             }
-        }
-        csv.push(csvRow.join(','));
-    }
+        });
+        csv.push(rowData.join(','));
+    });
     
+    // Create and download file
     const csvFile = new Blob([csv.join('\n')], { type: 'text/csv' });
     const downloadLink = document.createElement('a');
     downloadLink.download = 'attendance_history.csv';
@@ -218,6 +278,7 @@ function exportToCSV() {
     downloadLink.style.display = 'none';
     document.body.appendChild(downloadLink);
     downloadLink.click();
+    document.body.removeChild(downloadLink);
 }
 </script>
 {% endblock %}

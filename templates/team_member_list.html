@@ -157,112 +157,119 @@
     </div>
     {% endif %}
 
-    <!-- Members List -->
+    <!-- Members List - Modern Card Design -->
     <div class="card glass-card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Team Members</h5>
-            <input type="text" id="searchMember" class="form-control" style="max-width: 300px;" placeholder="Search members...">
+        <div class="card-header border-0 pb-0">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <h5 class="mb-0 text-white"><i class="fas fa-users me-2"></i>Team Members</h5>
+                <input type="text" id="searchMember" class="form-control search-input" style="max-width: 300px;" placeholder="🔍 Search members...">
+            </div>
         </div>
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0" id="membersTable">
-                    <thead>
-                        <tr>
-                            <th style="min-width: 250px;">Employee</th>
-                            <th style="min-width: 120px;">Employee ID</th>
-                            <th style="min-width: 150px;">Department</th>
-                            <th style="min-width: 180px;">Designation</th>
-                            <th style="min-width: 150px;">Today's Status</th>
-                            <th style="min-width: 120px;">Check-in</th>
-                            <th style="min-width: 120px;">Check-out</th>
-                            <th style="min-width: 120px;">Work Hours</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for member in members_data %}
-                        <tr>
-                            <td>
-                                <div class="d-flex align-items-center">
-                                    {% if member.employee.employeeprofile.profile_photo %}
-                                    <img src="{{ member.employee.employeeprofile.profile_photo.url }}" 
-                                         alt="{{ member.employee.get_full_name }}" 
-                                         class="rounded-circle me-3 member-avatar" 
-                                         style="width: 40px; height: 40px; min-width: 40px; object-fit: cover; border: 2px solid rgba(255,255,255,0.2);">
-                                    {% else %}
-                                    <div class="rounded-circle bg-primary text-white me-3 d-flex align-items-center justify-content-center member-avatar-placeholder" 
-                                         style="width: 40px; height: 40px; min-width: 40px; font-size: 16px; border: 2px solid rgba(255,255,255,0.2);">
-                                        <i class="fas fa-user"></i>
-                                    </div>
-                                    {% endif %}
-                                    <div>
-                                        <strong class="d-block">{{ member.employee.get_full_name|default:member.employee.username }}</strong>
-                                        <small class="text-muted">{{ member.employee.email }}</small>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="align-middle">
-                                <span class="badge bg-secondary px-3 py-2">
-                                    {{ member.employee.employeeprofile.employee_id|default:"N/A" }}
-                                </span>
-                            </td>
-                            <td class="align-middle">{{ member.employee.employeeprofile.department|default:"-" }}</td>
-                            <td class="align-middle">{{ member.employee.employeeprofile.designation|default:"-" }}</td>
-                            <td class="align-middle">
-                                <span class="badge bg-{{ member.status_class }} px-3 py-2">
-                                    {% if member.status == 'present' %}
-                                    <i class="fas fa-check-circle me-1"></i>
-                                    {% elif member.status == 'absent' %}
-                                    <i class="fas fa-times-circle me-1"></i>
-                                    {% elif member.status == 'on_leave' %}
-                                    <i class="fas fa-calendar-alt me-1"></i>
-                                    {% elif member.status == 'wfh' %}
-                                    <i class="fas fa-home me-1"></i>
-                                    {% elif member.status == 'late' %}
-                                    <i class="fas fa-clock me-1"></i>
-                                    {% endif %}
-                                    {{ member.status_display }}
-                                </span>
-                            </td>
-                            <td class="align-middle">
-                                {% if member.attendance and member.attendance.check_in %}
-                                <small class="text-muted">
-                                    <i class="fas fa-sign-in-alt me-1"></i>
-                                    {{ member.attendance.check_in|date:"h:i A" }}
-                                </small>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="align-middle">
-                                {% if member.attendance and member.attendance.check_out %}
-                                <small class="text-muted">
-                                    <i class="fas fa-sign-out-alt me-1"></i>
-                                    {{ member.attendance.check_out|date:"h:i A" }}
-                                </small>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td class="align-middle">
-                                {% if member.attendance and member.attendance.total_work_hours %}
-                                <span class="badge bg-info px-3 py-2">
-                                    {{ member.attendance.get_work_hours_display }}
-                                </span>
-                                {% else %}
-                                <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="8" class="text-center text-muted py-5">
-                                <i class="fas fa-users fa-3x mb-3 d-block"></i>
-                                <h5>No members in this team</h5>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+            <!-- Modern Borderless Table -->
+            <div class="members-container">
+                {% for member in members_data %}
+                <div class="member-row" data-member="{{ member.employee.get_full_name|lower }} {{ member.employee.email|lower }}">
+                    <!-- Employee Info -->
+                    <div class="member-cell employee-cell">
+                        <div class="d-flex align-items-center gap-3">
+                            {% if member.employee.employeeprofile.profile_photo %}
+                            <img src="{{ member.employee.employeeprofile.profile_photo.url }}" 
+                                 alt="{{ member.employee.get_full_name }}" 
+                                 class="member-avatar">
+                            {% else %}
+                            <div class="member-avatar member-avatar-placeholder">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            {% endif %}
+                            <div class="member-info">
+                                <div class="member-name">{{ member.employee.get_full_name|default:member.employee.username }}</div>
+                                <div class="member-email">{{ member.employee.email }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Employee ID -->
+                    <div class="member-cell id-cell">
+                        <div class="cell-label">Employee ID</div>
+                        <span class="badge badge-secondary">{{ member.employee.employeeprofile.employee_id|default:"N/A" }}</span>
+                    </div>
+                    
+                    <!-- Department -->
+                    <div class="member-cell dept-cell">
+                        <div class="cell-label">Department</div>
+                        <div class="cell-value">{{ member.employee.employeeprofile.department|default:"-" }}</div>
+                    </div>
+                    
+                    <!-- Designation -->
+                    <div class="member-cell designation-cell">
+                        <div class="cell-label">Designation</div>
+                        <div class="cell-value">{{ member.employee.employeeprofile.designation|default:"-" }}</div>
+                    </div>
+                    
+                    <!-- Status -->
+                    <div class="member-cell status-cell">
+                        <div class="cell-label">Status</div>
+                        <span class="badge badge-{{ member.status_class }}">
+                            {% if member.status == 'present' %}
+                            <i class="fas fa-check-circle me-1"></i>Present
+                            {% elif member.status == 'absent' %}
+                            <i class="fas fa-times-circle me-1"></i>Absent
+                            {% elif member.status == 'on_leave' %}
+                            <i class="fas fa-calendar-alt me-1"></i>On Leave
+                            {% elif member.status == 'wfh' %}
+                            <i class="fas fa-home me-1"></i>WFH
+                            {% elif member.status == 'late' %}
+                            <i class="fas fa-clock me-1"></i>Late
+                            {% endif %}
+                        </span>
+                    </div>
+                    
+                    <!-- Check-in -->
+                    <div class="member-cell time-cell">
+                        <div class="cell-label">Check-in</div>
+                        {% if member.attendance and member.attendance.check_in %}
+                        <div class="time-value">
+                            <i class="fas fa-sign-in-alt time-icon"></i>
+                            <span>{{ member.attendance.check_in|date:"h:i A" }}</span>
+                        </div>
+                        {% else %}
+                        <div class="cell-value text-muted">-</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Check-out -->
+                    <div class="member-cell time-cell">
+                        <div class="cell-label">Check-out</div>
+                        {% if member.attendance and member.attendance.check_out %}
+                        <div class="time-value">
+                            <i class="fas fa-sign-out-alt time-icon"></i>
+                            <span>{{ member.attendance.check_out|date:"h:i A" }}</span>
+                        </div>
+                        {% else %}
+                        <div class="cell-value text-muted">-</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Work Hours -->
+                    <div class="member-cell hours-cell">
+                        <div class="cell-label">Work Hours</div>
+                        {% if member.attendance and member.attendance.total_work_hours %}
+                        <span class="badge badge-info">
+                            <i class="fas fa-clock me-1"></i>{{ member.attendance.get_work_hours_display }}
+                        </span>
+                        {% else %}
+                        <div class="cell-value text-muted">-</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% empty %}
+                <div class="empty-state">
+                    <i class="fas fa-users fa-3x mb-3"></i>
+                    <h5>No members in this team</h5>
+                    <p class="text-muted">Add members to see them here</p>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
@@ -275,22 +282,268 @@
 // Search members
 document.getElementById('searchMember').addEventListener('keyup', function() {
     const searchValue = this.value.toLowerCase();
-    const rows = document.querySelectorAll('#membersTable tbody tr');
+    const memberRows = document.querySelectorAll('.member-row');
     
-    rows.forEach(row => {
-        const text = row.textContent.toLowerCase();
-        row.style.display = text.includes(searchValue) ? '' : 'none';
+    memberRows.forEach(row => {
+        const searchableText = row.getAttribute('data-member');
+        if (searchableText.includes(searchValue)) {
+            row.style.display = 'grid';
+        } else {
+            row.style.display = 'none';
+        }
     });
 });
 </script>
 
 <style>
-/* Override glass-card overflow to prevent avatar clipping */
-.card.glass-card {
-    overflow: visible !important;
+/* ===================================
+   MODERN BORDERLESS TEAM MEMBERS TABLE
+   Clean, smooth, professional design
+   =================================== */
+
+/* Card Header */
+.card-header.border-0 {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
 }
 
-/* Hover effect for clickable cards */
+/* Search Input */
+.search-input {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: white !important;
+    padding: 10px 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05) !important;
+}
+
+.search-input::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* Members Container */
+.members-container {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+}
+
+/* Member Row - Grid Layout (No Borders, Clean Design) */
+.member-row {
+    display: grid;
+    grid-template-columns: 2.5fr 1.2fr 1.3fr 1.5fr 1.3fr 1.2fr 1.2fr 1.2fr;
+    gap: 16px;
+    padding: 20px 24px;
+    align-items: center;
+    transition: all 0.25s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    position: relative;
+}
+
+.member-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+    transform: translateX(4px);
+}
+
+.member-row:hover::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    border-radius: 0 3px 3px 0;
+}
+
+/* Member Cell */
+.member-cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 60px;
+}
+
+/* Cell Labels (Mobile/Responsive) */
+.cell-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 4px;
+    font-weight: 600;
+    display: none; /* Hidden on desktop, shown on mobile */
+}
+
+/* Cell Values */
+.cell-value {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Employee Cell */
+.employee-cell .d-flex {
+    align-items: center !important;
+}
+
+/* Avatar Styles */
+.member-avatar {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    border-radius: 50% !important;
+    object-fit: cover;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    flex-shrink: 0 !important;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.member-avatar-placeholder {
+    width: 48px !important;
+    height: 48px !important;
+    min-width: 48px !important;
+    min-height: 48px !important;
+    border-radius: 50% !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    border: 3px solid rgba(255, 255, 255, 0.15);
+    flex-shrink: 0 !important;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.member-row:hover .member-avatar,
+.member-row:hover .member-avatar-placeholder {
+    transform: scale(1.08);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Member Info */
+.member-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.member-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: white;
+    margin-bottom: 2px;
+    line-height: 1.4;
+}
+
+.member-email {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.4;
+}
+
+/* Badges - Modern Design */
+.badge {
+    padding: 8px 14px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    letter-spacing: 0.3px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.badge-secondary {
+    background: rgba(108, 117, 125, 0.2) !important;
+    color: #adb5bd !important;
+    border: 1px solid rgba(108, 117, 125, 0.3);
+}
+
+.badge-success {
+    background: rgba(25, 135, 84, 0.2) !important;
+    color: #51cf66 !important;
+    border: 1px solid rgba(25, 135, 84, 0.3);
+}
+
+.badge-danger {
+    background: rgba(220, 53, 69, 0.2) !important;
+    color: #ff6b6b !important;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.badge-primary {
+    background: rgba(13, 110, 253, 0.2) !important;
+    color: #4dabf7 !important;
+    border: 1px solid rgba(13, 110, 253, 0.3);
+}
+
+.badge-info {
+    background: rgba(13, 202, 240, 0.2) !important;
+    color: #22d3ee !important;
+    border: 1px solid rgba(13, 202, 240, 0.3);
+}
+
+.badge-warning {
+    background: rgba(255, 193, 7, 0.2) !important;
+    color: #ffd43b !important;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+/* Time Display - Perfect Alignment */
+.time-cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.time-value {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.time-icon {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.empty-state i {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.empty-state h5 {
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+/* Hover Cards for Stats */
 .hover-card {
     transition: all 0.3s ease;
     border: 2px solid transparent;
@@ -321,96 +574,94 @@ document.getElementById('searchMember').addEventListener('keyup', function() {
     border-color: #ffc107 !important;
 }
 
-/* Clean and spacious table styling */
-#membersTable {
-    font-size: 14px;
-    white-space: nowrap;
+/* Responsive Design */
+@media (max-width: 1400px) {
+    .member-row {
+        grid-template-columns: 2fr 1fr 1.2fr 1.3fr 1.2fr 1fr 1fr 1fr;
+        gap: 12px;
+        padding: 18px 20px;
+    }
 }
 
-#membersTable thead th {
-    background: rgba(255, 255, 255, 0.05);
-    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-    padding: 16px 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    font-size: 12px;
-    letter-spacing: 0.5px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
+@media (max-width: 1200px) {
+    .member-row {
+        grid-template-columns: 2fr 1fr 1fr 1fr 1fr 0.8fr 0.8fr 0.8fr;
+        gap: 10px;
+        padding: 16px 18px;
+    }
+    
+    .member-name {
+        font-size: 14px;
+    }
+    
+    .member-email {
+        font-size: 12px;
+    }
 }
 
-#membersTable tbody td {
-    padding: 20px 12px;
-    vertical-align: middle;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+@media (max-width: 992px) {
+    /* Stack layout for tablets and mobile */
+    .member-row {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        padding: 24px 20px;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .cell-label {
+        display: block; /* Show labels on mobile */
+    }
+    
+    .employee-cell {
+        grid-column: 1;
+        padding-bottom: 12px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 8px;
+    }
+    
+    .member-cell {
+        min-height: auto;
+    }
 }
 
-#membersTable tbody tr {
-    transition: background 0.2s ease;
+/* Scrollbar Styling */
+.members-container::-webkit-scrollbar {
+    width: 8px;
 }
 
-#membersTable tbody tr:hover {
+.members-container::-webkit-scrollbar-track {
     background: rgba(255, 255, 255, 0.03);
 }
 
-/* Perfect circular avatars */
-.member-avatar,
-.member-avatar-placeholder {
-    flex-shrink: 0;
-}
-
-/* Badge styling */
-.badge {
-    font-weight: 500;
-    letter-spacing: 0.3px;
-}
-
-/* Table responsive - smooth scrolling */
-.table-responsive {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.table-responsive::-webkit-scrollbar {
-    height: 8px;
-}
-
-.table-responsive::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.05);
+.members-container::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
     border-radius: 4px;
 }
 
-.table-responsive::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+.members-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
 }
 
-.table-responsive::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.3);
+/* Animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-/* Remove card body padding for full-width table */
+.member-row {
+    animation: fadeIn 0.3s ease forwards;
+}
+
+/* Card body override */
 .card-body.p-0 {
     padding: 0 !important;
-}
-
-/* Search input */
-.card-header .form-control {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-}
-
-.card-header .form-control:focus {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: rgba(255, 255, 255, 0.2);
-    color: white;
-    box-shadow: none;
-}
-
-.card-header .form-control::placeholder {
-    color: rgba(255, 255, 255, 0.5);
+    overflow: visible !important;
 }
 </style>
 {% endblock %}

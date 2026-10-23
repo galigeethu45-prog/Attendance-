@@ -93,56 +93,83 @@
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-list me-2"></i>My WFH Requests</h5>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Start Date</th>
-                                    <th>End Date</th>
-                                    <th>Days</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for wfh in wfh_requests %}
-                                <tr>
-                                    <td>
-                                        {% if wfh.selected_dates %}
+                <div class="card-body p-0">
+                    <div class="modern-table-container">
+                        {% for wfh in wfh_requests %}
+                        <div class="modern-table-row" style="grid-template-columns: 1.8fr 1.8fr 0.8fr 1.3fr 1.2fr;">
+                            <!-- Start Date -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Start Date</div>
+                                <div class="modern-cell-value">
+                                    {% if wfh.selected_dates %}
+                                        <span class="modern-badge modern-badge-info">
+                                            <i class="fas fa-calendar-check"></i>
                                             Multiple dates
-                                        {% else %}
-                                            {{ wfh.start_date|date:"M d, Y" }}
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if wfh.selected_dates %}
-                                            ({{ wfh.total_days }} days)
-                                        {% else %}
-                                            {{ wfh.end_date|date:"M d, Y" }}
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ wfh.total_days }}</td>
-                                    <td>
-                                        {% if wfh.status == 'pending' %}
-                                        <span class="badge bg-warning">Pending HR Approval</span>
-                                        {% elif wfh.status == 'approved' %}
-                                        <span class="badge bg-success">Approved</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Rejected</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ wfh.id }}">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        {% if wfh.status == 'pending' %}
-                                        <button class="btn btn-sm btn-outline-danger" onclick="cancelWFH({{ wfh.id }})">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                        {% endif %}
-                                    </td>
-                                </tr>
+                                        </span>
+                                    {% else %}
+                                        <i class="fas fa-calendar me-2 text-muted"></i>
+                                        {{ wfh.start_date|date:"M d, Y" }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- End Date -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">End Date</div>
+                                <div class="modern-cell-value">
+                                    {% if wfh.selected_dates %}
+                                        <span class="text-muted">({{ wfh.total_days }} days)</span>
+                                    {% else %}
+                                        <i class="fas fa-calendar me-2 text-muted"></i>
+                                        {{ wfh.end_date|date:"M d, Y" }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Days -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Days</div>
+                                <span class="modern-badge modern-badge-secondary">
+                                    {{ wfh.total_days }}
+                                </span>
+                            </div>
+                            
+                            <!-- Status -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Status</div>
+                                {% if wfh.status == 'pending' %}
+                                <span class="modern-badge modern-badge-warning">
+                                    <i class="fas fa-clock"></i>
+                                    Pending
+                                </span>
+                                {% elif wfh.status == 'approved' %}
+                                <span class="modern-badge modern-badge-success">
+                                    <i class="fas fa-check-circle"></i>
+                                    Approved
+                                </span>
+                                {% else %}
+                                <span class="modern-badge modern-badge-danger">
+                                    <i class="fas fa-times-circle"></i>
+                                    Rejected
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Actions</div>
+                                <div class="modern-action-buttons">
+                                    <button class="modern-action-btn btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ wfh.id }}" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if wfh.status == 'pending' %}
+                                    <button class="modern-action-btn btn btn-sm btn-outline-danger" onclick="cancelWFH({{ wfh.id }})" title="Cancel Request">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
 
                                 <!-- Detail Modal -->
                                 <div class="modal fade" id="detailModal{{ wfh.id }}" tabindex="-1">
@@ -257,12 +284,14 @@
                                     </div>
                                 </div>
                                 {% empty %}
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">No WFH requests yet</td>
-                                </tr>
+                                <div class="modern-empty-state">
+                                    <i class="fas fa-home fa-3x mb-3"></i>
+                                    <h5>No WFH requests yet</h5>
+                                    <p class="text-muted">Your work-from-home requests will appear here once submitted</p>
+                                </div>
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

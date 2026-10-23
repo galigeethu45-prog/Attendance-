@@ -229,105 +229,137 @@
                 <div class="card-header">
                     <h5 class="mb-0"><i class="fas fa-list me-2"></i>My Leave Requests</h5>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Start Date</th>
-                                    <th>End Date</th>
-                                    <th>Days</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for leave in leave_requests %}
-                                <tr>
-                                    <td>{{ leave.get_leave_type_display }}</td>
-                                    <td>
-                                        {% if leave.selected_dates %}
+                <div class="card-body p-0">
+                    <div class="modern-table-container">
+                        {% for leave in leave_requests %}
+                        <div class="modern-table-row" style="grid-template-columns: 1.5fr 1.5fr 1.5fr 0.8fr 1.3fr 1.2fr;">
+                            <!-- Leave Type -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Type</div>
+                                <div class="modern-cell-value">
+                                    <i class="fas fa-calendar-alt me-2 text-muted"></i>
+                                    <strong>{{ leave.get_leave_type_display }}</strong>
+                                </div>
+                            </div>
+                            
+                            <!-- Start Date -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Start Date</div>
+                                <div class="modern-cell-value">
+                                    {% if leave.selected_dates %}
+                                        <span class="modern-badge modern-badge-info">
+                                            <i class="fas fa-calendar-check"></i>
                                             Multiple dates
-                                        {% else %}
-                                            {{ leave.start_date|date:"M d, Y" }}
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if leave.selected_dates %}
-                                            ({{ leave.total_days }} days)
-                                        {% else %}
-                                            {{ leave.end_date|date:"M d, Y" }}
-                                        {% endif %}
-                                    </td>
-                                    <td>{{ leave.total_days }}</td>
-                                    <td>
-                                        {% if leave.status == 'pending' %}
-                                        <span class="badge bg-warning">Pending HR Approval</span>
-                                        {% elif leave.status == 'approved' %}
-                                        <span class="badge bg-success">Approved</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Rejected</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ leave.id }}">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                        {% if leave.status == 'pending' %}
-                                        <button class="btn btn-sm btn-outline-danger" onclick="cancelLeave({{ leave.id }})">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                        {% endif %}
-                                    </td>
-                                </tr>
+                                        </span>
+                                    {% else %}
+                                        {{ leave.start_date|date:"M d, Y" }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- End Date -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">End Date</div>
+                                <div class="modern-cell-value">
+                                    {% if leave.selected_dates %}
+                                        <span class="text-muted">({{ leave.total_days }} days)</span>
+                                    {% else %}
+                                        {{ leave.end_date|date:"M d, Y" }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Days -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Days</div>
+                                <span class="modern-badge modern-badge-secondary">
+                                    {{ leave.total_days }}
+                                </span>
+                            </div>
+                            
+                            <!-- Status -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Status</div>
+                                {% if leave.status == 'pending' %}
+                                <span class="modern-badge modern-badge-warning">
+                                    <i class="fas fa-clock"></i>
+                                    Pending
+                                </span>
+                                {% elif leave.status == 'approved' %}
+                                <span class="modern-badge modern-badge-success">
+                                    <i class="fas fa-check-circle"></i>
+                                    Approved
+                                </span>
+                                {% else %}
+                                <span class="modern-badge modern-badge-danger">
+                                    <i class="fas fa-times-circle"></i>
+                                    Rejected
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Actions -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Actions</div>
+                                <div class="modern-action-buttons">
+                                    <button class="modern-action-btn btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ leave.id }}" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if leave.status == 'pending' %}
+                                    <button class="modern-action-btn btn btn-sm btn-outline-danger" onclick="cancelLeave({{ leave.id }})" title="Cancel Request">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
 
-                                <!-- Detail Modal -->
-                                <div class="modal fade" id="detailModal{{ leave.id }}" tabindex="-1">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Leave Request Details</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <!-- Detail Modal -->
+                        <div class="modal fade" id="detailModal{{ leave.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Leave Request Details</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p><strong>Type:</strong> {{ leave.get_leave_type_display }}</p>
+                                        <p><strong>Duration:</strong> 
+                                            {% if leave.selected_dates %}
+                                                Specific dates ({{ leave.total_days }} days)
+                                                <br><small class="text-muted">{{ leave.selected_dates|join:", " }}</small>
+                                            {% else %}
+                                                {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }}
+                                            {% endif %}
+                                        </p>
+                                        <p><strong>Total Days:</strong> {{ leave.total_days }}</p>
+                                        <p><strong>Reason:</strong> {{ leave.reason }}</p>
+                                        <p><strong>Status:</strong> 
+                                            {% if leave.status == 'pending' %}
+                                                <span class="badge bg-warning">Pending HR Approval</span>
+                                            {% elif leave.status == 'approved' %}
+                                                <span class="badge bg-success">Approved</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                            {% endif %}
+                                        </p>
+                                        
+                                        <!-- Comments Section (Only show if comments exist) -->
+                                        {% if leave.tl_comment or leave.manager_comment or leave.hr_comment %}
+                                        <hr>
+                                        <h6 class="mb-3"><i class="fas fa-comments me-2"></i>Comments</h6>
+                                        
+                                        <!-- TL Comment (only if exists) -->
+                                        {% if leave.tl_comment %}
+                                        <div class="mb-3">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <i class="fas fa-user text-info me-2"></i>
+                                                <strong>Team Leader Comment</strong>
                                             </div>
-                                            <div class="modal-body">
-                                                <p><strong>Type:</strong> {{ leave.get_leave_type_display }}</p>
-                                                <p><strong>Duration:</strong> 
-                                                    {% if leave.selected_dates %}
-                                                        Specific dates ({{ leave.total_days }} days)
-                                                        <br><small class="text-muted">{{ leave.selected_dates|join:", " }}</small>
-                                                    {% else %}
-                                                        {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }}
-                                                    {% endif %}
-                                                </p>
-                                                <p><strong>Total Days:</strong> {{ leave.total_days }}</p>
-                                                <p><strong>Reason:</strong> {{ leave.reason }}</p>
-                                                <p><strong>Status:</strong> 
-                                                    {% if leave.status == 'pending' %}
-                                                        <span class="badge bg-warning">Pending HR Approval</span>
-                                                    {% elif leave.status == 'approved' %}
-                                                        <span class="badge bg-success">Approved</span>
-                                                    {% else %}
-                                                        <span class="badge bg-danger">Rejected</span>
-                                                    {% endif %}
-                                                </p>
-                                                
-                                                <!-- Comments Section (Only show if comments exist) -->
-                                                {% if leave.tl_comment or leave.manager_comment or leave.hr_comment %}
-                                                <hr>
-                                                <h6 class="mb-3"><i class="fas fa-comments me-2"></i>Comments</h6>
-                                                
-                                                <!-- TL Comment (only if exists) -->
-                                                {% if leave.tl_comment %}
-                                                <div class="mb-3">
-                                                    <div class="d-flex align-items-center mb-2">
-                                                        <i class="fas fa-user text-info me-2"></i>
-                                                        <strong>Team Leader Comment</strong>
-                                                    </div>
-                                                    <div class="alert alert-info mb-0">
-                                                        <small>{{ leave.tl_comment }}</small>
-                                                        {% if leave.tl_approver %}
-                                                        <br><small class="text-muted">
+                                            <div class="alert alert-info mb-0">
+                                                <small>{{ leave.tl_comment }}</small>
+                                                {% if leave.tl_approver %}
+                                                <br><small class="text-muted">
                                                             - {{ leave.tl_approver.get_full_name|default:leave.tl_approver.username }}
                                                             {% if leave.tl_approved_at %}({{ leave.tl_approved_at|date:"M d, Y H:i" }}){% endif %}
                                                         </small>
@@ -398,12 +430,14 @@
                                     </div>
                                 </div>
                                 {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">No leave requests yet</td>
-                                </tr>
+                                <div class="modern-empty-state">
+                                    <i class="fas fa-calendar-times fa-3x mb-3"></i>
+                                    <h5>No leave requests yet</h5>
+                                    <p class="text-muted">Your leave requests will appear here once submitted</p>
+                                </div>
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

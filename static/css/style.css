@@ -2687,3 +2687,67 @@ body.modal-open {
 
 
 
+
+
+/* ===================================
+   CRITICAL FIXES - DO NOT REMOVE
+   =================================== */
+
+/* Fix #1: Ensure request cards display properly with many items */
+.request-card,
+.request-card-body,
+.card-body {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+}
+
+/* Fix #2: Team member table - prevent content cutoff */
+#membersTable tbody tr {
+    height: auto !important;
+    min-height: 70px;
+    overflow: visible !important;
+}
+
+#membersTable tbody td {
+    vertical-align: middle !important;
+    overflow: visible !important;
+    white-space: normal !important;
+    padding: 15px !important;
+}
+
+/* Ensure profile pictures display correctly in tables */
+.member-avatar,
+.member-avatar-placeholder {
+    flex-shrink: 0 !important;
+    display: inline-block !important;
+}
+
+/* Fix table container overflow */
+.table-responsive {
+    overflow-x: auto !important;
+    overflow-y: visible !important;
+    max-height: none !important;
+}
+
+/* Ensure card bodies don't restrict height */
+.glass-card .card-body,
+.card.glass-card .card-body {
+    max-height: none !important;
+    overflow-y: visible !important;
+    height: auto !important;
+}
+
+/* Fix for team requests page */
+.request-card.mb-3 {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Ensure all content is visible */
+div[class*="request"],
+div[class*="card-body"] {
+    overflow: visible !important;
+}

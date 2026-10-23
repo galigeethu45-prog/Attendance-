@@ -53,3 +53,7 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+
+# EOD Integration Work - DO NOT COMMIT TO PRODUCTION
+EOD_INTEGRATION_WORK/
+End-OF-the-Day-main*/

@@ -86,42 +86,71 @@
                     <h5 class="mb-0"><i class="fas fa-list me-2"></i>My Onsite Requests</h5>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Visit Type</th>
-                                    <th>Date</th>
-                                    <th>Client</th>
-                                    <th>Location</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for onsite in onsite_requests %}
-                                <tr>
-                                    <td>
-                                        <span class="badge bg-info">{{ onsite.get_visit_type_display }}</span>
-                                    </td>
-                                    <td>{{ onsite.visit_date|date:"M d, Y" }}</td>
-                                    <td>{{ onsite.client_name }}</td>
-                                    <td><small>{{ onsite.location|truncatewords:5 }}</small></td>
-                                    <td>
-                                        {% if onsite.status == 'pending' %}
-                                        <span class="badge bg-warning">Pending</span>
-                                        {% elif onsite.status == 'approved' %}
-                                        <span class="badge bg-success">Approved</span>
-                                        {% else %}
-                                        <span class="badge bg-danger">Rejected</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ onsite.id }}">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
-                                    </td>
-                                </tr>
+                    <div class="modern-table-container">
+                        {% for onsite in onsite_requests %}
+                        <div class="modern-table-row" style="grid-template-columns: 1fr 1.5fr 1.5fr 2fr 1.2fr 1fr;">
+                            <!-- Visit Type -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Type</div>
+                                <span class="modern-badge modern-badge-info">
+                                    <i class="fas fa-briefcase"></i>
+                                    {{ onsite.get_visit_type_display }}
+                                </span>
+                            </div>
+                            
+                            <!-- Date -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Date</div>
+                                <div class="modern-cell-value">
+                                    <i class="fas fa-calendar me-2 text-muted"></i>
+                                    <strong>{{ onsite.visit_date|date:"M d, Y" }}</strong>
+                                </div>
+                            </div>
+                            
+                            <!-- Client -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Client</div>
+                                <div class="modern-cell-value">
+                                    <i class="fas fa-building me-2 text-muted"></i>
+                                    {{ onsite.client_name }}
+                                </div>
+                            </div>
+                            
+                            <!-- Location -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Location</div>
+                                <div class="modern-cell-value text-muted">
+                                    <i class="fas fa-map-marker-alt me-2"></i>
+                                    {{ onsite.location|truncatewords:5 }}
+                                </div>
+                            </div>
+                            
+                            <!-- Status -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Status</div>
+                                {% if onsite.status == 'pending' %}
+                                <span class="modern-badge modern-badge-warning">
+                                    <i class="fas fa-clock"></i>Pending
+                                </span>
+                                {% elif onsite.status == 'approved' %}
+                                <span class="modern-badge modern-badge-success">
+                                    <i class="fas fa-check-circle"></i>Approved
+                                </span>
+                                {% else %}
+                                <span class="modern-badge modern-badge-danger">
+                                    <i class="fas fa-times-circle"></i>Rejected
+                                </span>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Action -->
+                            <div class="modern-table-cell">
+                                <div class="modern-cell-label">Action</div>
+                                <button class="modern-action-btn btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailModal{{ onsite.id }}" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
 
                                 <!-- Detail Modal -->
                                 <div class="modal fade" id="detailModal{{ onsite.id }}" tabindex="-1">
@@ -239,12 +268,14 @@
                                     </div>
                                 </div>
                                 {% empty %}
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">No onsite requests yet</td>
-                                </tr>
+                                <div class="modern-empty-state">
+                                    <i class="fas fa-building fa-3x mb-3"></i>
+                                    <h5>No onsite requests</h5>
+                                    <p class="text-muted">Your onsite visit requests will appear here</p>
+                                </div>
                                 {% endfor %}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

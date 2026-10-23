@@ -109,37 +109,56 @@
         <div class="card-header bg-success">
             <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Approved OT - Ready to Start</h5>
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Reason</th>
-                            <th>Approved By</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for ot in approved_pending_start %}
-                        <tr>
-                            <td>{{ ot.date|date:"M d, Y" }}</td>
-                            <td>{{ ot.reason|truncatewords:10 }}</td>
-                            <td>{{ ot.hr_approver.get_full_name|default:ot.hr_approver.username|default:"-" }}</td>
-                            <td>
-                                <form method="post" action="{% url 'overtime' %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="start_ot">
-                                    <input type="hidden" name="ot_id" value="{{ ot.id }}">
-                                    <button type="submit" class="btn btn-success btn-sm">
-                                        <i class="fas fa-play me-1"></i>Start OT
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="card-body p-0">
+            <div class="modern-table-container">
+                {% for ot in approved_pending_start %}
+                <div class="modern-table-row" style="grid-template-columns: 1.5fr 2.5fr 1.5fr 1.2fr;">
+                    <!-- Date -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Date</div>
+                        <div class="modern-cell-value">
+                            <i class="fas fa-calendar me-2 text-muted"></i>
+                            <strong>{{ ot.date|date:"M d, Y" }}</strong>
+                        </div>
+                    </div>
+                    
+                    <!-- Reason -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Reason</div>
+                        <div class="modern-cell-value">
+                            {{ ot.reason|truncatewords:10 }}
+                        </div>
+                    </div>
+                    
+                    <!-- Approved By -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Approved By</div>
+                        <div class="modern-cell-value text-muted">
+                            <i class="fas fa-user me-2"></i>
+                            {{ ot.hr_approver.get_full_name|default:ot.hr_approver.username|default:"-" }}
+                        </div>
+                    </div>
+                    
+                    <!-- Action -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Action</div>
+                        <form method="post" action="{% url 'overtime' %}" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="start_ot">
+                            <input type="hidden" name="ot_id" value="{{ ot.id }}">
+                            <button type="submit" class="modern-action-btn btn btn-success btn-sm">
+                                <i class="fas fa-play me-1"></i>Start OT
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="modern-empty-state">
+                    <i class="fas fa-clock fa-3x mb-3"></i>
+                    <h5>No approved OT waiting to start</h5>
+                    <p class="text-muted">Approved overtime requests will appear here</p>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
@@ -150,122 +169,162 @@
         <div class="card-header">
             <h5 class="mb-0"><i class="fas fa-history me-2"></i>OT History</h5>
         </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Reason</th>
-                            <th>Start Time</th>
-                            <th>End Time</th>
-                            <th>Total Hours</th>
-                            <th>Status</th>
-                            <th>Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for ot in ot_records %}
-                        <tr>
-                            <td>{{ ot.date|date:"M d, Y" }}</td>
-                            <td>{{ ot.reason|truncatewords:5 }}</td>
-                            <td>{{ ot.start_time|time:"h:i A"|default:"-" }}</td>
-                            <td>{{ ot.end_time|time:"h:i A"|default:"-" }}</td>
-                            <td>{{ ot.get_ot_hours_display }}</td>
-                            <td>
-                                {% if ot.status == 'pending' %}
-                                <span class="badge bg-pending">
-                                    <i class="fas fa-clock me-1"></i>Pending
-                                </span>
-                                {% elif ot.status == 'approved' %}
-                                <span class="badge bg-approved">
-                                    <i class="fas fa-check me-1"></i>Approved
-                                </span>
-                                {% elif ot.status == 'rejected' %}
-                                <span class="badge bg-rejected">
-                                    <i class="fas fa-times me-1"></i>Rejected
-                                </span>
-                                {% elif ot.status == 'completed' %}
-                                <span class="badge bg-info">
-                                    <i class="fas fa-check-double me-1"></i>Completed
-                                </span>
+        <div class="card-body p-0">
+            <div class="modern-table-container">
+                {% for ot in ot_records %}
+                <div class="modern-table-row" style="grid-template-columns: 1.2fr 2fr 1fr 1fr 1fr 1.2fr 1fr;">
+                    <!-- Date -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Date</div>
+                        <div class="modern-cell-value">
+                            <i class="fas fa-calendar me-2 text-muted"></i>
+                            <strong>{{ ot.date|date:"M d, Y" }}</strong>
+                        </div>
+                    </div>
+                    
+                    <!-- Reason -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Reason</div>
+                        <div class="modern-cell-value">
+                            {{ ot.reason|truncatewords:5 }}
+                        </div>
+                    </div>
+                    
+                    <!-- Start Time -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Start Time</div>
+                        {% if ot.start_time %}
+                        <div class="modern-time-value">
+                            <i class="fas fa-play modern-time-icon"></i>
+                            <span>{{ ot.start_time|time:"h:i A" }}</span>
+                        </div>
+                        {% else %}
+                        <div class="modern-cell-value text-muted">-</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- End Time -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">End Time</div>
+                        {% if ot.end_time %}
+                        <div class="modern-time-value">
+                            <i class="fas fa-stop modern-time-icon"></i>
+                            <span>{{ ot.end_time|time:"h:i A" }}</span>
+                        </div>
+                        {% else %}
+                        <div class="modern-cell-value text-muted">-</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Total Hours -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Total Hours</div>
+                        <span class="modern-badge modern-badge-info">
+                            <i class="fas fa-clock"></i>
+                            {{ ot.get_ot_hours_display }}
+                        </span>
+                    </div>
+                    
+                    <!-- Status -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Status</div>
+                        {% if ot.status == 'pending' %}
+                        <span class="modern-badge modern-badge-warning">
+                            <i class="fas fa-clock"></i>Pending
+                        </span>
+                        {% elif ot.status == 'approved' %}
+                        <span class="modern-badge modern-badge-success">
+                            <i class="fas fa-check"></i>Approved
+                        </span>
+                        {% elif ot.status == 'rejected' %}
+                        <span class="modern-badge modern-badge-danger">
+                            <i class="fas fa-times"></i>Rejected
+                        </span>
+                        {% elif ot.status == 'completed' %}
+                        <span class="modern-badge modern-badge-info">
+                            <i class="fas fa-check-double"></i>Completed
+                        </span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Action -->
+                    <div class="modern-table-cell">
+                        <div class="modern-cell-label">Action</div>
+                        {% if ot.status != 'pending' %}
+                        <button class="modern-action-btn btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#otDetailModal{{ ot.id }}" title="View Details">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- OT Detail Modal -->
+                <div class="modal fade" id="otDetailModal{{ ot.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Overtime Details</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
+                                <p><strong>Reason:</strong> {{ ot.reason }}</p>
+                                <p><strong>Duration:</strong> {{ ot.start_time|time:"h:i A"|default:"-" }} to {{ ot.end_time|time:"h:i A"|default:"-" }}</p>
+                                <p><strong>Total Hours:</strong> {{ ot.get_ot_hours_display }}</p>
+                                <p><strong>Status:</strong> 
+                                    {% if ot.status == 'pending' %}
+                                    <span class="badge bg-warning">Pending</span>
+                                    {% elif ot.status == 'approved' %}
+                                    <span class="badge bg-success">Approved</span>
+                                    {% elif ot.status == 'rejected' %}
+                                    <span class="badge bg-danger">Rejected</span>
+                                    {% elif ot.status == 'completed' %}
+                                    <span class="badge bg-info">Completed</span>
+                                    {% endif %}
+                                </p>
+                                {% if ot.hr_approver %}
+                                <p><strong>Reviewed By:</strong> {{ ot.hr_approver.get_full_name|default:ot.hr_approver.username }}</p>
                                 {% endif %}
-                            </td>
-                            <td>
-                                {% if ot.status != 'pending' %}
-                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#otDetailModal{{ ot.id }}">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                {% else %}
-                                -
+                                {% if ot.hr_comment %}
+                                <p><strong>HR Comment:</strong> {{ ot.hr_comment }}</p>
                                 {% endif %}
-                            </td>
-                        </tr>
-                        
-                        <!-- OT Detail Modal -->
-                        <div class="modal fade" id="otDetailModal{{ ot.id }}" tabindex="-1">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Overtime Details</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <div class="modal-body">
-                                        <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
-                                        <p><strong>Reason:</strong> {{ ot.reason }}</p>
-                                        <p><strong>Duration:</strong> {{ ot.start_time|time:"h:i A"|default:"-" }} to {{ ot.end_time|time:"h:i A"|default:"-" }}</p>
-                                        <p><strong>Total Hours:</strong> {{ ot.get_ot_hours_display }}</p>
-                                        <p><strong>Status:</strong> 
-                                            {% if ot.status == 'pending' %}
-                                            <span class="badge bg-pending">Pending</span>
-                                            {% elif ot.status == 'approved' %}
-                                            <span class="badge bg-approved">Approved</span>
-                                            {% elif ot.status == 'rejected' %}
-                                            <span class="badge bg-rejected">Rejected</span>
-                                            {% elif ot.status == 'completed' %}
-                                            <span class="badge bg-info">Completed</span>
-                                            {% endif %}
-                                        </p>
-                                        {% if ot.hr_approver %}
-                                        <p><strong>Reviewed By:</strong> {{ ot.hr_approver.get_full_name|default:ot.hr_approver.username }}</p>
-                                        {% endif %}
-                                        {% if ot.hr_comment %}
-                                        <p><strong>HR Comment:</strong> {{ ot.hr_comment }}</p>
-                                        {% endif %}
 
-                                        <!-- Attachments -->
-                                        {% for req_id, atts in attachments_map.items %}
-                                        {% if req_id == ot.id %}
-                                        <hr>
-                                        <h6 class="mb-2"><i class="fas fa-paperclip me-2"></i>Attachments ({{ atts|length }})</h6>
-                                        {% for att in atts %}
-                                        <div class="d-flex align-items-center gap-2 p-2 mb-1 rounded"
-                                             style="background:rgba(255,255,255,0.05);font-size:0.85rem;">
-                                            {% if att.is_image %}<i class="fas fa-image text-info"></i>
-                                            {% elif att.is_pdf %}<i class="fas fa-file-pdf text-danger"></i>
-                                            {% else %}<i class="fas fa-file-alt text-secondary"></i>{% endif %}
-                                            <span class="text-white text-truncate" style="max-width:170px;" title="{{ att.original_filename }}">{{ att.original_filename }}</span>
-                                            <small class="text-muted">{{ att.file_size_display }}</small>
-                                            <a href="{{ att.file.url }}" target="_blank"
-                                               class="btn btn-sm btn-outline-info ms-auto py-0 px-2">
-                                                {% if att.is_image %}<i class="fas fa-eye me-1"></i>View
-                                                {% else %}<i class="fas fa-download me-1"></i>Download{% endif %}
-                                            </a>
-                                        </div>
-                                        {% endfor %}
-                                        {% endif %}
-                                        {% endfor %}
-                                    </div>
+                                <!-- Attachments -->
+                                {% for req_id, atts in attachments_map.items %}
+                                {% if req_id == ot.id %}
+                                <hr>
+                                <h6 class="mb-2"><i class="fas fa-paperclip me-2"></i>Attachments ({{ atts|length }})</h6>
+                                {% for att in atts %}
+                                <div class="d-flex align-items-center gap-2 p-2 mb-1 rounded"
+                                     style="background:rgba(255,255,255,0.05);font-size:0.85rem;">
+                                    {% if att.is_image %}<i class="fas fa-image text-info"></i>
+                                    {% elif att.is_pdf %}<i class="fas fa-file-pdf text-danger"></i>
+                                    {% else %}<i class="fas fa-file-alt text-secondary"></i>{% endif %}
+                                    <span class="text-white text-truncate" style="max-width:170px;" title="{{ att.original_filename }}">{{ att.original_filename }}</span>
+                                    <small class="text-muted">{{ att.file_size_display }}</small>
+                                    <a href="{{ att.file.url }}" target="_blank"
+                                       class="btn btn-sm btn-outline-info ms-auto py-0 px-2">
+                                        {% if att.is_image %}<i class="fas fa-eye me-1"></i>View
+                                        {% else %}<i class="fas fa-download me-1"></i>Download{% endif %}
+                                    </a>
                                 </div>
+                                {% endfor %}
+                                {% endif %}
+                                {% endfor %}
                             </div>
                         </div>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center text-white">No OT records yet</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                    </div>
+                </div>
+                
+                {% empty %}
+                <div class="modern-empty-state">
+                    <i class="fas fa-clock fa-3x mb-3"></i>
+                    <h5>No overtime records</h5>
+                    <p class="text-muted">Your overtime history will appear here</p>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
