@@ -281,7 +281,7 @@
                                             </div>
                                             {% endif %}
                                             <div class="employee-info">
-                                                <div class="employee-name" style="font-size: 0.9rem;">{{ attendance.employee.get_full_name|default:attendance.employee.username }}</div>
+                                                <div class="employee-name" style="font-size: 0.9rem;">{{ attendance.employee.get_full_name|title|default:attendance.employee.username|title }}</div>
                                                 <small class="employee-id" style="font-size: 0.75rem;">{{ attendance.employee.employeeprofile.employee_id|default:attendance.employee.username }}</small>
                                             </div>
                                         </div>
@@ -316,7 +316,7 @@
                                         <span class="badge bg-info" style="padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;">{{ attendance.breaks.count }}</span>
                                     </td>
                                     <td class="text-center">
-                                        <button class="btn btn-sm btn-warning" onclick="editAttendanceStatus({{ attendance.id }}, '{{ attendance.employee.get_full_name|default:attendance.employee.username }}', '{{ attendance.status }}', '{{ attendance.date|date:'M d, Y' }}')" title="Edit Status" style="padding: 6px 10px; border-radius: 6px;">
+                                        <button class="btn btn-sm btn-warning" onclick="editAttendanceStatus({{ attendance.id }}, '{{ attendance.employee.get_full_name|title|default:attendance.employee.username|title }}', '{{ attendance.status }}', '{{ attendance.date|date:'M d, Y' }}')" title="Edit Status" style="padding: 6px 10px; border-radius: 6px;">
                                             <i class="fas fa-edit"></i>
                                         </button>
                                     </td>
@@ -516,7 +516,7 @@
                                 {% for break_log in break_logs %}
                                 <tr>
                                     <td><strong>{{ break_log.attendance.employee.employeeprofile.employee_id }}</strong></td>
-                                    <td>{{ break_log.attendance.employee.get_full_name|default:break_log.attendance.employee.username }}</td>
+                                    <td>{{ break_log.attendance.employee.get_full_name|title|default:break_log.attendance.employee.username|title }}</td>
                                     <td>{{ break_log.break_start|date:"M d, Y" }}</td>
                                     <td>
                                         <span class="badge {% if break_log.break_type == 'tea' %}bg-info{% else %}bg-warning{% endif %}">
@@ -610,7 +610,7 @@
                                         {% endif %}
                                         <div class="flex-grow-1">
                                             <h6 class="mb-0 text-white">
-                                                {{ emp.user.get_full_name|default:emp.user.username }}
+                                                {{ emp.user.get_full_name|title|default:emp.user.username|title }}
                                                 {% if emp.is_birthday_today %}
                                                 <span class="badge bg-warning text-dark ms-2" style="animation: pulse 2s infinite;">
                                                     <i class="fas fa-birthday-cake me-1"></i>Birthday!
@@ -692,7 +692,7 @@
                                         <button class="btn btn-sm btn-info" onclick="changeRole('{{ emp.user.id }}', '{{ emp.employee_id }}', '{{ emp.role }}')" title="Change Role">
                                             <i class="fas fa-user-shield"></i>
                                         </button>
-                                        <button class="btn btn-sm btn-danger" onclick="deleteUser('{{ emp.user.id }}', '{{ emp.user.get_full_name|default:emp.user.username }}')">
+                                        <button class="btn btn-sm btn-danger" onclick="deleteUser('{{ emp.user.id }}', '{{ emp.user.get_full_name|title|default:emp.user.username|title }}')">
                                             <i class="fas fa-trash"></i>
                                         </button>
                                         {% endif %}
@@ -781,7 +781,7 @@
                                     <td>
                                         <strong>{{ log.user.username|default:"System" }}</strong>
                                         {% if log.user %}
-                                        <br><small class="text-muted">{{ log.user.get_full_name|default:"-" }}</small>
+                                        <br><small class="text-muted">{{ log.user.get_full_name|title|default:"-" }}</small>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -846,6 +846,171 @@
 
         <!-- Reports Tab -->
         <div class="tab-pane fade" id="reports">
+            <!-- Daily Insights Section -->
+            <div class="mb-4">
+                <h4 class="text-white mb-3">
+                    <i class="fas fa-chart-line me-2"></i>Daily Insights
+                    <small class="text-muted ms-2" style="font-size: 0.9rem;">{{ current_date|date:"F d, Y" }}</small>
+                </h4>
+                
+                <!-- Stats Overview Grid -->
+                <div class="row g-4 mb-4">
+                    <!-- Total Employees -->
+                    <div class="col-md-3">
+                        <div class="card stat-card glass-card fade-in-delay-1">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="text-muted mb-1">Total Employees</p>
+                                        <h3 class="mb-0 text-white">{{ total_employees }}</h3>
+                                    </div>
+                                    <div class="stat-icon bg-primary">
+                                        <i class="fas fa-users"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Present Today -->
+                    <div class="col-md-3">
+                        <div class="card stat-card glass-card fade-in-delay-2">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="text-muted mb-1">Present Today</p>
+                                        <h3 class="mb-0 text-white">{{ present_today }}</h3>
+                                        <small class="text-success">
+                                            {% widthratio present_today total_employees 100 %}% attendance
+                                        </small>
+                                    </div>
+                                    <div class="stat-icon bg-success">
+                                        <i class="fas fa-user-check"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Absent Today -->
+                    <div class="col-md-3">
+                        <div class="card stat-card glass-card fade-in-delay-3">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="text-muted mb-1">Absent Today</p>
+                                        <h3 class="mb-0 text-white">{{ absent_today }}</h3>
+                                        {% if absent_today > 0 %}
+                                        <small class="text-danger">
+                                            {% widthratio absent_today total_employees 100 %}% absent
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="stat-icon bg-danger">
+                                        <i class="fas fa-user-times"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Late Arrivals -->
+                    <div class="col-md-3">
+                        <div class="card stat-card glass-card fade-in-delay-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="text-muted mb-1">Late Arrivals</p>
+                                        <h3 class="mb-0 text-white">{{ late_arrivals }}</h3>
+                                        {% if late_arrivals > 0 %}
+                                        <small class="text-warning">After 9:30 AM</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="stat-icon bg-warning">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Mode Statistics Row 2 -->
+                <div class="row g-4 mb-4">
+                    <!-- On Leave -->
+                    <div class="col-md-3">
+                        <div class="card stat-card glass-card fade-in-delay-5">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="text-muted mb-1">On Leave</p>
+                                        <h3 class="mb-0 text-white">{{ on_leave_count|default:0 }}</h3>
+                                    </div>
+                                    <div class="stat-icon bg-info">
+                                        <i class="fas fa-plane-departure"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Work From Home -->
+                    <div class="col-md-3">
+                        <div class="card stat-card glass-card fade-in-delay-6">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="text-muted mb-1">Work From Home</p>
+                                        <h3 class="mb-0 text-white">{{ wfh_count|default:0 }}</h3>
+                                    </div>
+                                    <div class="stat-icon" style="background: rgba(139, 92, 246, 0.2);">
+                                        <i class="fas fa-home" style="color: #8B5CF6;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Onsite / Client Visit -->
+                    <div class="col-md-3">
+                        <div class="card stat-card glass-card fade-in-delay-7">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="text-muted mb-1">Onsite/Client</p>
+                                        <h3 class="mb-0 text-white">{{ onsite_count|default:0 }}</h3>
+                                    </div>
+                                    <div class="stat-icon" style="background: rgba(236, 72, 153, 0.2);">
+                                        <i class="fas fa-building" style="color: #EC4899;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Half Day -->
+                    <div class="col-md-3">
+                        <div class="card stat-card glass-card fade-in-delay-8">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <p class="text-muted mb-1">Half Day</p>
+                                        <h3 class="mb-0 text-white">{{ half_day_count|default:0 }}</h3>
+                                    </div>
+                                    <div class="stat-icon" style="background: rgba(251, 191, 36, 0.2);">
+                                        <i class="fas fa-hourglass-half" style="color: #FBBF24;"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <h4 class="text-white mb-3 mt-5">
+                <i class="fas fa-chart-bar me-2"></i>Analytics & Charts
+            </h4>
             <div class="row">
                 <div class="col-lg-6 mb-4">
                     <div class="card glass-card">
@@ -2132,8 +2297,8 @@ async function removeOfficeIP(ipAddress, rowNumber) {
                             <option value="">-- Select Employee --</option>
                             {% for emp in all_employees %}
                                 {% if emp.employee_id %}
-                                <option value="{{ emp.user.id }}|{{ emp.employee_id }}|{{ emp.user.get_full_name }}">
-                                    {{ emp.employee_id }} - {{ emp.user.get_full_name|default:emp.user.username }}
+                                <option value="{{ emp.user.id }}|{{ emp.employee_id }}|{{ emp.user.get_full_name|title }}">
+                                    {{ emp.employee_id }} - {{ emp.user.get_full_name|title|default:emp.user.username|title }}
                                 </option>
                                 {% endif %}
                             {% endfor %}

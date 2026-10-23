@@ -106,7 +106,7 @@
                             {% endif %}
                             <div class="request-card-employee-info">
                                 <div class="request-card-employee-name">
-                                    {{ onsite.employee.get_full_name|default:onsite.employee.username }}
+                                    {{ onsite.employee.get_full_name|title|default:onsite.employee.username|title }}
                                 </div>
                                 <div class="request-card-employee-id">
                                     {{ onsite.employee.employeeprofile.employee_id|default:onsite.employee.username }}
@@ -190,7 +190,7 @@
                                 </div>
                                 <div class="request-card-approval-name">
                                     <i class="fas fa-comment text-primary"></i>
-                                    {{ onsite.manager_approver.get_full_name|default:onsite.manager_approver.username }}
+                                    {{ onsite.manager_approver.get_full_name|title|default:onsite.manager_approver.username|title }}
                                 </div>
                                 <div class="request-card-approval-comment">
                                     {{ onsite.manager_comment }}
@@ -250,7 +250,7 @@
                                 </div>
                                 <div class="modal-body">
                                     <div class="mb-3">
-                                        <strong>Employee:</strong> {{ onsite.employee.get_full_name|default:onsite.employee.username }}
+                                        <strong>Employee:</strong> {{ onsite.employee.get_full_name|title|default:onsite.employee.username|title }}
                                     </div>
                                     <div class="mb-3">
                                         <strong>Visit Type:</strong> {{ onsite.get_visit_type_display }}
@@ -277,7 +277,7 @@
                                         {% if onsite.manager_comment %}
                                             <div class="alert alert-success">
                                                 <small>{{ onsite.manager_comment }}</small>
-                                                <br><small class="text-muted">- {{ onsite.manager_approver.get_full_name|default:onsite.manager_approver.username }} ({{ onsite.manager_approved_at|date:"M d, Y H:i" }})</small>
+                                                <br><small class="text-muted">- {{ onsite.manager_approver.get_full_name|title|default:onsite.manager_approver.username|title }} ({{ onsite.manager_approved_at|date:"M d, Y H:i" }})</small>
                                             </div>
                                         {% else %}
                                             <div class="alert alert-warning">
@@ -371,7 +371,7 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <div class="modal-body">
-                                    <p><strong>Employee:</strong> {{ onsite.employee.get_full_name|default:onsite.employee.username }}</p>
+                                    <p><strong>Employee:</strong> {{ onsite.employee.get_full_name|title|default:onsite.employee.username|title }}</p>
                                     <p><strong>Visit Date:</strong> {{ onsite.visit_date|date:"M d, Y" }}</p>
                                     <p><strong>Client:</strong> {{ onsite.client_name }}</p>
                                     <div class="alert alert-warning">

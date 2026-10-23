@@ -313,6 +313,9 @@ body::before {
     padding: 24px;
     color: var(--text-secondary);
     background: transparent !important;
+    max-height: none !important; /* Fix for blank page when many requests */
+    overflow-y: visible !important; /* Allow content to flow naturally */
+    height: auto !important; /* No fixed height */
 }
 
 .card::after {
@@ -1155,6 +1158,14 @@ body.modal-open::before {
     animation: fadeIn 0.6s ease-out 0.6s both;
 }
 
+.fade-in-delay-7 {
+    animation: fadeIn 0.6s ease-out 0.7s both;
+}
+
+.fade-in-delay-8 {
+    animation: fadeIn 0.6s ease-out 0.8s both;
+}
+
 /* ===================================
    UTILITY CLASSES
    =================================== */
@@ -1767,7 +1778,9 @@ div[style*="background-color:#fff"] {
     margin-bottom: 20px;
     transition: all 0.3s ease;
     position: relative;
-    overflow: hidden;
+    overflow: visible; /* Changed from hidden to visible to prevent content cutoff */
+    height: auto !important; /* Ensure no fixed height */
+    max-height: none !important; /* Remove any max-height restrictions */
 }
 
 .request-card:hover {

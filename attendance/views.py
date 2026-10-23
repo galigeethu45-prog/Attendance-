@@ -1265,9 +1265,15 @@ def leave_request(request):
             messages.error(request, error)
             return redirect('leave_request')
         
-        is_valid, error = FieldValidator.validate_length(reason, min_length=10, max_length=500, field_name="Reason")
+        is_valid, error = FieldValidator.validate_length(reason, min_length=10, max_length=None, field_name="Reason")
         if not is_valid:
             messages.error(request, error)
+            return redirect('leave_request')
+        
+        # Intelligent validation: Check if leave type matches the reason
+        is_valid, error = FieldValidator.validate_leave_type_reason_match(leave_type, reason)
+        if not is_valid:
+            messages.warning(request, error)
             return redirect('leave_request')
         
         # Parse and validate selected dates if provided
@@ -2226,6 +2232,10 @@ def hr_dashboard(request):
         'late_arrivals': late_arrivals,
         'leave_today': leave_today,  # NEW
         'wfh_today': wfh_today,  # NEW
+        'on_leave_count': leave_today,  # For Reports tab
+        'wfh_count': wfh_today,  # For Reports tab
+        'onsite_count': today_attendance.filter(status='onsite').count(),  # For Reports tab
+        'half_day_count': today_attendance.filter(status='half_day').count(),  # For Reports tab
         'pending_leaves': pending_leaves,
         'today_attendance': page_obj.object_list,  # Use paginated list
         'page_obj': page_obj,  # Add page object
@@ -3894,7 +3904,7 @@ def wfh_request(request):
             messages.error(request, error)
             return redirect('wfh_request')
         
-        is_valid, error = FieldValidator.validate_length(reason, min_length=10, max_length=500, field_name="Reason")
+        is_valid, error = FieldValidator.validate_length(reason, min_length=10, max_length=None, field_name="Reason")
         if not is_valid:
             messages.error(request, error)
             return redirect('wfh_request')
@@ -4580,7 +4590,7 @@ def onsite_request(request):
             messages.error(request, error)
             return redirect('onsite_request')
         
-        is_valid, error = FieldValidator.validate_length(purpose, min_length=10, max_length=500, field_name="Purpose")
+        is_valid, error = FieldValidator.validate_length(purpose, min_length=10, max_length=None, field_name="Purpose")
         if not is_valid:
             messages.error(request, error)
             return redirect('onsite_request')
@@ -5168,3 +5178,4 @@ def onsite_check_out(request):
         'success': True, 
         'message': f'Checked out successfully. Total onsite hours: {total_hours}'
     })
+

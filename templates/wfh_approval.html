@@ -110,7 +110,7 @@
                             {% endif %}
                             <div class="request-card-employee-info">
                                 <div class="request-card-employee-name">
-                                    {{ wfh.employee.get_full_name|default:wfh.employee.username }}
+                                    {{ wfh.employee.get_full_name|title|default:wfh.employee.username|title }}
                                 </div>
                                 <div class="request-card-employee-id">
                                     {{ wfh.employee.employeeprofile.employee_id|default:wfh.employee.username }}
@@ -183,7 +183,7 @@
                                 </div>
                                 <div class="request-card-approval-name">
                                     <i class="fas fa-comment text-info"></i>
-                                    {{ wfh.tl_approver.get_full_name|default:wfh.tl_approver.username }}
+                                    {{ wfh.tl_approver.get_full_name|title|default:wfh.tl_approver.username|title }}
                                 </div>
                                 <div class="request-card-approval-comment">
                                     {{ wfh.tl_comment }}
@@ -199,7 +199,7 @@
                                 </div>
                                 <div class="request-card-approval-name">
                                     <i class="fas fa-comment text-primary"></i>
-                                    {{ wfh.manager_approver.get_full_name|default:wfh.manager_approver.username }}
+                                    {{ wfh.manager_approver.get_full_name|title|default:wfh.manager_approver.username|title }}
                                 </div>
                                 <div class="request-card-approval-comment">
                                     {{ wfh.manager_comment }}
@@ -265,7 +265,7 @@
                                 </div>
                                 <div class="modal-body">
                                     <div class="mb-3">
-                                        <strong>Employee:</strong> {{ wfh.employee.get_full_name|default:wfh.employee.username }}
+                                        <strong>Employee:</strong> {{ wfh.employee.get_full_name|title|default:wfh.employee.username|title }}
                                     </div>
                                     <div class="mb-3">
                                         <strong>Duration:</strong>
@@ -312,7 +312,7 @@
                                         {% if wfh.tl_comment %}
                                             <div class="alert alert-info">
                                                 <small>{{ wfh.tl_comment }}</small>
-                                                <br><small class="text-muted">- {{ wfh.tl_approver.get_full_name|default:wfh.tl_approver.username }} ({{ wfh.tl_approved_at|date:"M d, Y H:i" }})</small>
+                                                <br><small class="text-muted">- {{ wfh.tl_approver.get_full_name|title|default:wfh.tl_approver.username|title }} ({{ wfh.tl_approved_at|date:"M d, Y H:i" }})</small>
                                             </div>
                                         {% else %}
                                             <div class="alert alert-warning">
@@ -328,7 +328,7 @@
                                         {% if wfh.manager_comment %}
                                             <div class="alert alert-success">
                                                 <small>{{ wfh.manager_comment }}</small>
-                                                <br><small class="text-muted">- {{ wfh.manager_approver.get_full_name|default:wfh.manager_approver.username }} ({{ wfh.manager_approved_at|date:"M d, Y H:i" }})</small>
+                                                <br><small class="text-muted">- {{ wfh.manager_approver.get_full_name|title|default:wfh.manager_approver.username|title }} ({{ wfh.manager_approved_at|date:"M d, Y H:i" }})</small>
                                             </div>
                                         {% else %}
                                             <div class="alert alert-warning">
@@ -401,7 +401,7 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <div class="modal-body">
-                                    <p><strong>Employee:</strong> {{ wfh.employee.get_full_name|default:wfh.employee.username }}</p>
+                                    <p><strong>Employee:</strong> {{ wfh.employee.get_full_name|title|default:wfh.employee.username|title }}</p>
                                     <p><strong>Dates:</strong> 
                                         {% if wfh.selected_dates %}
                                             {% if wfh.start_date and wfh.end_date %}

@@ -113,7 +113,7 @@
                         {% for emp in master_data_list %}
                         <tr>
                             <td><strong>{{ emp.employee_id }}</strong></td>
-                            <td>{{ emp.get_full_name }}</td>
+                            <td>{{ emp.get_full_name|title }}</td>
                             <td>{{ emp.email }}</td>
                             <td>{{ emp.department }}</td>
                             <td>{{ emp.designation }}</td>
@@ -265,6 +265,72 @@
     padding: 0.25rem 0.5rem;
     font-size: 0.875rem;
     min-width: 36px;
+}
+
+/* Fix column overlap in master data table */
+.table thead th,
+.table tbody td {
+    white-space: normal;
+    vertical-align: middle;
+}
+
+/* Set specific column widths to prevent overlap */
+.table tbody td:nth-child(1) { /* Employee ID */
+    width: 10%;
+    min-width: 100px;
+}
+
+.table tbody td:nth-child(2) { /* Name */
+    width: 15%;
+    min-width: 120px;
+}
+
+.table tbody td:nth-child(3) { /* Email */
+    width: 20%;
+    min-width: 180px;
+    max-width: 250px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.table tbody td:nth-child(4) { /* Department */
+    width: 15%;
+    min-width: 120px;
+    max-width: 180px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+.table tbody td:nth-child(5) { /* Designation */
+    width: 15%;
+    min-width: 120px;
+}
+
+.table tbody td:nth-child(6) { /* Status */
+    width: 12%;
+    min-width: 100px;
+    text-align: center;
+}
+
+.table tbody td:nth-child(7) { /* Actions */
+    width: 13%;
+    min-width: 130px;
+    text-align: center;
+}
+
+/* Apply same widths to header */
+.table thead th:nth-child(1) { width: 10%; min-width: 100px; }
+.table thead th:nth-child(2) { width: 15%; min-width: 120px; }
+.table thead th:nth-child(3) { width: 20%; min-width: 180px; max-width: 250px; }
+.table thead th:nth-child(4) { width: 15%; min-width: 120px; max-width: 180px; }
+.table thead th:nth-child(5) { width: 15%; min-width: 120px; }
+.table thead th:nth-child(6) { width: 12%; min-width: 100px; text-align: center; }
+.table thead th:nth-child(7) { width: 13%; min-width: 130px; text-align: center; }
+
+/* Ensure table layout is fixed for consistent columns */
+.table {
+    table-layout: fixed;
+    width: 100%;
 }
 
 /* Modal improvements */

@@ -99,7 +99,7 @@
                                         {{ ot.employee.first_name.0|default:ot.employee.username.0 }}
                                     </div>
                                     <div>
-                                        <div class="text-white">{{ ot.employee.get_full_name|default:ot.employee.username }}</div>
+                                        <div class="text-white">{{ ot.employee.get_full_name|title|default:ot.employee.username|title }}</div>
                                         <small class="text-muted">{{ ot.employee.employeeprofile.employee_id }}</small>
                                     </div>
                                 </div>
@@ -151,7 +151,7 @@
                                         <div class="modal-body">
                                             <input type="hidden" name="ot_id" value="{{ ot.id }}">
                                             <input type="hidden" name="action" value="approve">
-                                            <p><strong>Employee:</strong> {{ ot.employee.get_full_name|default:ot.employee.username }}</p>
+                                            <p><strong>Employee:</strong> {{ ot.employee.get_full_name|title|default:ot.employee.username|title }}</p>
                                             <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
                                             <p><strong>Reason:</strong> {{ ot.reason }}</p>
                                             <p><strong>Requested At:</strong> {{ ot.requested_at|date:"M d, Y h:i A" }}</p>
@@ -208,7 +208,7 @@
                                         <div class="modal-body">
                                             <input type="hidden" name="ot_id" value="{{ ot.id }}">
                                             <input type="hidden" name="action" value="reject">
-                                            <p><strong>Employee:</strong> {{ ot.employee.get_full_name|default:ot.employee.username }}</p>
+                                            <p><strong>Employee:</strong> {{ ot.employee.get_full_name|title|default:ot.employee.username|title }}</p>
                                             <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
                                             <p><strong>Reason:</strong> {{ ot.reason }}</p>
                                             <p><strong>Requested At:</strong> {{ ot.requested_at|date:"M d, Y h:i A" }}</p>
@@ -261,7 +261,7 @@
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body">
-                                        <p><strong>Employee:</strong> {{ ot.employee.get_full_name|default:ot.employee.username }}</p>
+                                        <p><strong>Employee:</strong> {{ ot.employee.get_full_name|title|default:ot.employee.username|title }}</p>
                                         <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
                                         <p><strong>Reason:</strong> {{ ot.reason }}</p>
                                         <p><strong>Requested At:</strong> {{ ot.requested_at|date:"M d, Y h:i A" }}</p>
@@ -276,7 +276,7 @@
                                         <p><strong>HR Comment:</strong> {{ ot.hr_comment }}</p>
                                         {% endif %}
                                         {% if ot.hr_approver %}
-                                        <p><strong>Approved/Rejected By:</strong> {{ ot.hr_approver.get_full_name|default:ot.hr_approver.username }}</p>
+                                        <p><strong>Approved/Rejected By:</strong> {{ ot.hr_approver.get_full_name|title|default:ot.hr_approver.username|title }}</p>
                                         {% endif %}
 
                                         <!-- Attachments -->
@@ -339,7 +339,7 @@
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                     </div>
                                     <div class="modal-body">
-                                        <p><strong>Employee:</strong> {{ ot.employee.get_full_name|default:ot.employee.username }}</p>
+                                        <p><strong>Employee:</strong> {{ ot.employee.get_full_name|title|default:ot.employee.username|title }}</p>
                                         <p><strong>Date:</strong> {{ ot.date|date:"M d, Y" }}</p>
                                         <p><strong>Reason:</strong> {{ ot.reason }}</p>
                                         <div class="alert alert-warning">
@@ -399,7 +399,7 @@
                                         {{ ot.employee.first_name.0|default:ot.employee.username.0 }}
                                     </div>
                                     <div>
-                                        <div class="text-white">{{ ot.employee.get_full_name|default:ot.employee.username }}</div>
+                                        <div class="text-white">{{ ot.employee.get_full_name|title|default:ot.employee.username|title }}</div>
                                         <small class="text-muted">{{ ot.employee.employeeprofile.employee_id }}</small>
                                     </div>
                                 </div>
@@ -430,7 +430,7 @@
                             </td>
                             <td>
                                 {% if ot.hr_approver %}
-                                {{ ot.hr_approver.get_full_name|default:ot.hr_approver.username }}
+                                {{ ot.hr_approver.get_full_name|title|default:ot.hr_approver.username|title }}
                                 {% else %}
                                 -
                                 {% endif %}

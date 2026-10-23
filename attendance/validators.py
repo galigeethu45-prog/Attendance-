@@ -117,6 +117,81 @@ class FieldValidator:
         if value not in choices:
             return False, f"Invalid {field_name}"
         return True, None
+    
+    @staticmethod
+    def validate_leave_type_reason_match(leave_type, reason):
+        """
+        Intelligent validation: Check if leave type matches the reason provided.
+        Prevents employees from selecting wrong leave type (e.g., casual leave with sick reason).
+        
+        Args:
+            leave_type (str): The selected leave type (sick, casual, earned, halfday, menstrual, unpaid)
+            reason (str): The reason provided by the employee
+        
+        Returns:
+            tuple: (is_valid: bool, error_message: str or None)
+        """
+        if not reason:
+            return True, None
+        
+        reason_lower = reason.lower().strip()
+        
+        # Define keywords for each leave type
+        sick_keywords = [
+            'fever', 'cold', 'flu', 'cough', 'sick', 'illness', 'ill', 'pain', 
+            'headache', 'stomach', 'vomit', 'diarrhea', 'nausea', 'dizzy',
+            'hospital', 'doctor', 'medical', 'medicine', 'health', 'disease',
+            'infection', 'surgery', 'treatment', 'appointment', 'clinic',
+            'unwell', 'weak', 'body ache', 'throat', 'temperature', 'covid',
+            'corona', 'virus', 'bacteria', 'prescription', 'checkup'
+        ]
+        
+        casual_keywords = [
+            'personal', 'family', 'home', 'urgent', 'emergency', 'function',
+            'wedding', 'marriage', 'ceremony', 'event', 'celebration',
+            'relative', 'guest', 'visit', 'travel', 'trip', 'vacation',
+            'rest', 'break', 'relax', 'party', 'shopping', 'bank', 'work',
+            'house', 'moving', 'shifting', 'festival', 'diwali', 'holi',
+            'christmas', 'birthday', 'anniversary', 'engagement'
+        ]
+        
+        earned_keywords = [
+            'vacation', 'holiday', 'tour', 'trip', 'travel', 'visit',
+            'hometown', 'native', 'village', 'planned', 'long weekend'
+        ]
+        
+        # Count keyword matches
+        sick_matches = sum(1 for keyword in sick_keywords if keyword in reason_lower)
+        casual_matches = sum(1 for keyword in casual_keywords if keyword in reason_lower)
+        earned_matches = sum(1 for keyword in earned_keywords if keyword in reason_lower)
+        
+        # Check for mismatches
+        if leave_type == 'sick':
+            # If sick leave is selected, reason should have sick-related keywords
+            if sick_matches == 0 and (casual_matches > 0 or earned_matches > 0):
+                return False, (
+                    "⚠️ Leave Type Mismatch: You selected 'Sick Leave' but your reason seems related to "
+                    "personal/casual matters. Please select the correct leave type or update your reason."
+                )
+        
+        elif leave_type == 'casual':
+            # If casual leave is selected, reason should NOT be primarily about sickness
+            if sick_matches >= 2 and sick_matches > casual_matches:
+                return False, (
+                    "⚠️ Leave Type Mismatch: You selected 'Casual Leave' but your reason mentions health/medical issues. "
+                    "Please select 'Sick Leave' instead or update your reason."
+                )
+        
+        elif leave_type == 'earned':
+            # Earned leaves are flexible, but warn if it's clearly sick
+            if sick_matches >= 3:
+                return False, (
+                    "⚠️ Leave Type Mismatch: You selected 'Earned Leave' but your reason mentions health/medical issues. "
+                    "Please consider selecting 'Sick Leave' instead."
+                )
+        
+        # Halfday, menstrual, unpaid are exempt from this validation
+        return True, None
 
 
 class OverlapValidator:
