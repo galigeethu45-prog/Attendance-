@@ -87,6 +87,16 @@
                 </div>
                 <div class="card-body">
                     <div class="modern-table-container">
+                        <!-- Table Header -->
+                        <div class="modern-table-row modern-table-header" style="grid-template-columns: 1fr 1.5fr 1.5fr 2fr 1.2fr 1fr;">
+                            <div class="modern-table-cell"><strong>VISIT DATE</strong></div>
+                            <div class="modern-table-cell"><strong>CLIENT</strong></div>
+                            <div class="modern-table-cell"><strong>LOCATION</strong></div>
+                            <div class="modern-table-cell"><strong>PURPOSE</strong></div>
+                            <div class="modern-table-cell"><strong>STATUS</strong></div>
+                            <div class="modern-table-cell"><strong>ACTIONS</strong></div>
+                        </div>
+                        
                         {% for onsite in onsite_requests %}
                         <div class="modern-table-row" style="grid-template-columns: 1fr 1.5fr 1.5fr 2fr 1.2fr 1fr;">
                             <!-- Visit Type -->

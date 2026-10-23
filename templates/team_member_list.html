@@ -168,6 +168,18 @@
         <div class="card-body p-0">
             <!-- Modern Borderless Table -->
             <div class="members-container">
+                <!-- Table Header -->
+                <div class="member-row member-header">
+                    <div class="member-cell"><strong>EMPLOYEE</strong></div>
+                    <div class="member-cell"><strong>EMP ID</strong></div>
+                    <div class="member-cell"><strong>DEPARTMENT</strong></div>
+                    <div class="member-cell"><strong>ROLE</strong></div>
+                    <div class="member-cell"><strong>CHECK IN</strong></div>
+                    <div class="member-cell"><strong>CHECK OUT</strong></div>
+                    <div class="member-cell"><strong>WORK HOURS</strong></div>
+                    <div class="member-cell"><strong>STATUS</strong></div>
+                </div>
+                
                 {% for member in members_data %}
                 <div class="member-row" data-member="{{ member.employee.get_full_name|lower }} {{ member.employee.email|lower }}">
                     <!-- Employee Info -->
@@ -337,6 +349,21 @@ document.getElementById('searchMember').addEventListener('keyup', function() {
 }
 
 /* Member Row - Grid Layout (No Borders, Clean Design) */
+/* Member Row Styles */
+.member-header {
+    background: rgba(102, 126, 234, 0.1);
+    border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+    font-weight: 700;
+    color: white;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.member-header .member-cell {
+    padding: 16px 24px;
+}
+
 .member-row {
     display: grid;
     grid-template-columns: 2.5fr 1.2fr 1.3fr 1.5fr 1.3fr 1.2fr 1.2fr 1.2fr;

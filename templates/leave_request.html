@@ -231,6 +231,16 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="modern-table-container">
+                        <!-- Table Header -->
+                        <div class="modern-table-row modern-table-header" style="grid-template-columns: 1.5fr 1.5fr 1.5fr 0.8fr 1.3fr 1.2fr;">
+                            <div class="modern-table-cell"><strong>LEAVE TYPE</strong></div>
+                            <div class="modern-table-cell"><strong>START DATE</strong></div>
+                            <div class="modern-table-cell"><strong>END DATE</strong></div>
+                            <div class="modern-table-cell"><strong>DAYS</strong></div>
+                            <div class="modern-table-cell"><strong>REASON</strong></div>
+                            <div class="modern-table-cell"><strong>STATUS</strong></div>
+                        </div>
+                        
                         {% for leave in leave_requests %}
                         <div class="modern-table-row" style="grid-template-columns: 1.5fr 1.5fr 1.5fr 0.8fr 1.3fr 1.2fr;">
                             <!-- Leave Type -->

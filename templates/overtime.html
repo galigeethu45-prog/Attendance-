@@ -111,6 +111,14 @@
         </div>
         <div class="card-body p-0">
             <div class="modern-table-container">
+                <!-- Table Header -->
+                <div class="modern-table-row modern-table-header" style="grid-template-columns: 1.5fr 2.5fr 1.5fr 1.2fr;">
+                    <div class="modern-table-cell"><strong>DATE</strong></div>
+                    <div class="modern-table-cell"><strong>REASON</strong></div>
+                    <div class="modern-table-cell"><strong>STATUS</strong></div>
+                    <div class="modern-table-cell"><strong>ACTION</strong></div>
+                </div>
+                
                 {% for ot in approved_pending_start %}
                 <div class="modern-table-row" style="grid-template-columns: 1.5fr 2.5fr 1.5fr 1.2fr;">
                     <!-- Date -->
@@ -171,6 +179,17 @@
         </div>
         <div class="card-body p-0">
             <div class="modern-table-container">
+                <!-- Table Header -->
+                <div class="modern-table-row modern-table-header" style="grid-template-columns: 1.2fr 2fr 1fr 1fr 1fr 1.2fr 1fr;">
+                    <div class="modern-table-cell"><strong>DATE</strong></div>
+                    <div class="modern-table-cell"><strong>REASON</strong></div>
+                    <div class="modern-table-cell"><strong>START TIME</strong></div>
+                    <div class="modern-table-cell"><strong>END TIME</strong></div>
+                    <div class="modern-table-cell"><strong>HOURS</strong></div>
+                    <div class="modern-table-cell"><strong>STATUS</strong></div>
+                    <div class="modern-table-cell"><strong>ACTION</strong></div>
+                </div>
+                
                 {% for ot in ot_records %}
                 <div class="modern-table-row" style="grid-template-columns: 1.2fr 2fr 1fr 1fr 1fr 1.2fr 1fr;">
                     <!-- Date -->

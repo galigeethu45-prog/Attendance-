@@ -75,6 +75,17 @@
         </div>
         <div class="card-body p-0">
             <div class="modern-table-container" id="attendanceTable">
+                <!-- Table Header -->
+                <div class="modern-table-row modern-table-header" style="grid-template-columns: 1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1.2fr;">
+                    <div class="modern-table-cell"><strong>DATE</strong></div>
+                    <div class="modern-table-cell"><strong>DAY</strong></div>
+                    <div class="modern-table-cell"><strong>CHECK IN</strong></div>
+                    <div class="modern-table-cell"><strong>CHECK OUT</strong></div>
+                    <div class="modern-table-cell"><strong>WORK HOURS</strong></div>
+                    <div class="modern-table-cell"><strong>BREAKS</strong></div>
+                    <div class="modern-table-cell"><strong>STATUS</strong></div>
+                </div>
+                
                 {% for record in attendance_records %}
                 <div class="modern-table-row" style="grid-template-columns: 1.5fr 1fr 1.2fr 1.2fr 1fr 1fr 1.2fr;">
                     <!-- Date -->

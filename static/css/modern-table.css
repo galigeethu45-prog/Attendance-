@@ -10,6 +10,32 @@
     overflow: visible;
 }
 
+/* Table Header Row */
+.modern-table-row.modern-table-header {
+    background: rgba(102, 126, 234, 0.1);
+    border-bottom: 2px solid rgba(102, 126, 234, 0.3);
+    font-weight: 700;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.modern-table-row.modern-table-header:hover {
+    background: rgba(102, 126, 234, 0.1);
+    transform: none;
+}
+
+.modern-table-row.modern-table-header:hover::before {
+    display: none;
+}
+
+.modern-table-row.modern-table-header .modern-table-cell {
+    font-size: 0.8125rem;
+    letter-spacing: 0.5px;
+    color: white;
+    font-weight: 700;
+}
+
 /* Modern Table Row - Grid Layout */
 .modern-table-row {
     display: grid;
