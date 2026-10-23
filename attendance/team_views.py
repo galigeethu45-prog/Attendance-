@@ -489,10 +489,11 @@ def team_pending_requests(request, team_id):
     
     # Permission check: only team leader or HR can view
     is_hr = request.user.is_superuser
+    employee_profile = None
     if not is_hr:
         try:
-            profile = request.user.employeeprofile
-            is_hr = profile.is_hr or profile.role in ['hr', 'manager']
+            employee_profile = request.user.employeeprofile
+            is_hr = employee_profile.is_hr or employee_profile.role in ['hr', 'manager']
         except EmployeeProfile.DoesNotExist:
             pass
     
@@ -619,6 +620,7 @@ def team_pending_requests(request, team_id):
         'ot_requests': ot_requests,
         'onsite_requests': onsite_requests,
         'is_hr': is_hr,
+        'employee_profile': employee_profile,
         'status_filter': status_filter,
         'pending_count': pending_count,
         'approved_count': approved_count,
