@@ -139,38 +139,55 @@
     <!-- Leave Requests -->
     {% if leave_requests %}
     <div class="card glass-card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Leave Requests</h5>
+        <div class="card-header" style="background: rgba(13,110,253,0.1); border-bottom: 1px solid rgba(13,110,253,0.3);">
+            <h5 class="mb-0">
+                <i class="fas fa-calendar-alt me-2"></i>Leave Requests 
+                <span class="badge bg-primary ms-2">{{ leave_requests.count }}</span>
+            </h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-3">
             {% for leave in leave_requests %}
-            <div class="request-card mb-3 p-3 border rounded">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <h6 class="mb-1">
-                            <i class="fas fa-user me-2"></i>{{ leave.employee.get_full_name|default:leave.employee.username }}
-                        </h6>
-                        <span class="badge bg-primary">{{ leave.get_leave_type_display }}</span>
-                        <span class="badge bg-info ms-2">{{ leave.total_days }} day{{ leave.total_days|pluralize }}</span>
+            <div class="modern-request-card">
+                <div class="request-header">
+                    <div class="request-user-info">
+                        <i class="fas fa-user-circle me-2" style="font-size: 24px;"></i>
+                        <div>
+                            <div class="request-user-name">{{ leave.employee.get_full_name|default:leave.employee.username }}</div>
+                            <div class="request-user-subtitle">{{ leave.employee.email }}</div>
+                        </div>
+                    </div>
+                    <div class="request-badges">
+                        <span class="modern-badge modern-badge-primary">{{ leave.get_leave_type_display }}</span>
+                        <span class="modern-badge modern-badge-secondary">{{ leave.total_days }} day{{ leave.total_days|pluralize }}</span>
                         {% if leave.status == 'approved' %}
-                        <span class="badge bg-success ms-2"><i class="fas fa-check-circle me-1"></i>Approved</span>
+                        <span class="modern-badge modern-badge-success"><i class="fas fa-check-circle me-1"></i>Approved</span>
                         {% elif leave.status == 'rejected' %}
-                        <span class="badge bg-danger ms-2"><i class="fas fa-times-circle me-1"></i>Rejected</span>
+                        <span class="modern-badge modern-badge-danger"><i class="fas fa-times-circle me-1"></i>Rejected</span>
                         {% elif leave.status == 'pending' %}
-                        <span class="badge bg-warning ms-2"><i class="fas fa-clock me-1"></i>Pending</span>
+                        <span class="modern-badge modern-badge-warning"><i class="fas fa-clock me-1"></i>Pending</span>
                         {% endif %}
                     </div>
-                    <small class="text-muted">{{ leave.created_at|date:"M d, Y" }}</small>
+                    <small class="request-date">{{ leave.created_at|date:"M d, Y" }}</small>
                 </div>
-                <p class="mb-2"><strong>Period:</strong> {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }}</p>
-                <p class="mb-2"><strong>Reason:</strong> {{ leave.reason }}</p>
+                
+                <div class="request-details">
+                    <div class="request-detail-row">
+                        <i class="fas fa-calendar me-2"></i>
+                        <strong>Period:</strong> {{ leave.start_date|date:"M d, Y" }} to {{ leave.end_date|date:"M d, Y" }}
+                    </div>
+                    <div class="request-detail-row">
+                        <i class="fas fa-comment-dots me-2"></i>
+                        <strong>Reason:</strong> {{ leave.reason }}
+                    </div>
+                </div>
                 
                 {% if leave.tl_comment %}
-                <div class="alert alert-info mb-2">
-                    <strong><i class="fas fa-comment me-2"></i>Your Comment:</strong> {{ leave.tl_comment }}
+                <div class="request-comment">
+                    <i class="fas fa-comment me-2"></i>
+                    <strong>Your Comment:</strong> {{ leave.tl_comment }}
                 </div>
                 {% elif leave.status == 'pending' %}
-                <form method="post" action="{% url 'add_tl_comment_leave' leave.id %}" class="mt-3">
+                <form method="post" action="{% url 'add_tl_comment_leave' leave.id %}" class="request-form">
                     {% csrf_token %}
                     <div class="input-group">
                         <textarea class="form-control" name="tl_comment" rows="2" placeholder="Add your comment..." required></textarea>
@@ -182,12 +199,12 @@
                 {% endif %}
                 
                 {% if leave.status == 'approved' and leave.manager_approver %}
-                <div class="alert alert-success mb-0 mt-2">
-                    <small><i class="fas fa-check-circle me-1"></i>Approved by {{ leave.manager_approver.get_full_name|default:leave.manager_approver.username }}</small>
+                <div class="request-status-info success">
+                    <i class="fas fa-check-circle me-2"></i>Approved by {{ leave.manager_approver.get_full_name|default:leave.manager_approver.username }}
                 </div>
                 {% elif leave.status == 'rejected' %}
-                <div class="alert alert-danger mb-0 mt-2">
-                    <small><i class="fas fa-times-circle me-1"></i>Request was rejected</small>
+                <div class="request-status-info danger">
+                    <i class="fas fa-times-circle me-2"></i>Request was rejected
                 </div>
                 {% endif %}
             </div>
@@ -199,30 +216,54 @@
     <!-- WFH Requests -->
     {% if wfh_requests %}
     <div class="card glass-card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-home me-2"></i>WFH Requests</h5>
+        <div class="card-header" style="background: rgba(13,202,240,0.1); border-bottom: 1px solid rgba(13,202,240,0.3);">
+            <h5 class="mb-0">
+                <i class="fas fa-home me-2"></i>WFH Requests 
+                <span class="badge bg-info ms-2">{{ wfh_requests.count }}</span>
+            </h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-3">
             {% for wfh in wfh_requests %}
-            <div class="request-card mb-3 p-3 border rounded">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <h6 class="mb-1">
-                            <i class="fas fa-user me-2"></i>{{ wfh.employee.get_full_name|default:wfh.employee.username }}
-                        </h6>
-                        <span class="badge bg-info">{{ wfh.total_days }} day{{ wfh.total_days|pluralize }}</span>
+            <div class="modern-request-card">
+                <div class="request-header">
+                    <div class="request-user-info">
+                        <i class="fas fa-user-circle me-2" style="font-size: 24px;"></i>
+                        <div>
+                            <div class="request-user-name">{{ wfh.employee.get_full_name|default:wfh.employee.username }}</div>
+                            <div class="request-user-subtitle">{{ wfh.employee.email }}</div>
+                        </div>
                     </div>
-                    <small class="text-muted">{{ wfh.created_at|date:"M d, Y" }}</small>
+                    <div class="request-badges">
+                        <span class="modern-badge modern-badge-info">{{ wfh.total_days }} day{{ wfh.total_days|pluralize }}</span>
+                        {% if wfh.status == 'approved' %}
+                        <span class="modern-badge modern-badge-success"><i class="fas fa-check-circle me-1"></i>Approved</span>
+                        {% elif wfh.status == 'rejected' %}
+                        <span class="modern-badge modern-badge-danger"><i class="fas fa-times-circle me-1"></i>Rejected</span>
+                        {% elif wfh.status == 'pending' %}
+                        <span class="modern-badge modern-badge-warning"><i class="fas fa-clock me-1"></i>Pending</span>
+                        {% endif %}
+                    </div>
+                    <small class="request-date">{{ wfh.created_at|date:"M d, Y" }}</small>
                 </div>
-                <p class="mb-2"><strong>Period:</strong> {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }}</p>
-                <p class="mb-2"><strong>Reason:</strong> {{ wfh.reason }}</p>
+                
+                <div class="request-details">
+                    <div class="request-detail-row">
+                        <i class="fas fa-calendar me-2"></i>
+                        <strong>Period:</strong> {{ wfh.start_date|date:"M d, Y" }} to {{ wfh.end_date|date:"M d, Y" }}
+                    </div>
+                    <div class="request-detail-row">
+                        <i class="fas fa-comment-dots me-2"></i>
+                        <strong>Reason:</strong> {{ wfh.reason }}
+                    </div>
+                </div>
                 
                 {% if wfh.tl_comment %}
-                <div class="alert alert-info mb-2">
-                    <strong><i class="fas fa-comment me-2"></i>Your Comment:</strong> {{ wfh.tl_comment }}
+                <div class="request-comment">
+                    <i class="fas fa-comment me-2"></i>
+                    <strong>Your Comment:</strong> {{ wfh.tl_comment }}
                 </div>
-                {% else %}
-                <form method="post" action="{% url 'add_tl_comment_wfh' wfh.id %}" class="mt-3">
+                {% elif wfh.status == 'pending' %}
+                <form method="post" action="{% url 'add_tl_comment_wfh' wfh.id %}" class="request-form">
                     {% csrf_token %}
                     <div class="input-group">
                         <textarea class="form-control" name="tl_comment" rows="2" placeholder="Add your comment..." required></textarea>
@@ -241,29 +282,50 @@
     <!-- OT Requests -->
     {% if ot_requests %}
     <div class="card glass-card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Overtime Requests</h5>
+        <div class="card-header" style="background: rgba(255,193,7,0.1); border-bottom: 1px solid rgba(255,193,7,0.3);">
+            <h5 class="mb-0">
+                <i class="fas fa-clock me-2"></i>Overtime Requests 
+                <span class="badge bg-warning ms-2">{{ ot_requests.count }}</span>
+            </h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-3">
             {% for ot in ot_requests %}
-            <div class="request-card mb-3 p-3 border rounded">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <h6 class="mb-1">
-                            <i class="fas fa-user me-2"></i>{{ ot.employee.get_full_name|default:ot.employee.username }}
-                        </h6>
-                        <span class="badge bg-warning">{{ ot.date|date:"M d, Y" }}</span>
+            <div class="modern-request-card">
+                <div class="request-header">
+                    <div class="request-user-info">
+                        <i class="fas fa-user-circle me-2" style="font-size: 24px;"></i>
+                        <div>
+                            <div class="request-user-name">{{ ot.employee.get_full_name|default:ot.employee.username }}</div>
+                            <div class="request-user-subtitle">{{ ot.employee.email }}</div>
+                        </div>
                     </div>
-                    <small class="text-muted">{{ ot.requested_at|date:"M d, Y" }}</small>
+                    <div class="request-badges">
+                        <span class="modern-badge modern-badge-warning">{{ ot.date|date:"M d, Y" }}</span>
+                        {% if ot.status == 'approved' %}
+                        <span class="modern-badge modern-badge-success"><i class="fas fa-check-circle me-1"></i>Approved</span>
+                        {% elif ot.status == 'rejected' %}
+                        <span class="modern-badge modern-badge-danger"><i class="fas fa-times-circle me-1"></i>Rejected</span>
+                        {% elif ot.status == 'pending' %}
+                        <span class="modern-badge modern-badge-warning"><i class="fas fa-clock me-1"></i>Pending</span>
+                        {% endif %}
+                    </div>
+                    <small class="request-date">{{ ot.requested_at|date:"M d, Y" }}</small>
                 </div>
-                <p class="mb-2"><strong>Reason:</strong> {{ ot.reason }}</p>
+                
+                <div class="request-details">
+                    <div class="request-detail-row">
+                        <i class="fas fa-comment-dots me-2"></i>
+                        <strong>Reason:</strong> {{ ot.reason }}
+                    </div>
+                </div>
                 
                 {% if ot.tl_comment %}
-                <div class="alert alert-info mb-2">
-                    <strong><i class="fas fa-comment me-2"></i>Your Comment:</strong> {{ ot.tl_comment }}
+                <div class="request-comment">
+                    <i class="fas fa-comment me-2"></i>
+                    <strong>Your Comment:</strong> {{ ot.tl_comment }}
                 </div>
-                {% else %}
-                <form method="post" action="{% url 'add_tl_comment_ot' ot.id %}" class="mt-3">
+                {% elif ot.status == 'pending' %}
+                <form method="post" action="{% url 'add_tl_comment_ot' ot.id %}" class="request-form">
                     {% csrf_token %}
                     <div class="input-group">
                         <textarea class="form-control" name="tl_comment" rows="2" placeholder="Add your comment..." required></textarea>
@@ -282,31 +344,58 @@
     <!-- Onsite Requests -->
     {% if onsite_requests %}
     <div class="card glass-card mb-4">
-        <div class="card-header">
-            <h5 class="mb-0"><i class="fas fa-building me-2"></i>Onsite Requests</h5>
+        <div class="card-header" style="background: rgba(25,135,84,0.1); border-bottom: 1px solid rgba(25,135,84,0.3);">
+            <h5 class="mb-0">
+                <i class="fas fa-building me-2"></i>Onsite Requests 
+                <span class="badge bg-success ms-2">{{ onsite_requests.count }}</span>
+            </h5>
         </div>
-        <div class="card-body">
+        <div class="card-body p-3">
             {% for onsite in onsite_requests %}
-            <div class="request-card mb-3 p-3 border rounded">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div>
-                        <h6 class="mb-1">
-                            <i class="fas fa-user me-2"></i>{{ onsite.employee.get_full_name|default:onsite.employee.username }}
-                        </h6>
-                        <span class="badge bg-success">{{ onsite.visit_date|date:"M d, Y" }}</span>
+            <div class="modern-request-card">
+                <div class="request-header">
+                    <div class="request-user-info">
+                        <i class="fas fa-user-circle me-2" style="font-size: 24px;"></i>
+                        <div>
+                            <div class="request-user-name">{{ onsite.employee.get_full_name|default:onsite.employee.username }}</div>
+                            <div class="request-user-subtitle">{{ onsite.employee.email }}</div>
+                        </div>
                     </div>
-                    <small class="text-muted">{{ onsite.created_at|date:"M d, Y" }}</small>
+                    <div class="request-badges">
+                        <span class="modern-badge modern-badge-success">{{ onsite.visit_date|date:"M d, Y" }}</span>
+                        {% if onsite.status == 'approved' %}
+                        <span class="modern-badge modern-badge-success"><i class="fas fa-check-circle me-1"></i>Approved</span>
+                        {% elif onsite.status == 'rejected' %}
+                        <span class="modern-badge modern-badge-danger"><i class="fas fa-times-circle me-1"></i>Rejected</span>
+                        {% elif onsite.status == 'pending' %}
+                        <span class="modern-badge modern-badge-warning"><i class="fas fa-clock me-1"></i>Pending</span>
+                        {% endif %}
+                    </div>
+                    <small class="request-date">{{ onsite.created_at|date:"M d, Y" }}</small>
                 </div>
-                <p class="mb-2"><strong>Client:</strong> {{ onsite.client_name }}</p>
-                <p class="mb-2"><strong>Location:</strong> {{ onsite.location }}</p>
-                <p class="mb-2"><strong>Purpose:</strong> {{ onsite.purpose }}</p>
+                
+                <div class="request-details">
+                    <div class="request-detail-row">
+                        <i class="fas fa-building me-2"></i>
+                        <strong>Client:</strong> {{ onsite.client_name }}
+                    </div>
+                    <div class="request-detail-row">
+                        <i class="fas fa-map-marker-alt me-2"></i>
+                        <strong>Location:</strong> {{ onsite.location }}
+                    </div>
+                    <div class="request-detail-row">
+                        <i class="fas fa-comment-dots me-2"></i>
+                        <strong>Purpose:</strong> {{ onsite.purpose }}
+                    </div>
+                </div>
                 
                 {% if onsite.tl_comment %}
-                <div class="alert alert-info mb-2">
-                    <strong><i class="fas fa-comment me-2"></i>Your Comment:</strong> {{ onsite.tl_comment }}
+                <div class="request-comment">
+                    <i class="fas fa-comment me-2"></i>
+                    <strong>Your Comment:</strong> {{ onsite.tl_comment }}
                 </div>
-                {% else %}
-                <form method="post" action="{% url 'add_tl_comment_onsite' onsite.id %}" class="mt-3">
+                {% elif onsite.status == 'pending' %}
+                <form method="post" action="{% url 'add_tl_comment_onsite' onsite.id %}" class="request-form">
                     {% csrf_token %}
                     <div class="input-group">
                         <textarea class="form-control" name="tl_comment" rows="2" placeholder="Add your comment..." required></textarea>
@@ -346,52 +435,192 @@
     </div>
     {% endif %}
 </div>
-
-<style>
-.request-card {
-    background: rgba(255, 255, 255, 0.05);
-    transition: background 0.3s ease;
-}
-
-.request-card:hover {
-    background: rgba(255, 255, 255, 0.1);
-}
-</style>
 {% endblock %}
 
-{% block extra_js %}
+{% block extra_css %}
 <style>
-/* CRITICAL FIX: Ensure all request cards display properly */
-.card.glass-card {
-    overflow: visible !important;
-}
-
-.card.glass-card .card-body {
+/* Modern Request Card Design */
+.modern-request-card {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: all 0.3s ease;
+    position: relative;
     overflow: visible !important;
     max-height: none !important;
     height: auto !important;
 }
 
-.request-card {
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
+.card-body {
     overflow: visible !important;
-    height: auto !important;
     max-height: none !important;
-}
-
-.request-card.mb-3 {
-    margin-bottom: 1rem !important;
-}
-
-/* Ensure forms and content inside cards are visible */
-.request-card form,
-.request-card .alert,
-.request-card p,
-.request-card div {
+    height: auto !important;
     display: block !important;
-    visibility: visible !important;
+}
+
+.modern-request-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(4px);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.modern-request-card:hover::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px 0 0 12px;
+}
+
+/* Request Header */
+.request-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.request-user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.request-user-name {
+    font-weight: 600;
+    font-size: 16px;
+    color: white;
+    line-height: 1.4;
+}
+
+.request-user-subtitle {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.4;
+}
+
+.request-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.request-date {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+/* Request Details */
+.request-details {
+    margin-bottom: 16px;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+}
+
+.request-detail-row {
+    padding: 10px 0;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 15px;
+    line-height: 1.6;
+    display: block;
+    word-wrap: break-word;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    min-height: auto !important;
+}
+
+.request-detail-row i {
+    color: rgba(255, 255, 255, 0.5);
+    width: 18px;
+    font-size: 16px;
+    display: inline-block;
+    margin-right: 4px;
+}
+
+.request-detail-row strong {
+    color: rgba(255, 255, 255, 0.7);
+    margin-right: 8px;
+    display: inline-block;
+}
+
+/* Request Comment */
+.request-comment {
+    background: rgba(13, 202, 240, 0.1);
+    border-left: 3px solid rgba(13, 202, 240, 0.5);
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 14px;
+}
+
+/* Request Form */
+.request-form {
+    margin-top: 12px;
+}
+
+.request-form .form-control {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 14px;
+}
+
+.request-form .form-control:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: white;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.05);
+}
+
+.request-form .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+/* Status Info */
+.request-status-info {
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    margin-top: 12px;
+}
+
+.request-status-info.success {
+    background: rgba(25, 135, 84, 0.1);
+    border-left: 3px solid rgba(25, 135, 84, 0.5);
+    color: #51cf66;
+}
+
+.request-status-info.danger {
+    background: rgba(220, 53, 69, 0.1);
+    border-left: 3px solid rgba(220, 53, 69, 0.5);
+    color: #ff6b6b;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .request-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .request-badges {
+        width: 100%;
+    }
 }
 </style>
 {% endblock %}
